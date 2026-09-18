@@ -24,6 +24,9 @@ func NewServer() *Server {
 		mux: http.NewServeMux(),
 		jobProvider: jobs.NewMultiProvider(
 			jobs.NewJobOpportunitiesProvider(),
+			jobs.NewLeverProvider(
+				jobs.DefaultATSEmployers(),
+			),
 		),
 		pipeline: jobs.NewPipeline(),
 	}
