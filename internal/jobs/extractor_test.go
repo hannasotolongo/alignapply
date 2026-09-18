@@ -1768,3 +1768,87 @@ func TestMixedEducationAndExperienceWithUnicodeRange(t *testing.T) {
 	assertRequirementContaining(t, r, "Bachelor", RequirementEducation, RequirementRequired)
 	assertRequirementContaining(t, r, "2–5 years", RequirementExperience, RequirementRequired)
 }
+func TestValidateRequirementsRejectsStructurallyContaminatedAtoms(t *testing.T) {
+	tests := []struct {
+		name string
+		text string
+	}{
+		{
+			name: "multiple flattened sentences",
+			text: "Experience supporting commercial construction projects. Excellent written and verbal communication skills. Ability to manage multiple priorities in a fast-paced environment.",
+		},
+		{
+			name: "embedded qualification section",
+			text: "Experience with project coordination and scheduling Preferred Qualifications: Experience with construction management software and field operations",
+		},
+		{
+			name: "large flattened requirement sequence",
+			text: "Experience with project management; Strong communication skills; Ability to manage multiple priorities; Proficiency with construction management software and scheduling tools",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			requirement := Requirement{
+				Text:       tt.text,
+				Category:   RequirementExperience,
+				Importance: RequirementRequired,
+			}
+
+			got := ValidateRequirements(
+				[]Requirement{requirement},
+				tt.text,
+			)
+
+			if len(got) != 0 {
+				t.Fatalf(
+					"expected contaminated requirement to be rejected, got %#v",
+					got,
+				)
+			}
+		})
+	}
+}
+
+func TestValidateRequirementsPreservesNormalAtomicRequirements(t *testing.T) {
+	tests := []Requirement{
+		{
+			Text:       "Excellent written and verbal communication skills",
+			Category:   RequirementSkill,
+			Importance: RequirementRequired,
+		},
+		{
+			Text:       "1-4 years of experience supporting commercial construction projects or completion of a relevant internship or co-op program",
+			Category:   RequirementExperience,
+			Importance: RequirementRequired,
+		},
+		{
+			Text:       "Experience with Procore, Bluebeam, Excel, or similar construction management software is preferred",
+			Category:   RequirementSkill,
+			Importance: RequirementPreferred,
+		},
+		{
+			Text:       "Ability to manage multiple priorities in a fast-paced construction environment",
+			Category:   RequirementSkill,
+			Importance: RequirementRequired,
+		},
+	}
+
+	source := strings.Join([]string{
+		tests[0].Text,
+		tests[1].Text,
+		tests[2].Text,
+		tests[3].Text,
+	}, "\n")
+
+	got := ValidateRequirements(tests, source)
+
+	if len(got) != len(tests) {
+		t.Fatalf(
+			"expected %d legitimate requirements to survive, got %d: %#v",
+			len(tests),
+			len(got),
+			got,
+		)
+	}
+}

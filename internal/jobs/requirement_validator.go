@@ -57,6 +57,10 @@ func validCanonicalRequirement(
 		return false
 	}
 
+	if isStructurallyContaminatedRequirement(requirement.Text) {
+		return false
+	}
+
 	if containsRejectedSectionContent(requirement.Text) {
 		return false
 	}
@@ -130,8 +134,8 @@ func requirementTraceabilityKey(text string) string {
 	return builder.String()
 }
 
-// isIncompleteRequirementFragment rejects structurally broken atoms.
-// Short qualifications such as CPA or RN remain valid.
+// isIncompleteRequirementFragment rejects structurally broken atoms while
+// preserving genuinely short qualifications such as CPA, RN, SQL, or AWS.
 func isIncompleteRequirementFragment(text string) bool {
 	text = cleanRequirementText(text)
 
@@ -146,9 +150,28 @@ func isIncompleteRequirementFragment(text string) bool {
 		return true
 	}
 
-	// A qualification ending with a connector is structurally incomplete.
-	// This is generic and does not depend on a company, provider, job,
-	// industry, or particular qualification phrase.
+	// Reject meaningless one-character atoms caused by broken provider
+	// formatting or extraction boundaries.
+	runes := []rune(strings.TrimSpace(text))
+	if len(runes) == 1 && unicode.IsLetter(runes[0]) {
+		return true
+	}
+
+	// Reject punctuation-only fragments.
+	hasLetterOrDigit := false
+	for _, r := range text {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			hasLetterOrDigit = true
+			break
+		}
+	}
+
+	if !hasLetterOrDigit {
+		return true
+	}
+
+	// Reject requirements that end in a connector and therefore appear
+	// to have been cut off before the qualification was complete.
 	last := strings.Trim(
 		fields[len(fields)-1],
 		" \t\r\n.,;:!?()[]{}",
@@ -162,14 +185,18 @@ func isIncompleteRequirementFragment(text string) bool {
 		return true
 	}
 
-	// Handle compound connectors that may survive tokenization.
 	if strings.HasSuffix(lower, "and/or") ||
 		strings.HasSuffix(lower, "such as") {
 		return true
 	}
 
-	// Section headings themselves are structural metadata,
-	// not candidate requirements.
+	// A dangling slash usually means a compound phrase was split at
+	// the extraction boundary.
+	if strings.HasSuffix(strings.TrimSpace(text), "/") {
+		return true
+	}
+
+	// Section headings are structural metadata, not candidate requirements.
 	normalized := normalizeHeading(lower)
 
 	switch normalized {
@@ -181,6 +208,13 @@ func isIncompleteRequirementFragment(text string) bool {
 		"desired",
 		"preferred",
 		"minimum",
+		"degree",
+		"degrees",
+		"education",
+		"experience",
+		"education experience",
+		"skill",
+		"skills",
 		"additional skills",
 		"technical skills",
 		"required skills",
@@ -196,12 +230,11 @@ func isIncompleteRequirementFragment(text string) bool {
 		"preferred requirements",
 		"minimum requirements",
 		"required requirements",
-		"education",
-		"experience",
-		"education experience",
-		"skills",
 		"competencies",
+		"certification",
 		"certifications",
+		"license",
+		"licenses",
 		"physical requirements",
 		"physical demands",
 		"travel requirements":
@@ -209,6 +242,219 @@ func isIncompleteRequirementFragment(text string) bool {
 	}
 
 	return false
+}
+
+// isStructurallyContaminatedRequirement is a conservative final atomicity
+// check. It does not attempt to repair or rewrite extracted text.
+//
+// A canonical requirement should represent one bounded qualification. Some
+// providers flatten several originally separate blocks into one line. When
+// that happens, extraction can occasionally return a valid qualification
+// followed by another qualification, a section transition, or recruiting
+// prose as one large atom.
+//
+// We reject only when there is strong structural evidence that the atom
+// contains multiple independent pieces. If the boundary is uncertain, the
+// text is left unchanged.
+func isStructurallyContaminatedRequirement(text string) bool {
+	text = cleanRequirementText(text)
+
+	if text == "" {
+		return true
+	}
+
+	fields := strings.Fields(text)
+
+	// Ordinary-sized atomic requirements should pass through this
+	// defensive check. Other validator rules still apply to them.
+	if len(fields) < 18 && len(text) < 140 {
+		return false
+	}
+
+	lower := strings.ToLower(text)
+
+	// Structural labels embedded after substantive qualification text are
+	// strong evidence that provider formatting collapsed a section boundary.
+	embeddedSectionTransitions := []string{
+		" qualifications:",
+		" requirements:",
+		" required qualifications:",
+		" preferred qualifications:",
+		" minimum qualifications:",
+		" basic qualifications:",
+		" preferred requirements:",
+		" required skills:",
+		" preferred skills:",
+		" technical skills:",
+		" additional skills:",
+		" education:",
+		" experience:",
+		" certifications:",
+		" licenses:",
+		" physical requirements:",
+		" physical demands:",
+		" travel requirements:",
+	}
+
+	for _, marker := range embeddedSectionTransitions {
+		if strings.Contains(lower, marker) {
+			return true
+		}
+	}
+
+	// Two internal sentence boundaries represent at least three flattened
+	// sentence-like units even when the final unit has no trailing period.
+	if completedSentenceCount(text) >= 2 {
+		return true
+	}
+
+	// Providers frequently preserve semicolons when flattening bullet lists.
+	// Three or more meaningful semicolon-delimited clauses should not be
+	// scored as one canonical qualification.
+	if independentSemicolonClauseCount(text) >= 3 {
+		return true
+	}
+
+	// For larger atoms, multiple qualification-style starts at structural
+	// boundaries are additional evidence that separate requirements were
+	// collapsed into one.
+	if len(fields) >= 25 || len(text) >= 180 {
+		if independentRequirementStartCount(text) >= 2 {
+			return true
+		}
+	}
+
+	return false
+}
+
+func independentSemicolonClauseCount(text string) int {
+	parts := strings.Split(text, ";")
+
+	if len(parts) < 2 {
+		return 1
+	}
+
+	count := 0
+
+	for _, part := range parts {
+		part = cleanRequirementText(part)
+
+		if part == "" {
+			continue
+		}
+
+		if validRequirementText(part) {
+			count++
+		}
+	}
+
+	return count
+}
+
+func completedSentenceCount(text string) int {
+	count := 0
+
+	for i := 0; i < len(text); i++ {
+		switch text[i] {
+		case '.', '!', '?':
+			// Decimal points and similar punctuation inside tokens should not
+			// count as sentence boundaries.
+			if i+1 < len(text) &&
+				!unicode.IsSpace(rune(text[i+1])) {
+				continue
+			}
+
+			count++
+		}
+	}
+
+	return count
+}
+
+func independentRequirementStartCount(text string) int {
+	lower := strings.ToLower(text)
+
+	markers := []string{
+		"ability to ",
+		"ability ",
+		"experience with ",
+		"experience in ",
+		"experience ",
+		"proficiency ",
+		"proficient ",
+		"familiarity with ",
+		"familiarity ",
+		"knowledge of ",
+		"knowledge ",
+		"strong ",
+		"excellent ",
+		"demonstrated ",
+		"proven ",
+		"valid ",
+		"licensed ",
+		"certified ",
+		"certification ",
+		"willingness to ",
+		"willingness ",
+		"must ",
+		"required ",
+		"preferred ",
+	}
+
+	count := 0
+
+	for _, marker := range markers {
+		searchFrom := 0
+
+		for searchFrom < len(lower) {
+			relative := strings.Index(
+				lower[searchFrom:],
+				marker,
+			)
+
+			if relative < 0 {
+				break
+			}
+
+			index := searchFrom + relative
+
+			// Only count starts occurring at a plausible clause boundary.
+			if index == 0 ||
+				isStructuralClauseBoundary(lower, index) {
+				count++
+			}
+
+			searchFrom = index + len(marker)
+		}
+	}
+
+	return count
+}
+
+func isStructuralClauseBoundary(
+	text string,
+	index int,
+) bool {
+	if index <= 0 || index > len(text) {
+		return index == 0
+	}
+
+	i := index - 1
+
+	for i >= 0 && unicode.IsSpace(rune(text[i])) {
+		i--
+	}
+
+	if i < 0 {
+		return true
+	}
+
+	switch text[i] {
+	case '.', '!', '?', ';', ':':
+		return true
+	default:
+		return false
+	}
 }
 
 // containsRejectedSectionContent provides a defensive boundary if
