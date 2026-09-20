@@ -276,9 +276,9 @@ Communication, Microsoft Excel
 
 	result := Match(request, job)
 
-	if result.MatchLevel != "Stretch" {
+	if result.MatchLevel != "Reach" {
 		t.Fatalf(
-			"expected Stretch when all required qualifications are missing, got %q",
+			"expected Reach when all required qualifications are missing, got %q",
 			result.MatchLevel,
 		)
 	}

@@ -106,7 +106,7 @@ func Match(
 		result.MatchPercentage = 0
 		result.MatchLevel = "Insufficient Evidence"
 		result.Explanation =
-			"CaseMade could not extract enough reliable qualification evidence from this posting to calculate an evidence-match score."
+			"AlignApply could not extract enough reliable qualification evidence from this posting to classify the fit."
 
 		return result
 	}
@@ -117,7 +117,7 @@ func Match(
 		result.MatchPercentage = 0
 		result.MatchLevel = "Insufficient Evidence"
 		result.Explanation =
-			"CaseMade does not have enough résumé evidence to calculate an evidence-match score."
+			"AlignApply does not have enough candidate evidence to classify the fit."
 
 		return result
 	}
@@ -126,7 +126,12 @@ func Match(
 	earnedWeight := 0.0
 
 	requiredCount := 0
+	requiredSupported := 0
+	requiredPartial := 0
 	requiredMissing := 0
+
+	criticalRequiredCount := 0
+	criticalRequiredNotSupported := 0
 
 	for _, requirement := range job.Requirements {
 		text := strings.TrimSpace(requirement.Text)
@@ -143,8 +148,15 @@ func Match(
 
 		totalWeight += weight
 
-		if requirement.Importance == jobs.RequirementRequired {
+		isRequired := requirement.Importance == jobs.RequirementRequired
+		isCriticalRequired := isRequired && isCriticalRequirement(requirement)
+
+		if isRequired {
 			requiredCount++
+		}
+
+		if isCriticalRequired {
+			criticalRequiredCount++
 		}
 
 		evidence := evaluateRequirementEvidence(
@@ -161,11 +173,23 @@ func Match(
 				text,
 			)
 
+			if isRequired {
+				requiredSupported++
+			}
+
 		case evidencePartial:
 			result.PartialRequirements = appendUnique(
 				result.PartialRequirements,
 				text,
 			)
+
+			if isRequired {
+				requiredPartial++
+			}
+
+			if isCriticalRequired {
+				criticalRequiredNotSupported++
+			}
 
 		default:
 			result.MissingRequirements = appendUnique(
@@ -173,8 +197,12 @@ func Match(
 				text,
 			)
 
-			if requirement.Importance == jobs.RequirementRequired {
+			if isRequired {
 				requiredMissing++
+			}
+
+			if isCriticalRequired {
+				criticalRequiredNotSupported++
 			}
 		}
 	}
@@ -183,7 +211,7 @@ func Match(
 		result.MatchPercentage = 0
 		result.MatchLevel = "Insufficient Evidence"
 		result.Explanation =
-			"CaseMade could not identify enough usable qualification evidence to calculate an evidence-match score."
+			"AlignApply could not identify enough usable qualification evidence to classify the fit."
 
 		return result
 	}
@@ -204,20 +232,25 @@ func Match(
 
 	result.MatchPercentage = percentage
 
-	result.MatchLevel = determineMatchLevel(
-		percentage,
+	result.MatchLevel = determineFitCategory(
 		requiredCount,
+		requiredSupported,
+		requiredPartial,
 		requiredMissing,
+		criticalRequiredCount,
+		criticalRequiredNotSupported,
 	)
 
-	result.Explanation = buildExplanation(
-		percentage,
+	result.Explanation = buildFitExplanation(
 		result.MatchLevel,
 		len(result.SupportedRequirements),
 		len(result.PartialRequirements),
 		len(result.MissingRequirements),
 		requiredCount,
+		requiredSupported,
+		requiredPartial,
 		requiredMissing,
+		criticalRequiredNotSupported,
 	)
 
 	return result
@@ -711,68 +744,125 @@ func extractLargestYears(text string) int {
 	return largest
 }
 
-func determineMatchLevel(
-	percentage int,
-	requiredCount int,
-	requiredMissing int,
-) string {
-	if requiredCount > 0 &&
-		requiredMissing == requiredCount {
-		return "Stretch"
+func isCriticalRequirement(
+	requirement jobs.Requirement,
+) bool {
+	if requirement.Importance != jobs.RequirementRequired {
+		return false
 	}
 
-	if percentage >= 70 {
-		return "Strong Match"
-	}
+	switch requirement.Category {
+	case jobs.RequirementLicense,
+		jobs.RequirementCertification,
+		jobs.RequirementEducation:
+		return true
 
-	if percentage >= 40 {
-		return "Moderate Match"
-	}
+	case jobs.RequirementExperience:
+		_, hasExplicitYears := extractRequiredYears(requirement.Text)
+		return hasExplicitYears
 
-	return "Stretch"
+	default:
+		return false
+	}
 }
 
-func buildExplanation(
-	percentage int,
+// determineFitCategory intentionally classifies fit from required-qualification
+// outcomes rather than from the numeric evidence score. MatchPercentage remains
+// populated for API compatibility and internal diagnostics, but it is not the
+// source of truth for the user-facing category.
+func determineFitCategory(
+	requiredCount int,
+	requiredSupported int,
+	requiredPartial int,
+	requiredMissing int,
+	criticalRequiredCount int,
+	criticalRequiredNotSupported int,
+) string {
+	if requiredCount == 0 {
+		return "Good Fit"
+	}
+
+	// A required license, certification, education requirement, or explicit
+	// years-of-experience requirement that is not fully supported is a material gap. We do not
+	// allow unrelated matching skills to wash it out.
+	if criticalRequiredNotSupported > 0 {
+		return "Reach"
+	}
+
+	supportedRatio := float64(requiredSupported) / float64(requiredCount)
+	demonstratedRatio := float64(requiredSupported+requiredPartial) /
+		float64(requiredCount)
+
+	// Best Fit is deliberately strict: every required qualification must have
+	// at least some evidence, most must be clearly supported, and at most one
+	// required qualification may only be partial.
+	if requiredMissing == 0 &&
+		supportedRatio >= 0.75 &&
+		requiredPartial <= 1 {
+		return "Best Fit"
+	}
+
+	// Good Fit means the candidate demonstrates a meaningful majority of the
+	// required qualifications and fewer than half are wholly unsupported.
+	if demonstratedRatio >= 0.60 &&
+		requiredMissing*2 < requiredCount {
+		return "Good Fit"
+	}
+
+	_ = criticalRequiredCount // retained for explicit classifier inputs/future policy.
+	return "Reach"
+}
+
+func buildFitExplanation(
 	level string,
 	supported int,
 	partial int,
 	missing int,
 	requiredCount int,
+	requiredSupported int,
+	requiredPartial int,
 	requiredMissing int,
+	criticalRequiredNotSupported int,
 ) string {
-	switch {
-	case supported == 0 &&
-		partial == 0:
+	if supported == 0 && partial == 0 {
 		return fmt.Sprintf(
-			"%s (%d%% evidence match). The résumé does not clearly demonstrate the qualifications extracted from this posting.",
+			"%s. The profile does not clearly demonstrate the qualifications extracted from this posting.",
 			level,
-			percentage,
 		)
+	}
 
-	case requiredCount > 0 &&
-		requiredMissing > 0:
+	if criticalRequiredNotSupported > 0 {
 		return fmt.Sprintf(
-			"%s (%d%% evidence match). The résumé clearly supports %d requirement(s), partially supports %d, and does not clearly demonstrate %d. Of the required qualifications, %d of %d are not clearly demonstrated.",
+			"%s. The profile supports %d requirement(s), partially supports %d, and does not clearly demonstrate %d. %d required high-impact qualification(s) are not fully demonstrated.",
 			level,
-			percentage,
 			supported,
 			partial,
 			missing,
-			requiredMissing,
-			requiredCount,
+			criticalRequiredNotSupported,
 		)
+	}
 
-	default:
+	if requiredCount > 0 {
 		return fmt.Sprintf(
-			"%s (%d%% evidence match). The résumé clearly supports %d requirement(s), partially supports %d, and does not clearly demonstrate %d.",
+			"%s. Of %d required qualification(s), the profile clearly supports %d, partially supports %d, and does not clearly demonstrate %d. Across all extracted qualifications, %d are supported, %d are partial, and %d are not clearly demonstrated.",
 			level,
-			percentage,
+			requiredCount,
+			requiredSupported,
+			requiredPartial,
+			requiredMissing,
 			supported,
 			partial,
 			missing,
 		)
 	}
+
+	return fmt.Sprintf(
+		"%s. The profile clearly supports %d qualification(s), partially supports %d, and does not clearly demonstrate %d.",
+		level,
+		supported,
+		partial,
+		missing,
+	)
 }
 
 func normalize(text string) string {
