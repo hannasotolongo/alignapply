@@ -1,9 +1,20 @@
 package jobs
 
-import "time"
+import (
+	"time"
+
+	"github.com/hannasotolongo/casemade-backend/internal/candidate"
+)
 
 type SearchRequest struct {
-	ResumeText     string   `json:"resumeText"`
+	// CareerProfile is the user's structured, user-confirmed evidence.
+	// It is the preferred evidence source for overall job fit.
+	CareerProfile candidate.CareerProfile `json:"careerProfile,omitempty"`
+
+	// ResumeText remains supported during migration and for legacy clients.
+	// Individual resume evidence stays conceptually separate from CareerProfile.
+	ResumeText string `json:"resumeText,omitempty"`
+
 	TargetRole     string   `json:"targetRole"`
 	Location       string   `json:"location"`
 	MinimumSalary  string   `json:"minimumSalary"`

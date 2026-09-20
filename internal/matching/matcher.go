@@ -73,6 +73,7 @@ var stopWords = map[string]struct{}{
 	"related": {}, "relevant": {},
 	"professional": {},
 	"practical":    {},
+
 	// Structural comparison words introduce examples, categories, or
 	// qualification phrasing but are not independently required evidence.
 	"like":         {},
@@ -111,9 +112,26 @@ func Match(
 		return result
 	}
 
-	profile := candidate.ExtractProfile(request.ResumeText)
+	var profile candidate.Profile
 
-	if strings.TrimSpace(profile.RawResumeText) == "" {
+	// Career Profile is the canonical evidence source for Your Fit.
+	//
+	// ResumeText remains a legacy fallback while existing clients migrate.
+	// We intentionally do not merge an individual resume into a populated
+	// Career Profile here. Resume evidence will later power Resume Fit and
+	// Best Resume independently from the user's overall Career Profile.
+	if request.CareerProfile.HasEvidence() {
+		profile = candidate.BuildProfile(
+			"",
+			request.CareerProfile,
+		)
+	} else {
+		profile = candidate.ExtractProfile(
+			request.ResumeText,
+		)
+	}
+
+	if len(profile.AllEvidence) == 0 {
 		result.MatchPercentage = 0
 		result.MatchLevel = "Insufficient Evidence"
 		result.Explanation =
@@ -148,8 +166,12 @@ func Match(
 
 		totalWeight += weight
 
-		isRequired := requirement.Importance == jobs.RequirementRequired
-		isCriticalRequired := isRequired && isCriticalRequirement(requirement)
+		isRequired :=
+			requirement.Importance == jobs.RequirementRequired
+
+		isCriticalRequired :=
+			isRequired &&
+				isCriticalRequirement(requirement)
 
 		if isRequired {
 			requiredCount++
@@ -328,7 +350,11 @@ func evaluateRequirementEvidence(
 	}
 
 	bestCoverage := 0.0
-	combinedEvidence := make([]string, 0, len(relevant))
+	combinedEvidence := make(
+		[]string,
+		0,
+		len(relevant),
+	)
 
 	for _, evidence := range relevant {
 		evidenceText := normalize(evidence.Text)
@@ -352,14 +378,16 @@ func evaluateRequirementEvidence(
 		}
 	}
 
-	// A résumé can demonstrate one requirement across multiple evidence
+	// A profile can demonstrate one requirement across multiple evidence
 	// statements. Evaluate the union of relevant evidence as well as each
-	// individual statement. This prevents legitimate evidence from being
-	// lost merely because it appears in separate résumé bullets or sentences.
+	// individual statement.
 	if len(combinedEvidence) > 1 {
 		aggregateCoverage := tokenCoverage(
 			requirementText,
-			strings.Join(combinedEvidence, " "),
+			strings.Join(
+				combinedEvidence,
+				" ",
+			),
 		)
 
 		if aggregateCoverage > bestCoverage {
@@ -385,12 +413,19 @@ func relevantEvidence(
 ) []candidate.Evidence {
 	switch category {
 	case jobs.RequirementSkill:
+		// Skills may be demonstrated directly or through professional
+		// experience, projects, or user-confirmed summary evidence.
 		return combineEvidence(
 			profile.Skills,
 			profile.Experience,
+			profile.Projects,
+			profile.Summary,
 		)
 
 	case jobs.RequirementExperience:
+		// Experience requirements deliberately use only professional
+		// experience evidence. Project durations and summary text must not
+		// satisfy professional years-of-experience requirements.
 		return profile.Experience
 
 	case jobs.RequirementEducation:
@@ -500,17 +535,20 @@ func tokenCoverage(
 	requirement string,
 	evidence string,
 ) float64 {
-	requirementTokens := meaningfulTokens(requirement)
+	requirementTokens :=
+		meaningfulTokens(requirement)
 
 	if len(requirementTokens) == 0 {
 		return 0
 	}
 
-	evidenceTokens := meaningfulTokens(evidence)
+	evidenceTokens :=
+		meaningfulTokens(evidence)
 
 	matched := 0
 
 	for _, requirementToken := range requirementTokens {
+
 		if tokenDemonstrated(
 			requirementToken,
 			evidenceTokens,
@@ -587,7 +625,10 @@ func lexicalVariantMatch(
 	}
 
 	return len(shorter) >= 7 &&
-		strings.HasPrefix(longer, shorter)
+		strings.HasPrefix(
+			longer,
+			shorter,
+		)
 }
 
 func lexicalStem(token string) string {
@@ -612,8 +653,12 @@ func lexicalStem(token string) string {
 	}
 
 	for _, suffix := range suffixes {
-		if strings.HasSuffix(token, suffix) &&
+		if strings.HasSuffix(
+			token,
+			suffix,
+		) &&
 			len(token)-len(suffix) >= 6 {
+
 			return strings.TrimSuffix(
 				token,
 				suffix,
@@ -658,9 +703,14 @@ func missingEvidence() evidenceResult {
 func requirementWeight(
 	requirement jobs.Requirement,
 ) float64 {
-	base := categoryWeight(requirement.Category)
+	base :=
+		categoryWeight(
+			requirement.Category,
+		)
 
-	if requirement.Importance == jobs.RequirementPreferred {
+	if requirement.Importance ==
+		jobs.RequirementPreferred {
+
 		return base * 0.5
 	}
 
@@ -700,13 +750,17 @@ func categoryWeight(
 func extractRequiredYears(
 	text string,
 ) (int, bool) {
-	match := yearsPattern.FindStringSubmatch(text)
+	match :=
+		yearsPattern.FindStringSubmatch(
+			text,
+		)
 
 	if len(match) < 2 {
 		return 0, false
 	}
 
-	value, err := strconv.Atoi(match[1])
+	value, err :=
+		strconv.Atoi(match[1])
 
 	if err != nil {
 		return 0, false
@@ -716,21 +770,24 @@ func extractRequiredYears(
 }
 
 func extractLargestYears(text string) int {
-	matches := yearsPattern.FindAllString(
-		text,
-		-1,
-	)
+	matches :=
+		yearsPattern.FindAllString(
+			text,
+			-1,
+		)
 
 	largest := 0
 
 	for _, match := range matches {
-		number := numberPattern.FindString(match)
+		number :=
+			numberPattern.FindString(match)
 
 		if number == "" {
 			continue
 		}
 
-		value, err := strconv.Atoi(number)
+		value, err :=
+			strconv.Atoi(number)
 
 		if err != nil {
 			continue
@@ -747,7 +804,9 @@ func extractLargestYears(text string) int {
 func isCriticalRequirement(
 	requirement jobs.Requirement,
 ) bool {
-	if requirement.Importance != jobs.RequirementRequired {
+	if requirement.Importance !=
+		jobs.RequirementRequired {
+
 		return false
 	}
 
@@ -755,10 +814,15 @@ func isCriticalRequirement(
 	case jobs.RequirementLicense,
 		jobs.RequirementCertification,
 		jobs.RequirementEducation:
+
 		return true
 
 	case jobs.RequirementExperience:
-		_, hasExplicitYears := extractRequiredYears(requirement.Text)
+		_, hasExplicitYears :=
+			extractRequiredYears(
+				requirement.Text,
+			)
+
 		return hasExplicitYears
 
 	default:
@@ -783,15 +847,22 @@ func determineFitCategory(
 	}
 
 	// A required license, certification, education requirement, or explicit
-	// years-of-experience requirement that is not fully supported is a material gap. We do not
-	// allow unrelated matching skills to wash it out.
+	// years-of-experience requirement that is not fully supported is a
+	// material gap. We do not allow unrelated matching skills to wash it out.
 	if criticalRequiredNotSupported > 0 {
 		return "Reach"
 	}
 
-	supportedRatio := float64(requiredSupported) / float64(requiredCount)
-	demonstratedRatio := float64(requiredSupported+requiredPartial) /
-		float64(requiredCount)
+	supportedRatio :=
+		float64(requiredSupported) /
+			float64(requiredCount)
+
+	demonstratedRatio :=
+		float64(
+			requiredSupported+
+				requiredPartial,
+		) /
+			float64(requiredCount)
 
 	// Best Fit is deliberately strict: every required qualification must have
 	// at least some evidence, most must be clearly supported, and at most one
@@ -799,6 +870,7 @@ func determineFitCategory(
 	if requiredMissing == 0 &&
 		supportedRatio >= 0.75 &&
 		requiredPartial <= 1 {
+
 		return "Best Fit"
 	}
 
@@ -806,10 +878,12 @@ func determineFitCategory(
 	// required qualifications and fewer than half are wholly unsupported.
 	if demonstratedRatio >= 0.60 &&
 		requiredMissing*2 < requiredCount {
+
 		return "Good Fit"
 	}
 
-	_ = criticalRequiredCount // retained for explicit classifier inputs/future policy.
+	_ = criticalRequiredCount
+
 	return "Reach"
 }
 
@@ -824,7 +898,9 @@ func buildFitExplanation(
 	requiredMissing int,
 	criticalRequiredNotSupported int,
 ) string {
-	if supported == 0 && partial == 0 {
+	if supported == 0 &&
+		partial == 0 {
+
 		return fmt.Sprintf(
 			"%s. The profile does not clearly demonstrate the qualifications extracted from this posting.",
 			level,
@@ -897,33 +973,50 @@ func normalize(text string) string {
 func meaningfulTokens(text string) []string {
 	text = strings.ToLower(text)
 
-	text = nonAlphanumericPattern.ReplaceAllString(
-		text,
-		" ",
-	)
+	text =
+		nonAlphanumericPattern.ReplaceAllString(
+			text,
+			" ",
+		)
 
 	fields := strings.Fields(text)
 
-	result := make([]string, 0, len(fields))
-	seen := make(map[string]struct{})
+	result :=
+		make(
+			[]string,
+			0,
+			len(fields),
+		)
+
+	seen :=
+		make(map[string]struct{})
 
 	for _, token := range fields {
-		token = strings.TrimSpace(token)
+		token =
+			strings.TrimSpace(token)
 
 		if len(token) < 2 {
 			continue
 		}
 
-		if _, stop := stopWords[token]; stop {
+		if _, stop :=
+			stopWords[token]; stop {
+
 			continue
 		}
 
-		if _, exists := seen[token]; exists {
+		if _, exists :=
+			seen[token]; exists {
+
 			continue
 		}
 
 		seen[token] = struct{}{}
-		result = append(result, token)
+
+		result = append(
+			result,
+			token,
+		)
 	}
 
 	sort.Strings(result)
@@ -932,9 +1025,11 @@ func meaningfulTokens(text string) []string {
 }
 
 func tokenSet(text string) map[string]struct{} {
-	result := make(map[string]struct{})
+	result :=
+		make(map[string]struct{})
 
 	for _, token := range meaningfulTokens(text) {
+
 		result[token] = struct{}{}
 	}
 
@@ -945,7 +1040,8 @@ func appendUnique(
 	values []string,
 	value string,
 ) []string {
-	value = strings.TrimSpace(value)
+	value =
+		strings.TrimSpace(value)
 
 	if value == "" {
 		return values
@@ -960,5 +1056,8 @@ func appendUnique(
 		}
 	}
 
-	return append(values, value)
+	return append(
+		values,
+		value,
+	)
 }

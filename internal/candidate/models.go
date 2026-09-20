@@ -8,6 +8,8 @@ const (
 	EvidenceEducation     EvidenceCategory = "education"
 	EvidenceCertification EvidenceCategory = "certification"
 	EvidenceLicense       EvidenceCategory = "license"
+	EvidenceProject       EvidenceCategory = "project"
+	EvidenceSummary       EvidenceCategory = "summary"
 )
 
 type Evidence struct {
@@ -24,6 +26,8 @@ type Profile struct {
 	Education      []Evidence `json:"education"`
 	Certifications []Evidence `json:"certifications"`
 	Licenses       []Evidence `json:"licenses"`
+	Projects       []Evidence `json:"projects"`
+	Summary        []Evidence `json:"summary"`
 
 	AllEvidence []Evidence `json:"allEvidence"`
 }
@@ -34,14 +38,25 @@ func (p Profile) EvidenceByCategory(
 	switch category {
 	case EvidenceSkill:
 		return p.Skills
+
 	case EvidenceExperience:
 		return p.Experience
+
 	case EvidenceEducation:
 		return p.Education
+
 	case EvidenceCertification:
 		return p.Certifications
+
 	case EvidenceLicense:
 		return p.Licenses
+
+	case EvidenceProject:
+		return p.Projects
+
+	case EvidenceSummary:
+		return p.Summary
+
 	default:
 		return nil
 	}

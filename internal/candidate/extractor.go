@@ -42,6 +42,8 @@ func ExtractProfile(resumeText string) Profile {
 		Education:      []Evidence{},
 		Certifications: []Evidence{},
 		Licenses:       []Evidence{},
+		Projects:       []Evidence{},
+		Summary:        []Evidence{},
 		AllEvidence:    []Evidence{},
 	}
 
@@ -338,6 +340,18 @@ func addEvidence(
 	case EvidenceLicense:
 		profile.Licenses = appendEvidenceUnique(
 			profile.Licenses,
+			evidence,
+		)
+
+	case EvidenceProject:
+		profile.Projects = appendEvidenceUnique(
+			profile.Projects,
+			evidence,
+		)
+
+	case EvidenceSummary:
+		profile.Summary = appendEvidenceUnique(
+			profile.Summary,
 			evidence,
 		)
 	}

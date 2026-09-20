@@ -96,10 +96,20 @@ func (s *Server) handleJobMatches(
 
 	normalizeSearchRequest(&request)
 
-	if request.ResumeText == "" {
+	// During the migration to structured candidate evidence, either source is
+	// valid:
+	//
+	//   1. CareerProfile — the preferred user-confirmed evidence source.
+	//   2. ResumeText — legacy support for existing clients.
+	//
+	// This keeps the current iOS client working while allowing the structured
+	// Career Profile client to migrate independently.
+	if !request.CareerProfile.HasEvidence() &&
+		request.ResumeText == "" {
+
 		http.Error(
 			w,
-			"resumeText is required",
+			"careerProfile or resumeText is required",
 			http.StatusBadRequest,
 		)
 		return
@@ -180,6 +190,11 @@ func normalizeSearchRequest(
 	request.ResumeText =
 		strings.TrimSpace(request.ResumeText)
 
+	// CareerProfile.Normalize only removes surrounding whitespace,
+	// empty entries, and duplicate structured values. It does not invent,
+	// rewrite, or infer candidate evidence.
+	request.CareerProfile.Normalize()
+
 	request.TargetRole =
 		strings.TrimSpace(request.TargetRole)
 
@@ -240,10 +255,12 @@ func sortJobMatches(
 			right := matches[j]
 
 			leftScorable :=
-				left.MatchLevel != "Insufficient Evidence"
+				left.MatchLevel != "Insufficient Evidence" &&
+					left.MatchLevel != "Needs Review"
 
 			rightScorable :=
-				right.MatchLevel != "Insufficient Evidence"
+				right.MatchLevel != "Insufficient Evidence" &&
+					right.MatchLevel != "Needs Review"
 
 			if leftScorable != rightScorable {
 				return leftScorable
@@ -324,13 +341,13 @@ func matchLevelRank(
 	level string,
 ) int {
 	switch level {
-	case "Strong Match":
+	case "Best Fit", "Strong Match":
 		return 3
 
-	case "Moderate Match":
+	case "Good Fit", "Moderate Match":
 		return 2
 
-	case "Stretch":
+	case "Reach", "Stretch":
 		return 1
 
 	default:
