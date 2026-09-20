@@ -95,6 +95,141 @@ var stopWords = map[string]struct{}{
 	"foundations":  {},
 }
 
+// capabilityFamilies broadens evidence matching beyond exact wording.
+// Each family contains terms/phrases that commonly demonstrate the same
+// underlying capability. This layer is intentionally conservative: it helps
+// retrieve semantically related evidence, but hard constraints such as years,
+// degrees, licenses, and certifications are still verified separately.
+var capabilityFamilies = [][]string{
+	{"distributed systems", "distributed services", "distributed system", "microservices", "service oriented", "service-oriented"},
+	{"reliability", "reliable systems", "fault tolerant", "fault-tolerant", "high availability", "highly available", "resilience", "resilient", "recovery", "failover"},
+	{"backend", "backend engineering", "backend development", "server side", "server-side", "api development", "api engineering", "web services"},
+	{"rest api", "restful api", "http api", "web api", "api endpoint", "api endpoints"},
+	{"concurrency", "concurrent", "parallel processing", "multithreading", "multi-threading", "goroutine", "goroutines"},
+	{"persistence", "persistent storage", "database", "datastore", "data store", "state management", "durable state"},
+	{"cloud", "cloud infrastructure", "cloud computing", "aws", "azure", "gcp"},
+	{"containers", "containerization", "containerized", "docker", "kubernetes", "k8s"},
+	{"orchestration", "container orchestration", "kubernetes", "k8s"},
+	{"ci/cd", "continuous integration", "continuous delivery", "continuous deployment", "deployment pipeline", "build pipeline"},
+	{"observability", "monitoring", "metrics", "logging", "tracing", "telemetry"},
+	{"machine learning", "ml", "deep learning", "neural network", "neural networks"},
+	{"artificial intelligence", "ai", "machine learning", "ml"},
+	{"llm", "large language model", "large language models", "language model", "language models"},
+	{"computer vision", "image recognition", "image processing", "vision model", "vision models"},
+	{"distributed training", "multi gpu", "multi-gpu", "nccl", "data parallel", "model parallel"},
+	{"gpu", "gpu computing", "cuda", "accelerator", "accelerators"},
+	{"infrastructure as code", "iac", "terraform"},
+	{"database", "databases", "sql", "mysql", "postgresql", "postgres", "relational database"},
+	{"streaming", "real time", "real-time", "event driven", "event-driven", "message stream", "websocket", "websockets"},
+	{"messaging", "message queue", "message queues", "event driven", "event-driven", "pub sub", "publish subscribe", "broker"},
+	{"testing", "automated testing", "unit testing", "integration testing", "test automation"},
+	{"security", "application security", "cybersecurity", "secure systems", "vulnerability"},
+	{"scalability", "scalable", "scale", "high throughput", "high-throughput", "performance"},
+	{"low latency", "low-latency", "latency sensitive", "latency-sensitive", "real time", "real-time"},
+	{"data engineering", "data pipeline", "data pipelines", "etl", "data processing"},
+	{"version control", "source control", "git", "github"},
+	{"agile", "scrum", "sprint", "sprints"},
+	{"leadership", "technical leadership", "mentoring", "mentor", "leading teams", "team lead"},
+	{"communication", "communicate", "cross functional", "cross-functional", "stakeholder", "stakeholders", "collaboration", "collaborative"},
+}
+
+// semanticCoverage compares underlying capabilities rather than requiring the
+// employer and candidate to use identical vocabulary. It combines lexical
+// evidence with concept-family evidence. The result remains evidence-based:
+// no family match is possible unless the candidate's actual text expresses a
+// member of the same capability family.
+func semanticCoverage(requirement string, evidence string) float64 {
+	lexical := tokenCoverage(requirement, evidence)
+	reqConcepts := capabilityConcepts(requirement)
+	if len(reqConcepts) == 0 {
+		return lexical
+	}
+
+	evidenceConcepts := capabilityConcepts(evidence)
+	if len(evidenceConcepts) == 0 {
+		return lexical
+	}
+
+	matched := 0
+	for concept := range reqConcepts {
+		if _, ok := evidenceConcepts[concept]; ok {
+			matched++
+		}
+	}
+
+	conceptCoverage := float64(matched) / float64(len(reqConcepts))
+
+	// A piece of evidence can legitimately express more semantic concepts than
+	// the requirement. For example, "Kubernetes" expresses both containerization
+	// and orchestration, while "container orchestration" may express only the
+	// orchestration family. Coverage is requirement-directed, so extra concepts
+	// in the evidence must not reduce support.
+	//
+	// Conversely, a requirement that expresses multiple distinct concepts still
+	// requires those concepts to be demonstrated independently; one overlapping
+	// concept cannot satisfy the whole requirement.
+
+	// Concept equivalence can establish strong support even when wording is
+	// different. Lexical evidence still contributes when it is stronger.
+	if conceptCoverage > lexical {
+		return conceptCoverage
+	}
+	return lexical
+}
+
+func capabilityConcepts(text string) map[int]struct{} {
+	normalized := semanticNormalize(text)
+	result := make(map[int]struct{})
+
+	if normalized == "" {
+		return result
+	}
+
+	for index, family := range capabilityFamilies {
+		for _, phrase := range family {
+			if containsNormalizedPhrase(normalized, semanticNormalize(phrase)) {
+				result[index] = struct{}{}
+				break
+			}
+		}
+	}
+
+	return result
+}
+
+// containsNormalizedPhrase matches a normalized capability phrase on token
+// boundaries. Padding both sides prevents short capability names from matching
+// inside unrelated words while still allowing punctuation-normalized phrases
+// such as "Kubernetes." at the end of a sentence.
+func containsNormalizedPhrase(text string, phrase string) bool {
+	text = strings.TrimSpace(text)
+	phrase = strings.TrimSpace(phrase)
+
+	if text == "" || phrase == "" {
+		return false
+	}
+
+	haystack := " " + text + " "
+	needle := " " + phrase + " "
+
+	return strings.Contains(haystack, needle)
+}
+
+// semanticNormalize canonicalizes text for capability-phrase detection. The
+// general normalize function intentionally preserves periods for identifiers
+// and versions, but sentence-final punctuation must not prevent a semantic
+// capability match ("Kubernetes." -> "kubernetes").
+func semanticNormalize(text string) string {
+	normalized := normalize(text)
+	fields := strings.Fields(normalized)
+
+	for index, field := range fields {
+		fields[index] = strings.Trim(field, ".")
+	}
+
+	return strings.Join(fields, " ")
+}
+
 func Match(
 	request jobs.SearchRequest,
 	job jobs.Job,
@@ -368,7 +503,7 @@ func evaluateRequirementEvidence(
 			evidenceText,
 		)
 
-		coverage := tokenCoverage(
+		coverage := semanticCoverage(
 			requirementText,
 			evidenceText,
 		)
@@ -382,7 +517,7 @@ func evaluateRequirementEvidence(
 	// statements. Evaluate the union of relevant evidence as well as each
 	// individual statement.
 	if len(combinedEvidence) > 1 {
-		aggregateCoverage := tokenCoverage(
+		aggregateCoverage := semanticCoverage(
 			requirementText,
 			strings.Join(
 				combinedEvidence,
@@ -494,7 +629,7 @@ func evaluateExperienceEvidence(
 			continue
 		}
 
-		coverage := tokenCoverage(
+		coverage := semanticCoverage(
 			requirementWithoutYears,
 			text,
 		)

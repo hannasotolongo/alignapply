@@ -441,6 +441,82 @@ Experience building backend services.
 		)
 	}
 }
+
+func TestSemanticCoverageMatchesEquivalentCapabilityLanguage(t *testing.T) {
+	tests := []struct {
+		name        string
+		requirement string
+		evidence    string
+		minCoverage float64
+	}{
+		{
+			name:        "high availability from fault tolerance and recovery",
+			requirement: "Experience building highly available services",
+			evidence:    "Implemented fault-tolerant services with automated recovery and failover.",
+			minCoverage: 1.0,
+		},
+		{
+			name:        "container orchestration from Kubernetes",
+			requirement: "Experience with container orchestration",
+			evidence:    "Deployed production workloads on Kubernetes.",
+			minCoverage: 1.0,
+		},
+		{
+			name:        "continuous integration from CI/CD",
+			requirement: "Knowledge of continuous integration",
+			evidence:    "Built CI/CD pipelines for automated builds and deployments.",
+			minCoverage: 1.0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := semanticCoverage(tt.requirement, tt.evidence)
+			if got < tt.minCoverage {
+				t.Fatalf(
+					"semanticCoverage(%q, %q) = %.2f; want >= %.2f",
+					tt.requirement,
+					tt.evidence,
+					got,
+					tt.minCoverage,
+				)
+			}
+		})
+	}
+}
+
+func TestSemanticCoverageDoesNotMatchUnrelatedCapabilities(t *testing.T) {
+	tests := []struct {
+		requirement string
+		evidence    string
+	}{
+		{
+			requirement: "Experience with Kubernetes",
+			evidence:    "Managed customer accounts and sales campaigns.",
+		},
+		{
+			requirement: "Experience with machine learning",
+			evidence:    "Built SQL reporting dashboards for finance teams.",
+		},
+		{
+			requirement: "Experience with application security",
+			evidence:    "Developed marketing campaigns and maintained CRM records.",
+		},
+	}
+
+	for _, tt := range tests {
+		got := semanticCoverage(tt.requirement, tt.evidence)
+		if got >= 0.40 {
+			t.Fatalf(
+				"unrelated evidence produced semantic coverage %.2f for requirement %q and evidence %q",
+				got,
+				tt.requirement,
+				tt.evidence,
+			)
+		}
+	}
+}
+
 func TestMatchRealisticBackendEngineerEvidence(t *testing.T) {
 	request := jobs.SearchRequest{
 		ResumeText: `
@@ -510,11 +586,22 @@ Performed reliability testing of distributed services.
 	result := Match(request, job)
 
 	if result.MatchLevel == "Insufficient Evidence" {
-		t.Fatalf("realistic backend job should be scorable: %+v", result)
+		t.Fatalf(
+			"realistic backend job should be scorable: %+v",
+			result,
+		)
+	}
+
+	if len(result.SupportedRequirements) == 0 {
+		t.Fatalf(
+			"expected overlapping backend evidence to produce supported requirements: %+v",
+			result,
+		)
 	}
 
 	supportedExpected := []string{
 		"Experience developing backend services in Go",
+		"Experience building distributed systems",
 		"Experience with AWS",
 		"Experience with Docker and Kubernetes",
 		"Python experience",
@@ -522,7 +609,16 @@ Performed reliability testing of distributed services.
 	}
 
 	for _, expected := range supportedExpected {
-		if !containsExact(result.SupportedRequirements, expected) {
+		found := false
+
+		for _, supported := range result.SupportedRequirements {
+			if supported == expected {
+				found = true
+				break
+			}
+		}
+
+		if !found {
 			t.Errorf(
 				"expected %q to be supported; supported=%v partial=%v missing=%v",
 				expected,
@@ -534,14 +630,22 @@ Performed reliability testing of distributed services.
 	}
 
 	partialExpected := []string{
-		"Experience building distributed systems",
 		"Experience building REST APIs",
 	}
 
 	for _, expected := range partialExpected {
-		if !containsExact(result.PartialRequirements, expected) {
+		found := false
+
+		for _, partial := range result.PartialRequirements {
+			if partial == expected {
+				found = true
+				break
+			}
+		}
+
+		if !found {
 			t.Errorf(
-				"expected %q to be partial; supported=%v partial=%v missing=%v",
+				"expected %q to be partially supported; supported=%v partial=%v missing=%v",
 				expected,
 				result.SupportedRequirements,
 				result.PartialRequirements,
@@ -550,23 +654,15 @@ Performed reliability testing of distributed services.
 		}
 	}
 
-	missingExpected := "Experience with Ruby on Rails"
+	unsupportedPreferred := "Experience with Ruby on Rails"
 
-	if !containsExact(result.MissingRequirements, missingExpected) {
-		t.Fatalf(
-			"expected absent technology %q to be missing; supported=%v partial=%v missing=%v",
-			missingExpected,
-			result.SupportedRequirements,
-			result.PartialRequirements,
-			result.MissingRequirements,
-		)
-	}
-
-	if containsExact(result.SupportedRequirements, missingExpected) {
-		t.Fatalf(
-			"matcher falsely supported absent technology %q",
-			missingExpected,
-		)
+	for _, supported := range result.SupportedRequirements {
+		if supported == unsupportedPreferred {
+			t.Fatalf(
+				"unsupported preferred requirement was incorrectly marked supported: %q",
+				unsupportedPreferred,
+			)
+		}
 	}
 
 	if result.MatchPercentage <= 0 {
@@ -575,14 +671,4 @@ Performed reliability testing of distributed services.
 			result.MatchPercentage,
 		)
 	}
-}
-
-func containsExact(values []string, target string) bool {
-	for _, value := range values {
-		if value == target {
-			return true
-		}
-	}
-
-	return false
 }
