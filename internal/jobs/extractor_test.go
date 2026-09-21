@@ -1852,3 +1852,62 @@ func TestValidateRequirementsPreservesNormalAtomicRequirements(t *testing.T) {
 		)
 	}
 }
+func TestExtractRequirementsClassifiesYearsWithoutExperienceWord(t *testing.T) {
+	description := `
+Requirements
+
+• 0-2 years in software engineering, with an interest in back-end and full-stack development across modern web platforms.
+`
+
+	requirements := ExtractRequirements(description)
+
+	assertRequirementContaining(
+		t,
+		requirements,
+		"0-2 years",
+		RequirementExperience,
+		RequirementRequired,
+	)
+}
+
+func TestExtractRequirementsClassifiesTechnicalCapabilityAsSkill(t *testing.T) {
+	description := `
+Requirements
+
+• .NET / API Foundations: Some exposure to building scalable services using .NET and an eagerness to learn API design with GraphQL and REST.
+`
+
+	requirements := ExtractRequirements(description)
+
+	assertRequirementContaining(
+		t,
+		requirements,
+		".NET / API Foundations",
+		RequirementSkill,
+		RequirementRequired,
+	)
+}
+
+func TestExtractRequirementsIgnoresExperienceSectionIntro(t *testing.T) {
+	description := `
+Additional Skills
+
+While this role is primarily back-end/full-stack focused, experience in these areas is a plus:
+
+• CMS & Platform Engineering: Any experience with or interest in CMS platforms, with Optimizely a nice-to-have.
+`
+
+	requirements := ExtractRequirements(description)
+
+	for _, requirement := range requirements {
+		if strings.Contains(
+			strings.ToLower(requirement.Text),
+			"experience in these areas is a plus",
+		) {
+			t.Fatalf(
+				"expected section-intro prose to be ignored, got requirement: %+v",
+				requirement,
+			)
+		}
+	}
+}

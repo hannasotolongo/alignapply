@@ -68,6 +68,10 @@ var (
 		`(?i)\b(skill|skills|ability|knowledge|proficient|proficiency|communication|communicate|computer|customer service|negotiation|negotiate|leadership|relationship[- ]building|work independently|problem[- ]solving|microsoft office|excel|salesforce|crm|bilingual|organizational|organization)\b`,
 	)
 
+	technicalSkillRE = regexp.MustCompile(
+		`(?i)(?:\.net\b|\bgraphql\b|\brest(?:ful)?\b|\bapi(?:s)?\b|\bsql\b|\baws\b|\bazure\b|\bgcp\b|\bdocker\b|\bkubernetes\b|\bci/cd\b|\bdevops\b)`,
+	)
+
 	preferredRE = regexp.MustCompile(
 		`(?i)\b(preferred|a plus|is a plus|desired|nice[- ]to[- ]have)\b`,
 	)
@@ -1986,6 +1990,10 @@ func addRequirement(
 ) {
 	text = cleanRequirementText(text)
 
+	if isRequirementSectionIntro(text) {
+		return
+	}
+
 	if text == "" ||
 		isExplicitNoneValue(text) ||
 		isMarketingOrCompanyProse(text) ||
@@ -2022,6 +2030,21 @@ func addRequirement(
 	)
 }
 
+func isRequirementSectionIntro(text string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(text))
+	normalized = strings.TrimSuffix(normalized, ":")
+
+	switch normalized {
+	case "while this role is primarily back-end/full-stack focused, experience in these areas is a plus",
+		"experience in these areas is a plus",
+		"experience in the following areas is a plus",
+		"experience in the following is a plus":
+		return true
+	default:
+		return false
+	}
+}
+
 func classifyRequirement(
 	text string,
 	fallback RequirementCategory,
@@ -2048,8 +2071,14 @@ func classifyRequirement(
 	case educationRE.MatchString(text):
 		return RequirementEducation
 
+	case yearsRE.MatchString(text):
+		return RequirementExperience
+
 	case experienceRE.MatchString(text):
 		return RequirementExperience
+
+	case technicalSkillRE.MatchString(text):
+		return RequirementSkill
 
 	case skillRE.MatchString(text):
 		return RequirementSkill

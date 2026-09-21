@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"unicode"
 
 	"github.com/hannasotolongo/casemade-backend/internal/candidate"
@@ -125,8 +126,7 @@ func Match(
 	//
 	// ResumeText remains a legacy fallback while existing clients migrate.
 	// We intentionally do not merge an individual resume into a populated
-	// Career Profile here. Resume evidence will later power Resume Fit and
-	// Best Resume independently from the user's overall Career Profile.
+	// Career Profile here.
 	if request.CareerProfile.HasEvidence() {
 		profile = candidate.BuildProfile(
 			"",
@@ -147,6 +147,99 @@ func Match(
 		return result
 	}
 
+	// Evaluate independent requirements concurrently.
+	//
+	// A bounded worker pool prevents a large job posting from creating an
+	// unbounded number of Ollama requests. Results are stored by requirement
+	// index so aggregation remains deterministic.
+	type requirementEvaluation struct {
+		index    int
+		text     string
+		weight   float64
+		required bool
+		critical bool
+		evidence evidenceResult
+		valid    bool
+	}
+
+	evaluations := make(
+		[]requirementEvaluation,
+		len(job.Requirements),
+	)
+
+	const maxConcurrentRequirements = 6
+
+	work := make(chan int)
+	var wg sync.WaitGroup
+
+	workerCount := maxConcurrentRequirements
+
+	if len(job.Requirements) < workerCount {
+		workerCount = len(job.Requirements)
+	}
+
+	for worker := 0; worker < workerCount; worker++ {
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+
+			for index := range work {
+				requirement := job.Requirements[index]
+
+				text := strings.TrimSpace(
+					requirement.Text,
+				)
+
+				if text == "" {
+					continue
+				}
+
+				weight := requirementWeight(
+					requirement,
+				)
+
+				if weight <= 0 {
+					continue
+				}
+
+				isRequired :=
+					requirement.Importance ==
+						jobs.RequirementRequired
+
+				isCriticalRequired :=
+					isRequired &&
+						isCriticalRequirement(
+							requirement,
+						)
+
+				evidence :=
+					evaluateRequirementEvidence(
+						profile,
+						requirement,
+					)
+
+				evaluations[index] =
+					requirementEvaluation{
+						index:    index,
+						text:     text,
+						weight:   weight,
+						required: isRequired,
+						critical: isCriticalRequired,
+						evidence: evidence,
+						valid:    true,
+					}
+			}
+		}()
+	}
+
+	for index := range job.Requirements {
+		work <- index
+	}
+
+	close(work)
+	wg.Wait()
+
 	totalWeight := 0.0
 	earnedWeight := 0.0
 
@@ -158,79 +251,65 @@ func Match(
 	criticalRequiredCount := 0
 	criticalRequiredNotSupported := 0
 
-	for _, requirement := range job.Requirements {
-		text := strings.TrimSpace(requirement.Text)
-
-		if text == "" {
+	// Aggregate in requirement order. This keeps output deterministic even
+	// though evaluation itself is concurrent.
+	for _, evaluation := range evaluations {
+		if !evaluation.valid {
 			continue
 		}
 
-		weight := requirementWeight(requirement)
+		totalWeight += evaluation.weight
+		earnedWeight +=
+			evaluation.weight *
+				evaluation.evidence.Score
 
-		if weight <= 0 {
-			continue
-		}
-
-		totalWeight += weight
-
-		isRequired :=
-			requirement.Importance == jobs.RequirementRequired
-
-		isCriticalRequired :=
-			isRequired &&
-				isCriticalRequirement(requirement)
-
-		if isRequired {
+		if evaluation.required {
 			requiredCount++
 		}
 
-		if isCriticalRequired {
+		if evaluation.critical {
 			criticalRequiredCount++
 		}
 
-		evidence := evaluateRequirementEvidence(
-			profile,
-			requirement,
-		)
-
-		earnedWeight += weight * evidence.Score
-
-		switch evidence.Level {
+		switch evaluation.evidence.Level {
 		case evidenceSupported:
-			result.SupportedRequirements = appendUnique(
-				result.SupportedRequirements,
-				text,
-			)
+			result.SupportedRequirements =
+				appendUnique(
+					result.SupportedRequirements,
+					evaluation.text,
+				)
 
-			if isRequired {
+			if evaluation.required {
 				requiredSupported++
 			}
 
 		case evidencePartial:
-			result.PartialRequirements = appendUnique(
-				result.PartialRequirements,
-				text,
-			)
+			result.PartialRequirements =
+				appendUnique(
+					result.PartialRequirements,
+					evaluation.text,
+				)
 
-			if isRequired {
+			if evaluation.required {
 				requiredPartial++
 			}
 
-			if isCriticalRequired {
+			if evaluation.critical {
 				criticalRequiredNotSupported++
 			}
 
 		default:
-			result.MissingRequirements = appendUnique(
-				result.MissingRequirements,
-				text,
-			)
+			result.MissingRequirements =
+				appendUnique(
+					result.MissingRequirements,
+					evaluation.text,
+				)
 
-			if isRequired {
+			if evaluation.required {
 				requiredMissing++
 			}
 
-			if isCriticalRequired {
+			if evaluation.critical {
 				criticalRequiredNotSupported++
 			}
 		}
@@ -284,7 +363,6 @@ func Match(
 
 	return result
 }
-
 func newJobMatch(job jobs.Job) jobs.JobMatch {
 	return jobs.JobMatch{
 		ID:          job.ID,
@@ -399,19 +477,14 @@ func evaluateRequirementEvidence(
 		return missingEvidence()
 	}
 
-	// IMPORTANT:
+	// Retrieval identifies the strongest candidate evidence. The deterministic
+	// verifier gets the first opportunity to decide the requirement. Only
+	// ambiguous evidence is sent to the model-backed verifier.
 	//
-	// Retrieval identifies the strongest candidate evidence, but verification
-	// makes the final decision.
-	//
-	// Previously every retrieved evidence statement was sent to the model in
-	// a separate inference request and then the combined evidence could trigger
-	// yet another inference. With a local LLM this made one requirement capable
-	// of producing as many as six expensive model calls.
-	//
-	// Instead, send the retrieved evidence to the verifier as one evidence
-	// bundle. This preserves the retrieval/verifier boundary while requiring
-	// only one model inference for the requirement.
+	// This is important for local Ollama deployments: an obvious lexical match
+	// should not consume a Qwen generation. Semantic retrieval still remains
+	// responsible for finding cross-domain or differently worded evidence, and
+	// those ambiguous cases can fall through to Qwen.
 	combined := make(
 		[]string,
 		0,
@@ -437,9 +510,26 @@ func evaluateRequirementEvidence(
 		return missingEvidence()
 	}
 
+	combinedEvidence := strings.Join(
+		combined,
+		"\n",
+	)
+
+	deterministicResult := verifyEvidenceDeterministically(
+		requirementText,
+		combinedEvidence,
+	)
+
+	if deterministicResult.Level == evidenceSupported {
+		return deterministicResult
+	}
+
+	// Missing and partial lexical coverage can still represent a valid
+	// semantic match (for example, "patient counseling" vs "patient
+	// education"). Let the model resolve those genuinely ambiguous cases.
 	return currentEvidenceVerifier().Verify(
 		requirementText,
-		strings.Join(combined, "\n"),
+		combinedEvidence,
 	)
 }
 
@@ -628,10 +718,24 @@ func evaluateExperienceEvidence(
 		return missingEvidence(), true
 	}
 
-	contextResult := currentEvidenceVerifier().Verify(
-		requirementWithoutYears,
-		strings.Join(combined, "\n"),
+	combinedEvidence := strings.Join(
+		combined,
+		"\n",
 	)
+
+	contextResult := verifyEvidenceDeterministically(
+		requirementWithoutYears,
+		combinedEvidence,
+	)
+
+	if contextResult.Level != evidenceSupported {
+		// A duration requirement can still use semantically equivalent
+		// evidence, so ambiguous lexical coverage is delegated to Qwen.
+		contextResult = currentEvidenceVerifier().Verify(
+			requirementWithoutYears,
+			combinedEvidence,
+		)
+	}
 
 	if contextResult.Level == evidenceMissing {
 		return missingEvidence(), true
