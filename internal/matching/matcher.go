@@ -73,8 +73,7 @@ var stopWords = map[string]struct{}{
 
 	// Generic action verbs commonly wrap the actual capability in job
 	// requirements. They should not prevent direct capability evidence from
-	// being verified simply because the resume uses a different action verb
-	// (for example, "developing backend services" vs "built backend services").
+	// being verified simply because the resume uses a different action verb.
 	"build": {}, "building": {}, "built": {},
 	"develop": {}, "developing": {}, "developed": {},
 
@@ -355,15 +354,14 @@ func evaluateRequirementEvidence(
 		return missingEvidence()
 	}
 
-	// Explicit years of experience remain a hard duration constraint. Semantic
-	// retrieval may help locate the relevant experience statement, but the
-	// duration itself is evaluated deterministically.
+	// Explicit years of experience remain a hard duration constraint.
 	if requirement.Category == jobs.RequirementExperience {
 		if _, hasYears := extractRequiredYears(requirementText); hasYears {
 			result, _ := evaluateExperienceEvidence(
 				relevant,
 				requirementText,
 			)
+
 			return result
 		}
 	}
@@ -376,8 +374,12 @@ func evaluateRequirementEvidence(
 
 	for _, item := range relevant {
 		text := normalize(item.Text)
+
 		if text != "" {
-			evidenceTexts = append(evidenceTexts, text)
+			evidenceTexts = append(
+				evidenceTexts,
+				text,
+			)
 		}
 	}
 
@@ -385,8 +387,8 @@ func evaluateRequirementEvidence(
 		return missingEvidence()
 	}
 
-	// Embeddings are retrieval only. We intentionally do not convert a cosine
-	// score into Supported/Partial/Missing.
+	// Embeddings are retrieval only. A cosine similarity score is never
+	// converted directly into Supported, Partial, or Missing.
 	retrieved := currentSemanticRetriever().Retrieve(
 		requirementText,
 		evidenceTexts,
@@ -397,42 +399,48 @@ func evaluateRequirementEvidence(
 		return missingEvidence()
 	}
 
-	best := missingEvidence()
+	// IMPORTANT:
+	//
+	// Retrieval identifies the strongest candidate evidence, but verification
+	// makes the final decision.
+	//
+	// Previously every retrieved evidence statement was sent to the model in
+	// a separate inference request and then the combined evidence could trigger
+	// yet another inference. With a local LLM this made one requirement capable
+	// of producing as many as six expensive model calls.
+	//
+	// Instead, send the retrieved evidence to the verifier as one evidence
+	// bundle. This preserves the retrieval/verifier boundary while requiring
+	// only one model inference for the requirement.
+	combined := make(
+		[]string,
+		0,
+		len(retrieved),
+	)
 
-	for _, candidate := range retrieved {
-		result := currentEvidenceVerifier().Verify(
-			requirementText,
-			candidate.Evidence,
+	for _, retrievedEvidence := range retrieved {
+		text := strings.TrimSpace(
+			retrievedEvidence.Evidence,
 		)
 
-		if result.Level > best.Level {
-			best = result
+		if text == "" {
+			continue
 		}
 
-		if best.Level == evidenceSupported {
-			return best
-		}
-	}
-
-	// Multiple statements may jointly demonstrate a requirement. Retrieval
-	// chooses the evidence to inspect; verification still makes the decision.
-	if len(retrieved) > 1 {
-		combined := make([]string, 0, len(retrieved))
-		for _, candidate := range retrieved {
-			combined = append(combined, candidate.Evidence)
-		}
-
-		result := currentEvidenceVerifier().Verify(
-			requirementText,
-			strings.Join(combined, " "),
+		combined = append(
+			combined,
+			text,
 		)
-
-		if result.Level > best.Level {
-			best = result
-		}
 	}
 
-	return best
+	if len(combined) == 0 {
+		return missingEvidence()
+	}
+
+	return currentEvidenceVerifier().Verify(
+		requirementText,
+		strings.Join(combined, "\n"),
+	)
 }
 
 // verifyEvidenceDeterministically is the conservative verifier boundary used
@@ -445,6 +453,7 @@ func verifyEvidenceDeterministically(
 	evidence string,
 ) evidenceResult {
 	requirementTokens := meaningfulTokens(requirement)
+
 	if len(requirementTokens) == 0 {
 		return missingEvidence()
 	}
@@ -452,8 +461,12 @@ func verifyEvidenceDeterministically(
 	evidenceTokens := meaningfulTokens(evidence)
 
 	matched := 0
+
 	for _, requirementToken := range requirementTokens {
-		if tokenDemonstrated(requirementToken, evidenceTokens) {
+		if tokenDemonstrated(
+			requirementToken,
+			evidenceTokens,
+		) {
 			matched++
 		}
 	}
@@ -462,22 +475,10 @@ func verifyEvidenceDeterministically(
 		return missingEvidence()
 	}
 
-	// Verification is based on demonstrated requirement concepts, not on the
-	// embedding retrieval score. For short requirements, every meaningful
-	// concept must be present. This correctly treats:
-	//
-	//   "building distributed systems"
-	//   "designed distributed systems ..."
-	//
-	// as direct evidence even though "building" and "designed" are different
-	// action verbs. The capability itself ("distributed systems") is explicit.
 	if matched == len(requirementTokens) {
 		return supportedEvidence()
 	}
 
-	// Requirements often contain an action verb plus the actual capability.
-	// When a two-concept requirement has one directly demonstrated capability,
-	// retain partial support rather than treating semantic retrieval as proof.
 	if matched*2 >= len(requirementTokens) {
 		return partialEvidence()
 	}
@@ -491,8 +492,6 @@ func relevantEvidence(
 ) []candidate.Evidence {
 	switch category {
 	case jobs.RequirementSkill:
-		// Skills may be demonstrated directly or through professional
-		// experience, projects, or user-confirmed summary evidence.
 		return combineEvidence(
 			profile.Skills,
 			profile.Experience,
@@ -501,9 +500,6 @@ func relevantEvidence(
 		)
 
 	case jobs.RequirementExperience:
-		// Experience requirements deliberately use only professional
-		// experience evidence. Project durations and summary text must not
-		// satisfy professional years-of-experience requirements.
 		return profile.Experience
 
 	case jobs.RequirementEducation:
@@ -518,6 +514,7 @@ func relevantEvidence(
 	case jobs.RequirementTravel,
 		jobs.RequirementPhysical,
 		jobs.RequirementOther:
+
 		return profile.AllEvidence
 
 	default:
@@ -542,7 +539,11 @@ func combineEvidence(
 			}
 
 			seen[key] = struct{}{}
-			result = append(result, evidence)
+
+			result = append(
+				result,
+				evidence,
+			)
 		}
 	}
 
@@ -574,8 +575,12 @@ func evaluateExperienceEvidence(
 
 	for _, item := range evidence {
 		text := normalize(item.Text)
+
 		if text != "" {
-			evidenceTexts = append(evidenceTexts, text)
+			evidenceTexts = append(
+				evidenceTexts,
+				text,
+			)
 		}
 	}
 
@@ -583,39 +588,67 @@ func evaluateExperienceEvidence(
 		return missingEvidence(), true
 	}
 
-	// Retrieval narrows the professional-experience evidence we inspect.
-	// Retrieval score itself never proves that the experience is relevant.
 	retrieved := currentSemanticRetriever().Retrieve(
 		requirementWithoutYears,
 		evidenceTexts,
 		5,
 	)
 
-	bestContext := evidenceMissing
-	bestRelevantYears := 0
-
-	for _, candidate := range retrieved {
-		contextResult := currentEvidenceVerifier().Verify(
-			requirementWithoutYears,
-			candidate.Evidence,
-		)
-
-		if contextResult.Level > bestContext {
-			bestContext = contextResult.Level
-		}
-
-		// Only evidence independently verified as at least partial may
-		// contribute years toward the hard duration requirement.
-		if contextResult.Level >= evidencePartial {
-			years := extractLargestYears(candidate.Evidence)
-			if years > bestRelevantYears {
-				bestRelevantYears = years
-			}
-		}
+	if len(retrieved) == 0 {
+		return missingEvidence(), true
 	}
 
-	if bestContext == evidenceMissing {
+	// For explicit years-of-experience requirements, the semantic context
+	// still needs to be verified before any duration can count.
+	//
+	// Bundle retrieved evidence so the model performs one semantic
+	// verification instead of one inference per evidence statement.
+	combined := make(
+		[]string,
+		0,
+		len(retrieved),
+	)
+
+	for _, retrievedEvidence := range retrieved {
+		text := strings.TrimSpace(
+			retrievedEvidence.Evidence,
+		)
+
+		if text == "" {
+			continue
+		}
+
+		combined = append(
+			combined,
+			text,
+		)
+	}
+
+	if len(combined) == 0 {
 		return missingEvidence(), true
+	}
+
+	contextResult := currentEvidenceVerifier().Verify(
+		requirementWithoutYears,
+		strings.Join(combined, "\n"),
+	)
+
+	if contextResult.Level == evidenceMissing {
+		return missingEvidence(), true
+	}
+
+	bestRelevantYears := 0
+
+	// Duration is still evaluated deterministically. The model does not invent
+	// or estimate years that are not explicitly present in candidate evidence.
+	for _, retrievedEvidence := range retrieved {
+		years := extractLargestYears(
+			retrievedEvidence.Evidence,
+		)
+
+		if years > bestRelevantYears {
+			bestRelevantYears = years
+		}
 	}
 
 	if bestRelevantYears == 0 {
@@ -646,7 +679,6 @@ func tokenCoverage(
 	matched := 0
 
 	for _, requirementToken := range requirementTokens {
-
 		if tokenDemonstrated(
 			requirementToken,
 			evidenceTokens,
@@ -662,14 +694,7 @@ func tokenCoverage(
 // tokenDemonstrated performs conservative lexical matching.
 //
 // Exact token equality remains the primary rule. For longer alphabetic
-// words, a shared lexical stem can also establish a match. This handles
-// ordinary morphological variants such as:
-//
-//	containerization <-> containerized
-//	deployment       <-> deploying
-//
-// Short identifiers and technical tokens such as Go, C++, AWS, SQL,
-// CI/CD, version numbers, and acronyms are never stem-matched.
+// words, a shared lexical stem can also establish a match.
 func tokenDemonstrated(
 	requirementToken string,
 	evidenceTokens []string,
@@ -700,6 +725,7 @@ func lexicalVariantMatch(
 
 	if !alphabeticToken(left) ||
 		!alphabeticToken(right) {
+
 		return false
 	}
 
@@ -708,6 +734,7 @@ func lexicalVariantMatch(
 
 	if len(leftStem) < 6 ||
 		len(rightStem) < 6 {
+
 		return false
 	}
 
@@ -928,10 +955,6 @@ func isCriticalRequirement(
 	}
 }
 
-// determineFitCategory intentionally classifies fit from required-qualification
-// outcomes rather than from the numeric evidence score. MatchPercentage remains
-// populated for API compatibility and internal diagnostics, but it is not the
-// source of truth for the user-facing category.
 func determineFitCategory(
 	requiredCount int,
 	requiredSupported int,
@@ -944,9 +967,6 @@ func determineFitCategory(
 		return "Good Fit"
 	}
 
-	// A required license, certification, education requirement, or explicit
-	// years-of-experience requirement that is not fully supported is a
-	// material gap. We do not allow unrelated matching skills to wash it out.
 	if criticalRequiredNotSupported > 0 {
 		return "Reach"
 	}
@@ -962,9 +982,6 @@ func determineFitCategory(
 		) /
 			float64(requiredCount)
 
-	// Best Fit is deliberately strict: every required qualification must have
-	// at least some evidence, most must be clearly supported, and at most one
-	// required qualification may only be partial.
 	if requiredMissing == 0 &&
 		supportedRatio >= 0.75 &&
 		requiredPartial <= 1 {
@@ -972,8 +989,6 @@ func determineFitCategory(
 		return "Best Fit"
 	}
 
-	// Good Fit means the candidate demonstrates a meaningful majority of the
-	// required qualifications and fewer than half are wholly unsupported.
 	if demonstratedRatio >= 0.60 &&
 		requiredMissing*2 < requiredCount {
 
@@ -1047,12 +1062,14 @@ func normalize(text string) string {
 			switch {
 			case unicode.IsLetter(r),
 				unicode.IsDigit(r):
+
 				return r
 
 			case r == '+',
 				r == '#',
 				r == '.',
 				r == '/':
+
 				return r
 
 			default:
@@ -1127,7 +1144,6 @@ func tokenSet(text string) map[string]struct{} {
 		make(map[string]struct{})
 
 	for _, token := range meaningfulTokens(text) {
-
 		result[token] = struct{}{}
 	}
 

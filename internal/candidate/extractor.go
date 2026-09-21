@@ -24,7 +24,7 @@ var (
 	)
 
 	experienceLanguageRE = regexp.MustCompile(
-		`(?i)\b(?:experience|experienced|developed|built|implemented|designed|engineered|managed|led|created|deployed|trained|integrated|maintained|optimized|analysed|analyzed|researched|coordinated|supported|administered|delivered|operated|owned|tested|configured|performed|provided|worked)\b`,
+		`(?i)\b(?:experience|experienced|developed|built|implemented|designed|engineered|managed|led|created|deployed|trained|integrated|maintained|optimized|analysed|analyzed|researched|coordinated|supported|administered|delivered|operated|owned|tested|configured|performed|provided|worked|counseled|counselled|identified|sourced|measured|redesigned|improved|evaluated|advised|educated|taught|recruited|contacted|screened|mentored|consulted|supervised)\b`,
 	)
 
 	skillLanguageRE = regexp.MustCompile(
@@ -173,8 +173,11 @@ func classifyEvidenceUnit(text string) []Evidence {
 		)
 	}
 
-	if yearExperienceRE.MatchString(text) ||
-		experienceLanguageRE.MatchString(text) {
+	isEducationEvidence := educationRE.MatchString(text)
+
+	if !isEducationEvidence &&
+		(yearExperienceRE.MatchString(text) ||
+			experienceLanguageRE.MatchString(text)) {
 
 		result = appendEvidenceUnique(
 			result,
