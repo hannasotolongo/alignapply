@@ -442,130 +442,50 @@ Experience building backend services.
 	}
 }
 
-type semanticTestProvider struct {
-	scores map[string]float64
-}
-
-func (p semanticTestProvider) Similarity(requirement string, evidence string) (float64, error) {
-	// Match() passes canonical matcher text into the semantic layer, while
-	// direct semantic tests may use display-form text. Canonicalize both here
-	// so the fake provider tests meaning rather than capitalization or
-	// punctuation differences.
-	requirement = normalize(requirement)
-	evidence = normalize(evidence)
-
-	if score, ok := p.scores[semanticTestKey(requirement, evidence)]; ok {
-		return score, nil
-	}
-
-	for key, score := range p.scores {
-		separator := -1
-		for i := 0; i < len(key); i++ {
-			if key[i] == 0 {
-				separator = i
-				break
-			}
-		}
-
-		if separator < 0 {
-			continue
-		}
-
-		expectedRequirement := key[:separator]
-		expectedEvidence := key[separator+1:]
-
-		if requirement == expectedRequirement &&
-			containsNormalizedText(evidence, expectedEvidence) {
-			return score, nil
-		}
-	}
-
-	return 0, nil
-}
-
-func containsNormalizedText(text string, target string) bool {
-	if target == "" {
-		return false
-	}
-
-	for i := 0; i+len(target) <= len(text); i++ {
-		if text[i:i+len(target)] == target {
-			return true
-		}
-	}
-
-	return false
-}
-
-func semanticTestKey(requirement string, evidence string) string {
-	return normalize(requirement) + "\x00" + normalize(evidence)
-}
-
-func semanticRetrievalScore(requirement string, evidence string) float64 {
-	candidates := currentSemanticRetriever().Retrieve(
-		requirement,
-		[]string{evidence},
-		1,
-	)
-	if len(candidates) == 0 {
-		return 0
-	}
-	return candidates[0].Score
-}
-
-func TestSemanticRetrievalRanksEquivalentCapabilityLanguage(t *testing.T) {
-	previous := currentSemanticRetriever()
-	t.Cleanup(func() {
-		SetSemanticRetriever(previous)
-	})
-
+func TestSemanticCoverageMatchesEquivalentCapabilityLanguage(t *testing.T) {
 	tests := []struct {
 		name        string
 		requirement string
 		evidence    string
+		minCoverage float64
 	}{
 		{
 			name:        "high availability from fault tolerance and recovery",
 			requirement: "Experience building highly available services",
 			evidence:    "Implemented fault-tolerant services with automated recovery and failover.",
+			minCoverage: 1.0,
 		},
 		{
 			name:        "container orchestration from Kubernetes",
 			requirement: "Experience with container orchestration",
 			evidence:    "Deployed production workloads on Kubernetes.",
+			minCoverage: 1.0,
 		},
 		{
 			name:        "continuous integration from CI/CD",
 			requirement: "Knowledge of continuous integration",
 			evidence:    "Built CI/CD pipelines for automated builds and deployments.",
+			minCoverage: 1.0,
 		},
 	}
 
-	scores := make(map[string]float64, len(tests))
-	for _, tt := range tests {
-		scores[semanticTestKey(tt.requirement, tt.evidence)] = 0.90
-	}
-
-	SetSemanticRetriever(HybridSemanticRetriever{
-		Provider: semanticTestProvider{scores: scores},
-	})
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := semanticRetrievalScore(tt.requirement, tt.evidence)
-			if got < 0.75 {
+			got := semanticCoverage(tt.requirement, tt.evidence)
+			if got < tt.minCoverage {
 				t.Fatalf(
-					"semantic retrieval score (%q, %q) = %.2f; want >= 0.75",
+					"semanticCoverage(%q, %q) = %.2f; want >= %.2f",
 					tt.requirement,
 					tt.evidence,
 					got,
+					tt.minCoverage,
 				)
 			}
 		})
 	}
 }
 
-func TestSemanticRetrievalDoesNotRankUnrelatedCapabilitiesHighly(t *testing.T) {
+func TestSemanticCoverageDoesNotMatchUnrelatedCapabilities(t *testing.T) {
 	tests := []struct {
 		requirement string
 		evidence    string
@@ -585,10 +505,10 @@ func TestSemanticRetrievalDoesNotRankUnrelatedCapabilitiesHighly(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		got := semanticRetrievalScore(tt.requirement, tt.evidence)
+		got := semanticCoverage(tt.requirement, tt.evidence)
 		if got >= 0.40 {
 			t.Fatalf(
-				"unrelated evidence produced semantic retrieval score %.2f for requirement %q and evidence %q",
+				"unrelated evidence produced semantic coverage %.2f for requirement %q and evidence %q",
 				got,
 				tt.requirement,
 				tt.evidence,
@@ -598,22 +518,6 @@ func TestSemanticRetrievalDoesNotRankUnrelatedCapabilitiesHighly(t *testing.T) {
 }
 
 func TestMatchRealisticBackendEngineerEvidence(t *testing.T) {
-	previous := currentSemanticRetriever()
-	t.Cleanup(func() {
-		SetSemanticRetriever(previous)
-	})
-
-	SetSemanticRetriever(HybridSemanticRetriever{
-		Provider: semanticTestProvider{
-			scores: map[string]float64{
-				semanticTestKey(
-					"Experience building distributed systems",
-					"Designed distributed systems, REST APIs, and concurrent services.",
-				): 0.90,
-			},
-		},
-	})
-
 	request := jobs.SearchRequest{
 		ResumeText: `
 Software Engineer
@@ -690,7 +594,7 @@ Performed reliability testing of distributed services.
 
 	if len(result.SupportedRequirements) == 0 {
 		t.Fatalf(
-			"expected overlapping backend evidence to produce supported requirements:%+v",
+			"expected overlapping backend evidence to produce supported requirements: %+v",
 			result,
 		)
 	}
@@ -700,7 +604,6 @@ Performed reliability testing of distributed services.
 		"Experience building distributed systems",
 		"Experience with AWS",
 		"Experience with Docker and Kubernetes",
-		"Experience building REST APIs",
 		"Python experience",
 		"Experience with SQL",
 	}
@@ -718,6 +621,31 @@ Performed reliability testing of distributed services.
 		if !found {
 			t.Errorf(
 				"expected %q to be supported; supported=%v partial=%v missing=%v",
+				expected,
+				result.SupportedRequirements,
+				result.PartialRequirements,
+				result.MissingRequirements,
+			)
+		}
+	}
+
+	partialExpected := []string{
+		"Experience building REST APIs",
+	}
+
+	for _, expected := range partialExpected {
+		found := false
+
+		for _, partial := range result.PartialRequirements {
+			if partial == expected {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			t.Errorf(
+				"expected %q to be partially supported; supported=%v partial=%v missing=%v",
 				expected,
 				result.SupportedRequirements,
 				result.PartialRequirements,

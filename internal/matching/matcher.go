@@ -70,6 +70,14 @@ var stopWords = map[string]struct{}{
 	"comfortable": {}, "comfort": {},
 	"working": {}, "work": {},
 	"using": {}, "use": {},
+
+	// Generic action verbs commonly wrap the actual capability in job
+	// requirements. They should not prevent direct capability evidence from
+	// being verified simply because the resume uses a different action verb
+	// (for example, "developing backend services" vs "built backend services").
+	"build": {}, "building": {}, "built": {},
+	"develop": {}, "developing": {}, "developed": {},
+
 	"related": {}, "relevant": {},
 	"professional": {},
 	"practical":    {},
@@ -93,141 +101,6 @@ var stopWords = map[string]struct{}{
 	"concepts":     {},
 	"foundation":   {},
 	"foundations":  {},
-}
-
-// capabilityFamilies broadens evidence matching beyond exact wording.
-// Each family contains terms/phrases that commonly demonstrate the same
-// underlying capability. This layer is intentionally conservative: it helps
-// retrieve semantically related evidence, but hard constraints such as years,
-// degrees, licenses, and certifications are still verified separately.
-var capabilityFamilies = [][]string{
-	{"distributed systems", "distributed services", "distributed system", "microservices", "service oriented", "service-oriented"},
-	{"reliability", "reliable systems", "fault tolerant", "fault-tolerant", "high availability", "highly available", "resilience", "resilient", "recovery", "failover"},
-	{"backend", "backend engineering", "backend development", "server side", "server-side", "api development", "api engineering", "web services"},
-	{"rest api", "restful api", "http api", "web api", "api endpoint", "api endpoints"},
-	{"concurrency", "concurrent", "parallel processing", "multithreading", "multi-threading", "goroutine", "goroutines"},
-	{"persistence", "persistent storage", "database", "datastore", "data store", "state management", "durable state"},
-	{"cloud", "cloud infrastructure", "cloud computing", "aws", "azure", "gcp"},
-	{"containers", "containerization", "containerized", "docker", "kubernetes", "k8s"},
-	{"orchestration", "container orchestration", "kubernetes", "k8s"},
-	{"ci/cd", "continuous integration", "continuous delivery", "continuous deployment", "deployment pipeline", "build pipeline"},
-	{"observability", "monitoring", "metrics", "logging", "tracing", "telemetry"},
-	{"machine learning", "ml", "deep learning", "neural network", "neural networks"},
-	{"artificial intelligence", "ai", "machine learning", "ml"},
-	{"llm", "large language model", "large language models", "language model", "language models"},
-	{"computer vision", "image recognition", "image processing", "vision model", "vision models"},
-	{"distributed training", "multi gpu", "multi-gpu", "nccl", "data parallel", "model parallel"},
-	{"gpu", "gpu computing", "cuda", "accelerator", "accelerators"},
-	{"infrastructure as code", "iac", "terraform"},
-	{"database", "databases", "sql", "mysql", "postgresql", "postgres", "relational database"},
-	{"streaming", "real time", "real-time", "event driven", "event-driven", "message stream", "websocket", "websockets"},
-	{"messaging", "message queue", "message queues", "event driven", "event-driven", "pub sub", "publish subscribe", "broker"},
-	{"testing", "automated testing", "unit testing", "integration testing", "test automation"},
-	{"security", "application security", "cybersecurity", "secure systems", "vulnerability"},
-	{"scalability", "scalable", "scale", "high throughput", "high-throughput", "performance"},
-	{"low latency", "low-latency", "latency sensitive", "latency-sensitive", "real time", "real-time"},
-	{"data engineering", "data pipeline", "data pipelines", "etl", "data processing"},
-	{"version control", "source control", "git", "github"},
-	{"agile", "scrum", "sprint", "sprints"},
-	{"leadership", "technical leadership", "mentoring", "mentor", "leading teams", "team lead"},
-	{"communication", "communicate", "cross functional", "cross-functional", "stakeholder", "stakeholders", "collaboration", "collaborative"},
-}
-
-// semanticCoverage compares underlying capabilities rather than requiring the
-// employer and candidate to use identical vocabulary. It combines lexical
-// evidence with concept-family evidence. The result remains evidence-based:
-// no family match is possible unless the candidate's actual text expresses a
-// member of the same capability family.
-func semanticCoverage(requirement string, evidence string) float64 {
-	lexical := tokenCoverage(requirement, evidence)
-	reqConcepts := capabilityConcepts(requirement)
-	if len(reqConcepts) == 0 {
-		return lexical
-	}
-
-	evidenceConcepts := capabilityConcepts(evidence)
-	if len(evidenceConcepts) == 0 {
-		return lexical
-	}
-
-	matched := 0
-	for concept := range reqConcepts {
-		if _, ok := evidenceConcepts[concept]; ok {
-			matched++
-		}
-	}
-
-	conceptCoverage := float64(matched) / float64(len(reqConcepts))
-
-	// A piece of evidence can legitimately express more semantic concepts than
-	// the requirement. For example, "Kubernetes" expresses both containerization
-	// and orchestration, while "container orchestration" may express only the
-	// orchestration family. Coverage is requirement-directed, so extra concepts
-	// in the evidence must not reduce support.
-	//
-	// Conversely, a requirement that expresses multiple distinct concepts still
-	// requires those concepts to be demonstrated independently; one overlapping
-	// concept cannot satisfy the whole requirement.
-
-	// Concept equivalence can establish strong support even when wording is
-	// different. Lexical evidence still contributes when it is stronger.
-	if conceptCoverage > lexical {
-		return conceptCoverage
-	}
-	return lexical
-}
-
-func capabilityConcepts(text string) map[int]struct{} {
-	normalized := semanticNormalize(text)
-	result := make(map[int]struct{})
-
-	if normalized == "" {
-		return result
-	}
-
-	for index, family := range capabilityFamilies {
-		for _, phrase := range family {
-			if containsNormalizedPhrase(normalized, semanticNormalize(phrase)) {
-				result[index] = struct{}{}
-				break
-			}
-		}
-	}
-
-	return result
-}
-
-// containsNormalizedPhrase matches a normalized capability phrase on token
-// boundaries. Padding both sides prevents short capability names from matching
-// inside unrelated words while still allowing punctuation-normalized phrases
-// such as "Kubernetes." at the end of a sentence.
-func containsNormalizedPhrase(text string, phrase string) bool {
-	text = strings.TrimSpace(text)
-	phrase = strings.TrimSpace(phrase)
-
-	if text == "" || phrase == "" {
-		return false
-	}
-
-	haystack := " " + text + " "
-	needle := " " + phrase + " "
-
-	return strings.Contains(haystack, needle)
-}
-
-// semanticNormalize canonicalizes text for capability-phrase detection. The
-// general normalize function intentionally preserves periods for identifiers
-// and versions, but sentence-final punctuation must not prevent a semantic
-// capability match ("Kubernetes." -> "kubernetes").
-func semanticNormalize(text string) string {
-	normalized := normalize(text)
-	fields := strings.Fields(normalized)
-
-	for index, field := range fields {
-		fields[index] = strings.Trim(field, ".")
-	}
-
-	return strings.Join(fields, " ")
 }
 
 func Match(
@@ -466,6 +339,13 @@ func evaluateRequirementEvidence(
 		return missingEvidence()
 	}
 
+	// Hard constraints remain authoritative and are evaluated before semantic
+	// retrieval. Similarity must never override a missing license, degree,
+	// certification, or other structured requirement.
+	if result, handled := evaluateHardConstraint(profile, requirement); handled {
+		return result
+	}
+
 	relevant := relevantEvidence(
 		profile,
 		requirement.Category,
@@ -475,71 +355,134 @@ func evaluateRequirementEvidence(
 		return missingEvidence()
 	}
 
+	// Explicit years of experience remain a hard duration constraint. Semantic
+	// retrieval may help locate the relevant experience statement, but the
+	// duration itself is evaluated deterministically.
 	if requirement.Category == jobs.RequirementExperience {
-		if result, ok := evaluateExperienceEvidence(
-			relevant,
-			requirementText,
-		); ok {
+		if _, hasYears := extractRequiredYears(requirementText); hasYears {
+			result, _ := evaluateExperienceEvidence(
+				relevant,
+				requirementText,
+			)
 			return result
 		}
 	}
 
-	bestCoverage := 0.0
-	combinedEvidence := make(
+	evidenceTexts := make(
 		[]string,
 		0,
 		len(relevant),
 	)
 
-	for _, evidence := range relevant {
-		evidenceText := normalize(evidence.Text)
-
-		if evidenceText == "" {
-			continue
-		}
-
-		combinedEvidence = append(
-			combinedEvidence,
-			evidenceText,
-		)
-
-		coverage := semanticCoverage(
-			requirementText,
-			evidenceText,
-		)
-
-		if coverage > bestCoverage {
-			bestCoverage = coverage
+	for _, item := range relevant {
+		text := normalize(item.Text)
+		if text != "" {
+			evidenceTexts = append(evidenceTexts, text)
 		}
 	}
 
-	// A profile can demonstrate one requirement across multiple evidence
-	// statements. Evaluate the union of relevant evidence as well as each
-	// individual statement.
-	if len(combinedEvidence) > 1 {
-		aggregateCoverage := semanticCoverage(
-			requirementText,
-			strings.Join(
-				combinedEvidence,
-				" ",
-			),
-		)
-
-		if aggregateCoverage > bestCoverage {
-			bestCoverage = aggregateCoverage
-		}
-	}
-
-	switch {
-	case bestCoverage >= 0.75:
-		return supportedEvidence()
-
-	case bestCoverage >= 0.40:
-		return partialEvidence()
-
-	default:
+	if len(evidenceTexts) == 0 {
 		return missingEvidence()
 	}
+
+	// Embeddings are retrieval only. We intentionally do not convert a cosine
+	// score into Supported/Partial/Missing.
+	retrieved := currentSemanticRetriever().Retrieve(
+		requirementText,
+		evidenceTexts,
+		5,
+	)
+
+	if len(retrieved) == 0 {
+		return missingEvidence()
+	}
+
+	best := missingEvidence()
+
+	for _, candidate := range retrieved {
+		result := verifyEvidenceDeterministically(
+			requirementText,
+			candidate.Evidence,
+		)
+
+		if result.Level > best.Level {
+			best = result
+		}
+
+		if best.Level == evidenceSupported {
+			return best
+		}
+	}
+
+	// Multiple statements may jointly demonstrate a requirement. Retrieval
+	// chooses the evidence to inspect; verification still makes the decision.
+	if len(retrieved) > 1 {
+		combined := make([]string, 0, len(retrieved))
+		for _, candidate := range retrieved {
+			combined = append(combined, candidate.Evidence)
+		}
+
+		result := verifyEvidenceDeterministically(
+			requirementText,
+			strings.Join(combined, " "),
+		)
+
+		if result.Level > best.Level {
+			best = result
+		}
+	}
+
+	return best
+}
+
+// verifyEvidenceDeterministically is the conservative verifier boundary used
+// until a model-backed evidence verifier is configured.
+//
+// Crucially, it does not inspect embedding similarity. A semantic retrieval
+// score means "inspect this evidence", not "this requirement is proven".
+func verifyEvidenceDeterministically(
+	requirement string,
+	evidence string,
+) evidenceResult {
+	requirementTokens := meaningfulTokens(requirement)
+	if len(requirementTokens) == 0 {
+		return missingEvidence()
+	}
+
+	evidenceTokens := meaningfulTokens(evidence)
+
+	matched := 0
+	for _, requirementToken := range requirementTokens {
+		if tokenDemonstrated(requirementToken, evidenceTokens) {
+			matched++
+		}
+	}
+
+	if matched == 0 {
+		return missingEvidence()
+	}
+
+	// Verification is based on demonstrated requirement concepts, not on the
+	// embedding retrieval score. For short requirements, every meaningful
+	// concept must be present. This correctly treats:
+	//
+	//   "building distributed systems"
+	//   "designed distributed systems ..."
+	//
+	// as direct evidence even though "building" and "designed" are different
+	// action verbs. The capability itself ("distributed systems") is explicit.
+	if matched == len(requirementTokens) {
+		return supportedEvidence()
+	}
+
+	// Requirements often contain an action verb plus the actual capability.
+	// When a two-concept requirement has one directly demonstrated capability,
+	// retain partial support rather than treating semantic retrieval as proof.
+	if matched*2 >= len(requirementTokens) {
+		return partialEvidence()
+	}
+
+	return missingEvidence()
 }
 
 func relevantEvidence(
@@ -613,45 +556,65 @@ func evaluateExperienceEvidence(
 	requiredYears, hasYears :=
 		extractRequiredYears(requirement)
 
+	if !hasYears {
+		return evidenceResult{}, false
+	}
+
 	requirementWithoutYears :=
 		yearsPattern.ReplaceAllString(
 			requirement,
 			"",
 		)
 
-	bestContextCoverage := 0.0
-	bestRelevantYears := 0
+	evidenceTexts := make(
+		[]string,
+		0,
+		len(evidence),
+	)
 
 	for _, item := range evidence {
 		text := normalize(item.Text)
-
-		if text == "" {
-			continue
+		if text != "" {
+			evidenceTexts = append(evidenceTexts, text)
 		}
+	}
 
-		coverage := semanticCoverage(
+	if len(evidenceTexts) == 0 {
+		return missingEvidence(), true
+	}
+
+	// Retrieval narrows the professional-experience evidence we inspect.
+	// Retrieval score itself never proves that the experience is relevant.
+	retrieved := currentSemanticRetriever().Retrieve(
+		requirementWithoutYears,
+		evidenceTexts,
+		5,
+	)
+
+	bestContext := evidenceMissing
+	bestRelevantYears := 0
+
+	for _, candidate := range retrieved {
+		contextResult := verifyEvidenceDeterministically(
 			requirementWithoutYears,
-			text,
+			candidate.Evidence,
 		)
 
-		if coverage > bestContextCoverage {
-			bestContextCoverage = coverage
+		if contextResult.Level > bestContext {
+			bestContext = contextResult.Level
 		}
 
-		if coverage >= 0.40 {
-			years := extractLargestYears(text)
-
+		// Only evidence independently verified as at least partial may
+		// contribute years toward the hard duration requirement.
+		if contextResult.Level >= evidencePartial {
+			years := extractLargestYears(candidate.Evidence)
 			if years > bestRelevantYears {
 				bestRelevantYears = years
 			}
 		}
 	}
 
-	if !hasYears {
-		return evidenceResult{}, false
-	}
-
-	if bestContextCoverage < 0.40 {
+	if bestContext == evidenceMissing {
 		return missingEvidence(), true
 	}
 
