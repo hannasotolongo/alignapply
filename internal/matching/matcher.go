@@ -400,7 +400,7 @@ func evaluateRequirementEvidence(
 	best := missingEvidence()
 
 	for _, candidate := range retrieved {
-		result := verifyEvidenceDeterministically(
+		result := currentEvidenceVerifier().Verify(
 			requirementText,
 			candidate.Evidence,
 		)
@@ -422,7 +422,7 @@ func evaluateRequirementEvidence(
 			combined = append(combined, candidate.Evidence)
 		}
 
-		result := verifyEvidenceDeterministically(
+		result := currentEvidenceVerifier().Verify(
 			requirementText,
 			strings.Join(combined, " "),
 		)
@@ -595,7 +595,7 @@ func evaluateExperienceEvidence(
 	bestRelevantYears := 0
 
 	for _, candidate := range retrieved {
-		contextResult := verifyEvidenceDeterministically(
+		contextResult := currentEvidenceVerifier().Verify(
 			requirementWithoutYears,
 			candidate.Evidence,
 		)

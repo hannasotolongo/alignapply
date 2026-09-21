@@ -10,28 +10,25 @@ import (
 )
 
 func main() {
-	// Semantic embeddings are used for evidence retrieval, not as the final
-	// judgment of whether a candidate satisfies a requirement.
-	//
-	// For local development we use Ollama with nomic-embed-text.
-	// HybridSemanticRetriever combines semantic similarity with conservative
-	// lexical matching and ranks the evidence most relevant to each
-	// requirement.
-	//
-	// A separate verification step determines whether retrieved evidence
-	// supports, partially supports, or does not clearly demonstrate the
-	// requirement.
-	//
-	// Hard constraints such as explicit years of experience, education,
-	// licenses, and certifications remain outside semantic inference.
+	// nomic-embed-text performs retrieval only. Its similarity score determines
+	// which candidate evidence should be inspected, not whether a requirement
+	// is satisfied.
 	semanticProvider := matching.NewOllamaSemanticProvider()
 
 	matching.SetSemanticRetriever(matching.HybridSemanticRetriever{
 		Provider: semanticProvider,
 	})
 
+	// qwen3:4b independently verifies whether retrieved evidence actually
+	// demonstrates the requirement.
+	evidenceVerifier := matching.NewOllamaEvidenceVerifier()
+	matching.SetEvidenceVerifier(evidenceVerifier)
+
 	log.Println(
 		"Semantic evidence retrieval configured with Ollama (nomic-embed-text)",
+	)
+	log.Println(
+		"Evidence verification configured with Ollama (qwen3:4b)",
 	)
 
 	server := api.NewServer()
@@ -42,7 +39,7 @@ func main() {
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
-	log.Println("CaseMade API listening on http://localhost:8080")
+	log.Println("AlignApply API listening on http://localhost:8080")
 
 	if err := httpServer.ListenAndServe(); err != nil &&
 		err != http.ErrServerClosed {

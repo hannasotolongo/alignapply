@@ -744,3 +744,172 @@ Performed reliability testing of distributed services.
 		)
 	}
 }
+
+type evidenceVerifierTestKey struct {
+	requirement string
+	evidence    string
+}
+
+type evidenceTestVerifier struct {
+	results map[evidenceVerifierTestKey]evidenceResult
+}
+
+func (v evidenceTestVerifier) Verify(requirement string, evidence string) evidenceResult {
+	requirement = normalize(requirement)
+	evidence = normalize(evidence)
+
+	key := evidenceVerifierTestKey{
+		requirement: requirement,
+		evidence:    evidence,
+	}
+
+	if result, ok := v.results[key]; ok {
+		return result
+	}
+
+	// Candidate extraction may preserve surrounding section/context text.
+	// The fake verifier should recognize the expected atomic evidence inside
+	// that extracted text rather than require byte-for-byte equality.
+	for expected, result := range v.results {
+		if requirement != expected.requirement {
+			continue
+		}
+
+		if containsNormalizedText(evidence, expected.evidence) ||
+			containsNormalizedText(expected.evidence, evidence) {
+			return result
+		}
+	}
+
+	return verifyEvidenceDeterministically(requirement, evidence)
+}
+
+func TestMatchCrossDomainEquivalentExperience(t *testing.T) {
+	previousRetriever := currentSemanticRetriever()
+	previousVerifier := currentEvidenceVerifier()
+	t.Cleanup(func() {
+		SetSemanticRetriever(previousRetriever)
+		SetEvidenceVerifier(previousVerifier)
+	})
+
+	tests := []struct {
+		name        string
+		resumeText  string
+		evidence    string
+		jobTitle    string
+		requirement string
+		category    jobs.RequirementCategory
+	}{
+		{
+			name:        "finance financial modeling",
+			resumeText:  "Experience\nBuilt valuation and cash-flow models to evaluate investment opportunities.",
+			evidence:    "Built valuation and cash-flow models to evaluate investment opportunities.",
+			jobTitle:    "Financial Analyst",
+			requirement: "Experience with financial modeling",
+			category:    jobs.RequirementExperience,
+		},
+		{
+			name:        "healthcare patient education",
+			resumeText:  "Experience\nCounseled patients on medications, proper administration, adherence, and potential side effects.",
+			evidence:    "Counseled patients on medications, proper administration, adherence, and potential side effects.",
+			jobTitle:    "Clinical Care Coordinator",
+			requirement: "Experience providing patient education",
+			category:    jobs.RequirementExperience,
+		},
+		{
+			name:        "recruiting candidate sourcing",
+			resumeText:  "Experience\nIdentified and contacted prospective hires for open technical positions.",
+			evidence:    "Identified and contacted prospective hires for open technical positions.",
+			jobTitle:    "Technical Recruiter",
+			requirement: "Experience sourcing candidates",
+			category:    jobs.RequirementExperience,
+		},
+		{
+			name:        "sales account management",
+			resumeText:  "Experience\nManaged a portfolio of client accounts and maintained long-term customer relationships.",
+			evidence:    "Managed a portfolio of client accounts and maintained long-term customer relationships.",
+			jobTitle:    "Account Executive",
+			requirement: "Experience managing customer accounts",
+			category:    jobs.RequirementExperience,
+		},
+		{
+			name:        "marketing campaign analytics",
+			resumeText:  "Experience\nMeasured campaign performance using conversion, engagement, and acquisition metrics.",
+			evidence:    "Measured campaign performance using conversion, engagement, and acquisition metrics.",
+			jobTitle:    "Marketing Analyst",
+			requirement: "Experience analyzing marketing campaign performance",
+			category:    jobs.RequirementExperience,
+		},
+		{
+			name:        "operations process improvement",
+			resumeText:  "Experience\nRedesigned internal workflows to reduce processing delays and improve team efficiency.",
+			evidence:    "Redesigned internal workflows to reduce processing delays and improve team efficiency.",
+			jobTitle:    "Operations Analyst",
+			requirement: "Experience improving operational processes",
+			category:    jobs.RequirementExperience,
+		},
+	}
+
+	scores := make(map[string]float64, len(tests))
+	verificationResults := make(map[evidenceVerifierTestKey]evidenceResult, len(tests))
+
+	for _, tt := range tests {
+		scores[semanticTestKey(tt.requirement, tt.evidence)] = 0.90
+		verificationResults[evidenceVerifierTestKey{
+			requirement: normalize(tt.requirement),
+			evidence:    normalize(tt.evidence),
+		}] = supportedEvidence()
+	}
+
+	SetSemanticRetriever(HybridSemanticRetriever{
+		Provider: semanticTestProvider{scores: scores},
+	})
+	SetEvidenceVerifier(evidenceTestVerifier{results: verificationResults})
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			job := jobs.Job{
+				ID:          "cross-domain-" + tt.name,
+				Title:       tt.jobTitle,
+				Company:     "Example",
+				Description: tt.jobTitle + " position.",
+				IsActive:    true,
+				Requirements: []jobs.Requirement{
+					{
+						Text:       tt.requirement,
+						Category:   tt.category,
+						Importance: jobs.RequirementRequired,
+					},
+				},
+			}
+
+			result := Match(
+				jobs.SearchRequest{ResumeText: tt.resumeText},
+				job,
+			)
+
+			if result.MatchLevel == "Insufficient Evidence" {
+				t.Fatalf("%s should be scorable: %+v", tt.name, result)
+			}
+
+			found := false
+			for _, supported := range result.SupportedRequirements {
+				if supported == tt.requirement {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				t.Fatalf(
+					"equivalent %s evidence should support %q; supported=%v partial=%v missing=%v",
+					tt.name,
+					tt.requirement,
+					result.SupportedRequirements,
+					result.PartialRequirements,
+					result.MissingRequirements,
+				)
+			}
+		})
+	}
+}
