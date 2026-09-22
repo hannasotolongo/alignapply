@@ -11,6 +11,10 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+var ErrCareerProfileNotFound = errors.New(
+	"repository: career profile not found",
+)
+
 type User struct {
 	ID           string
 	AppleSubject string
@@ -349,7 +353,11 @@ WHERE user_id = $1;
 		&profile.UpdatedAt,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return CareerProfile{}, fmt.Errorf("repository: career profile for user %s not found", userID)
+		return CareerProfile{}, fmt.Errorf(
+			"%w: user %s",
+			ErrCareerProfileNotFound,
+			userID,
+		)
 	}
 	if err != nil {
 		return CareerProfile{}, fmt.Errorf("repository: get career profile: %w", err)

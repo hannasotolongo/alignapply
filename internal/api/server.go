@@ -143,6 +143,15 @@ func (s *Server) routes() {
 				),
 			),
 		)
+
+		s.mux.Handle(
+			"/api/v1/career-profile",
+			s.sessionManager.Middleware(
+				http.HandlerFunc(
+					s.handleCareerProfile,
+				),
+			),
+		)
 	} else {
 		s.mux.HandleFunc(
 			"/api/v1/me",
@@ -151,6 +160,11 @@ func (s *Server) routes() {
 
 		s.mux.HandleFunc(
 			"/api/v1/account",
+			s.handleAuthenticationUnavailable,
+		)
+
+		s.mux.HandleFunc(
+			"/api/v1/career-profile",
 			s.handleAuthenticationUnavailable,
 		)
 	}
