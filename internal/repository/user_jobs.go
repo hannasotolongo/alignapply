@@ -663,7 +663,15 @@ func validateApplicationParams(params UpsertApplicationParams) error {
 	}
 
 	switch strings.TrimSpace(params.Status) {
-	case "saved", "applied", "interviewing", "offer", "rejected", "withdrawn":
+	case "saved",
+		"applied",
+		"received",
+		"recruiter_contact",
+		"interviewing",
+		"offer",
+		"hired",
+		"rejected",
+		"withdrawn":
 	default:
 		return fmt.Errorf(
 			"repository: invalid application status %q",
