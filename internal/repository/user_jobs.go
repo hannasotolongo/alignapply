@@ -527,6 +527,8 @@ RETURNING
 	return application, nil
 }
 
+var ErrApplicationNotFound = errors.New("repository: application not found")
+
 func (r *UserJobsRepository) GetApplication(
 	ctx context.Context,
 	userID string,
@@ -570,7 +572,8 @@ WHERE user_id = $1
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Application{}, fmt.Errorf(
-			"repository: application for user %s and job %s not found",
+			"%w for user %s and job %s",
+			ErrApplicationNotFound,
 			userID,
 			jobID,
 		)
