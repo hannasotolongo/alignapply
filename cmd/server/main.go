@@ -105,6 +105,9 @@ func main() {
 		)
 	}
 
+	emailConnectionsRepository :=
+		repository.NewEmailConnectionsRepository(db.Pool())
+
 	log.Println(
 		"AlignApply persistence repositories initialized",
 	)
@@ -218,11 +221,12 @@ func main() {
 	server := api.NewServer(
 		api.Dependencies{
 			Repositories: api.Repositories{
-				UserCareer: userCareerRepository,
-				Jobs:       jobRepository,
-				Matches:    matchRepository,
-				UserJobs:   userJobsRepository,
-				AppleAuth:  appleAuthRepository,
+				UserCareer:       userCareerRepository,
+				Jobs:             jobRepository,
+				Matches:          matchRepository,
+				UserJobs:         userJobsRepository,
+				AppleAuth:        appleAuthRepository,
+				EmailConnections: emailConnectionsRepository,
 			},
 			AppleVerifier:  appleVerifier,
 			AppleClient:    appleClient,

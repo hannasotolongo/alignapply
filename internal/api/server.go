@@ -22,11 +22,12 @@ type Server struct {
 	jobProvider *jobs.MultiProvider
 	pipeline    *jobs.Pipeline
 
-	userCareerRepo *repository.UserCareerRepository
-	jobRepo        *repository.JobRepository
-	matchRepo      *repository.MatchRepository
-	userJobsRepo   *repository.UserJobsRepository
-	appleAuthRepo  *repository.AppleAuthRepository
+	userCareerRepo       *repository.UserCareerRepository
+	jobRepo              *repository.JobRepository
+	matchRepo            *repository.MatchRepository
+	userJobsRepo         *repository.UserJobsRepository
+	appleAuthRepo        *repository.AppleAuthRepository
+	emailConnectionsRepo *repository.EmailConnectionsRepository
 
 	appleVerifier  *auth.AppleVerifier
 	appleClient    *auth.AppleClient
@@ -34,11 +35,12 @@ type Server struct {
 }
 
 type Repositories struct {
-	UserCareer *repository.UserCareerRepository
-	Jobs       *repository.JobRepository
-	Matches    *repository.MatchRepository
-	UserJobs   *repository.UserJobsRepository
-	AppleAuth  *repository.AppleAuthRepository
+	UserCareer       *repository.UserCareerRepository
+	Jobs             *repository.JobRepository
+	Matches          *repository.MatchRepository
+	UserJobs         *repository.UserJobsRepository
+	AppleAuth        *repository.AppleAuthRepository
+	EmailConnections *repository.EmailConnectionsRepository
 }
 
 type Dependencies struct {
@@ -98,6 +100,9 @@ func NewServer(
 
 		server.appleAuthRepo =
 			deps.Repositories.AppleAuth
+
+		server.emailConnectionsRepo =
+			deps.Repositories.EmailConnections
 
 		server.appleVerifier =
 			deps.AppleVerifier
@@ -169,6 +174,73 @@ func (s *Server) routes() {
 					s.handleApplicationResource,
 				),
 			),
+		)
+
+		s.mux.Handle(
+			"/api/v1/email/gmail/connect",
+			s.sessionManager.Middleware(
+				http.HandlerFunc(
+					s.handleGmailConnect,
+				),
+			),
+		)
+
+		s.mux.Handle(
+			"/api/v1/email/gmail/status",
+			s.sessionManager.Middleware(
+				http.HandlerFunc(
+					s.handleGmailConnectionStatus,
+				),
+			),
+		)
+
+		s.mux.Handle(
+			"/api/v1/email/gmail/disconnect",
+			s.sessionManager.Middleware(
+				http.HandlerFunc(
+					s.handleGmailDisconnect,
+				),
+			),
+		)
+
+		s.mux.Handle(
+			"/api/v1/email/gmail/profile",
+			s.sessionManager.Middleware(
+				http.HandlerFunc(
+					s.handleGmailProfile,
+				),
+			),
+		)
+
+		s.mux.Handle(
+			"/api/v1/email/gmail/messages",
+			s.sessionManager.Middleware(
+				http.HandlerFunc(
+					s.handleGmailMessages,
+				),
+			),
+		)
+
+		s.mux.Handle(
+			"/api/v1/email/gmail/classification-preview",
+			s.sessionManager.Middleware(
+				http.HandlerFunc(
+					s.handleGmailClassificationPreview,
+				),
+			),
+		)
+		s.mux.Handle(
+			"/api/v1/email/gmail/sync",
+			s.sessionManager.Middleware(
+				http.HandlerFunc(
+					s.handleGmailSync,
+				),
+			),
+		)
+
+		s.mux.HandleFunc(
+			"/api/v1/email/gmail/callback",
+			s.handleGmailCallback,
 		)
 	} else {
 		s.mux.HandleFunc(
