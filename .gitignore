@@ -1,0 +1,7 @@
+
+# Local Go build output
+/app
+
+# Go build binaries
+/server
+/app

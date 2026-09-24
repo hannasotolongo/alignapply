@@ -15,12 +15,18 @@ import (
 	"github.com/hannasotolongo/casemade-backend/internal/repository"
 )
 
-const defaultDatabaseURL = "postgres://localhost:5432/alignapply?sslmode=disable"
+const (
+	defaultDatabaseURL = "postgres://localhost:5432/alignapply?sslmode=disable"
+	defaultPort        = "8080"
+)
 
 func main() {
 	ctx := context.Background()
 
-	// Semantic evidence retrieval.
+	// ---------------------------------------------------------
+	// Matching / inference
+	// ---------------------------------------------------------
+
 	semanticProvider := matching.NewOllamaSemanticProvider()
 
 	matching.SetSemanticRetriever(
@@ -29,21 +35,25 @@ func main() {
 		},
 	)
 
-	// Evidence verification.
 	evidenceVerifier := matching.NewOllamaEvidenceVerifier()
 	matching.SetEvidenceVerifier(evidenceVerifier)
 
 	log.Println(
 		"Semantic evidence retrieval configured with Ollama (nomic-embed-text)",
 	)
+
 	log.Println(
 		"Evidence verification configured with Ollama (qwen3:4b)",
 	)
 
-	// PostgreSQL.
+	// ---------------------------------------------------------
+	// PostgreSQL
+	// ---------------------------------------------------------
+
 	databaseURL := strings.TrimSpace(
 		os.Getenv("DATABASE_URL"),
 	)
+
 	if databaseURL == "" {
 		databaseURL = defaultDatabaseURL
 	}
@@ -59,7 +69,10 @@ func main() {
 
 	log.Println("PostgreSQL connection established")
 
-	// Persistence repositories.
+	// ---------------------------------------------------------
+	// Persistence repositories
+	// ---------------------------------------------------------
+
 	userCareerRepository, err :=
 		repository.NewUserCareerRepository(db.Pool())
 	if err != nil {
@@ -112,10 +125,14 @@ func main() {
 		"AlignApply persistence repositories initialized",
 	)
 
-	// Sign in with Apple identity-token verification.
+	// ---------------------------------------------------------
+	// Sign in with Apple
+	// ---------------------------------------------------------
+
 	appleClientID := strings.TrimSpace(
 		os.Getenv("APPLE_CLIENT_ID"),
 	)
+
 	if appleClientID == "" {
 		log.Fatal(
 			"APPLE_CLIENT_ID environment variable is required",
@@ -131,10 +148,14 @@ func main() {
 		)
 	}
 
-	// AlignApply API sessions.
+	// ---------------------------------------------------------
+	// AlignApply API sessions
+	// ---------------------------------------------------------
+
 	sessionSecret := strings.TrimSpace(
 		os.Getenv("SESSION_SECRET"),
 	)
+
 	if sessionSecret == "" {
 		log.Fatal(
 			"SESSION_SECRET environment variable is required",
@@ -150,11 +171,10 @@ func main() {
 		)
 	}
 
-	// Apple server-to-server authorization.
-	//
-	// These credentials are available after Sign in with Apple is configured
-	// for the production Apple Developer team. Local development can continue
-	// without them.
+	// ---------------------------------------------------------
+	// Apple server-to-server authorization
+	// ---------------------------------------------------------
+
 	appleTeamID := strings.TrimSpace(
 		os.Getenv("APPLE_TEAM_ID"),
 	)
@@ -218,6 +238,10 @@ func main() {
 		"AlignApply authentication initialized",
 	)
 
+	// ---------------------------------------------------------
+	// API
+	// ---------------------------------------------------------
+
 	server := api.NewServer(
 		api.Dependencies{
 			Repositories: api.Repositories{
@@ -234,14 +258,23 @@ func main() {
 		},
 	)
 
+	// Production hosts provide PORT.
+	// Local development falls back to 8080.
+	port := strings.TrimSpace(os.Getenv("PORT"))
+
+	if port == "" {
+		port = defaultPort
+	}
+
 	httpServer := &http.Server{
-		Addr:              ":8080",
+		Addr:              ":" + port,
 		Handler:           server.Handler(),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
-	log.Println(
-		"AlignApply API listening on http://localhost:8080",
+	log.Printf(
+		"AlignApply API listening on port %s",
+		port,
 	)
 
 	if err := httpServer.ListenAndServe(); err != nil &&
