@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -74,6 +75,8 @@ func (v *OpenAIEvidenceVerifier) Verify(
 
 	result, err := v.verifyWithModel(requirement, evidence)
 	if err != nil {
+		log.Printf("OpenAI evidence verifier failed: %v", err)
+
 		// Preserve the existing conservative fallback behavior.
 		return verifyEvidenceDeterministically(
 			requirement,
