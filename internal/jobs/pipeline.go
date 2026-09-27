@@ -66,6 +66,10 @@ func (p *Pipeline) Process(
 
 		seen[key] = struct{}{}
 
+		// Normalize provider formatting before requirement extraction and
+		// before the description is returned to the client.
+		rawJob.Description = normalizeJobDescription(rawJob.Description)
+
 		job := EnrichJob(rawJob)
 
 		result = append(result, job)

@@ -32,8 +32,8 @@ Go, SQL, AWS
 	}
 
 	result := Match(request, job)
-	if result.MatchLevel != "Best Fit" {
-		t.Fatalf("expected Best Fit, got %q: %+v", result.MatchLevel, result)
+	if result.MatchLevel != "Strong Applicant" {
+		t.Fatalf("expected Strong Applicant, got %q: %+v", result.MatchLevel, result)
 	}
 }
 
@@ -120,8 +120,8 @@ Go, SQL
 	}
 
 	result := Match(request, job)
-	if result.MatchLevel != "Best Fit" {
-		t.Fatalf("preferred-only gap should not block Best Fit, got %q: %+v", result.MatchLevel, result)
+	if result.MatchLevel != "Strong Applicant" {
+		t.Fatalf("preferred-only gap should not block Strong Applicant, got %q: %+v", result.MatchLevel, result)
 	}
 }
 
@@ -147,7 +147,7 @@ Go, SQL
 	}
 
 	result := Match(request, job)
-	if result.MatchLevel != "Good Fit" {
-		t.Fatalf("expected Good Fit for substantial but incomplete required evidence, got %q: %+v", result.MatchLevel, result)
+	if result.MatchLevel != "Moderate Match" {
+		t.Fatalf("expected Moderate Match for substantial but incomplete required evidence, got %q: %+v", result.MatchLevel, result)
 	}
 }

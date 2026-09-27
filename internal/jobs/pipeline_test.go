@@ -1,6 +1,7 @@
 package jobs
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -531,5 +532,77 @@ func testPipelineJob(
 		IsActive: true,
 
 		ApplyURL: "https://example.com/jobs/" + id,
+	}
+}
+
+func TestPipelineNormalizesJobDescriptionFormatting(t *testing.T) {
+	pipeline := NewPipeline()
+
+	job := testPipelineJob(
+		"description-formatting",
+		"Software Engineer",
+		"Example",
+		"Miami, FL",
+	)
+
+	job.Description = "About the role\r\n\r\nBuild backend systems&nbsp;in Go.<br>Work with APIs and distributed systems."
+
+	result := pipeline.Process(
+		SearchRequest{},
+		[]Job{job},
+	)
+
+	if len(result) != 1 {
+		t.Fatalf("expected one job, got %d", len(result))
+	}
+
+	description := result[0].Description
+
+	if strings.Contains(description, "&nbsp;") {
+		t.Fatalf("HTML entity remained in description: %q", description)
+	}
+
+	if strings.Contains(description, "<br>") {
+		t.Fatalf("HTML markup remained in description: %q", description)
+	}
+
+	if !strings.Contains(
+		description,
+		"Build backend systems in Go.",
+	) {
+		t.Fatalf(
+			"expected complete sentence to be preserved, got %q",
+			description,
+		)
+	}
+
+	if !strings.Contains(
+		description,
+		"Work with APIs and distributed systems.",
+	) {
+		t.Fatalf(
+			"expected second complete sentence to be preserved, got %q",
+			description,
+		)
+	}
+}
+
+func TestNormalizeJobDescriptionDoesNotRewriteWords(t *testing.T) {
+	input := "Design GPU workload scheduling systems.\nBuild REST APIs in Go."
+
+	got := normalizeJobDescription(input)
+
+	if !strings.Contains(
+		got,
+		"Design GPU workload scheduling systems.",
+	) {
+		t.Fatalf("description wording changed unexpectedly: %q", got)
+	}
+
+	if !strings.Contains(
+		got,
+		"Build REST APIs in Go.",
+	) {
+		t.Fatalf("description wording changed unexpectedly: %q", got)
 	}
 }

@@ -971,3 +971,151 @@ func TestExperienceYearsDoNotUseSkillOnlyEvidence(t *testing.T) {
 		)
 	}
 }
+
+func TestNonQualificationCategoriesDoNotAffectCandidateFit(t *testing.T) {
+	request := jobs.SearchRequest{
+		ResumeText: `
+Software Engineer
+Built backend services in Go.
+`,
+	}
+
+	job := jobs.Job{
+		ID:          "metadata-does-not-affect-fit",
+		Title:       "Backend Engineer",
+		Company:     "Example",
+		Description: "Backend role.",
+		Requirements: []jobs.Requirement{
+			{
+				Text:       "Experience building backend services in Go",
+				Category:   jobs.RequirementExperience,
+				Importance: jobs.RequirementRequired,
+			},
+			{
+				Text:       "Must be able to travel 50 percent",
+				Category:   jobs.RequirementTravel,
+				Importance: jobs.RequirementRequired,
+			},
+			{
+				Text:       "Must be able to lift 40 pounds",
+				Category:   jobs.RequirementPhysical,
+				Importance: jobs.RequirementRequired,
+			},
+			{
+				Text:       "Miami, FL",
+				Category:   jobs.RequirementOther,
+				Importance: jobs.RequirementRequired,
+			},
+		},
+	}
+
+	result := Match(request, job)
+
+	for _, value := range result.MissingRequirements {
+		if value == "Miami, FL" ||
+			value == "Must be able to travel 50 percent" ||
+			value == "Must be able to lift 40 pounds" {
+
+			t.Fatalf(
+				"job metadata/non-qualification requirement affected candidate fit: %+v",
+				result,
+			)
+		}
+	}
+}
+
+func TestFitCategoryUsesApplicantLabels(t *testing.T) {
+	strong := determineFitCategory(
+		4,
+		4,
+		0,
+		0,
+		1,
+		0,
+	)
+
+	if strong != "Strong Applicant" {
+		t.Fatalf(
+			"expected Strong Applicant, got %q",
+			strong,
+		)
+	}
+
+	moderate := determineFitCategory(
+		4,
+		2,
+		1,
+		1,
+		0,
+		0,
+	)
+
+	if moderate != "Moderate Match" {
+		t.Fatalf(
+			"expected Moderate Match, got %q",
+			moderate,
+		)
+	}
+
+	reach := determineFitCategory(
+		4,
+		3,
+		0,
+		1,
+		1,
+		1,
+	)
+
+	if reach != "Reach" {
+		t.Fatalf(
+			"expected Reach, got %q",
+			reach,
+		)
+	}
+}
+
+func TestRequiredQualificationCategoriesParticipateInFit(t *testing.T) {
+	qualificationCategories := []jobs.RequirementCategory{
+		jobs.RequirementSkill,
+		jobs.RequirementExperience,
+		jobs.RequirementEducation,
+		jobs.RequirementLicense,
+		jobs.RequirementCertification,
+	}
+
+	for _, category := range qualificationCategories {
+		requirement := jobs.Requirement{
+			Text:       "qualification",
+			Category:   category,
+			Importance: jobs.RequirementRequired,
+		}
+
+		if !isQualificationRequirement(requirement) {
+			t.Fatalf(
+				"expected category %q to participate in candidate fit",
+				category,
+			)
+		}
+	}
+
+	excludedCategories := []jobs.RequirementCategory{
+		jobs.RequirementPhysical,
+		jobs.RequirementTravel,
+		jobs.RequirementOther,
+	}
+
+	for _, category := range excludedCategories {
+		requirement := jobs.Requirement{
+			Text:       "posting metadata",
+			Category:   category,
+			Importance: jobs.RequirementRequired,
+		}
+
+		if isQualificationRequirement(requirement) {
+			t.Fatalf(
+				"category %q must not participate in candidate fit",
+				category,
+			)
+		}
+	}
+}

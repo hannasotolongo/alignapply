@@ -213,6 +213,11 @@ func Match(
 							requirement,
 						)
 
+				// Only actual candidate qualifications affect fit.
+				if !isQualificationRequirement(requirement) {
+					continue
+				}
+
 				evidence :=
 					evaluateRequirementEvidence(
 						profile,
@@ -1044,6 +1049,21 @@ func extractLargestYears(text string) int {
 	return largest
 }
 
+func isQualificationRequirement(
+	requirement jobs.Requirement,
+) bool {
+	switch requirement.Category {
+	case jobs.RequirementSkill,
+		jobs.RequirementExperience,
+		jobs.RequirementEducation,
+		jobs.RequirementLicense,
+		jobs.RequirementCertification:
+		return true
+	default:
+		return false
+	}
+}
+
 func isCriticalRequirement(
 	requirement jobs.Requirement,
 ) bool {
@@ -1082,7 +1102,7 @@ func determineFitCategory(
 	criticalRequiredNotSupported int,
 ) string {
 	if requiredCount == 0 {
-		return "Good Fit"
+		return "Moderate Match"
 	}
 
 	if criticalRequiredNotSupported > 0 {
@@ -1104,13 +1124,13 @@ func determineFitCategory(
 		supportedRatio >= 0.75 &&
 		requiredPartial <= 1 {
 
-		return "Best Fit"
+		return "Strong Applicant"
 	}
 
 	if demonstratedRatio >= 0.60 &&
 		requiredMissing*2 < requiredCount {
 
-		return "Good Fit"
+		return "Moderate Match"
 	}
 
 	_ = criticalRequiredCount
