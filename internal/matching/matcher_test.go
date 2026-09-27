@@ -913,3 +913,61 @@ func TestMatchCrossDomainEquivalentExperience(t *testing.T) {
 		})
 	}
 }
+
+func TestExperienceRequirementCanUseCapabilityEvidence(t *testing.T) {
+	request := jobs.SearchRequest{
+		ResumeText: "Software engineer experienced with AWS, PostgreSQL, REST APIs, and distributed systems.",
+	}
+
+	job := jobs.Job{
+		ID:          "capability-as-experience",
+		Title:       "Software Engineer",
+		Company:     "Example",
+		Description: "Cloud backend role.",
+		Requirements: []jobs.Requirement{
+			{
+				Text:       "Experience with AWS",
+				Category:   jobs.RequirementExperience,
+				Importance: jobs.RequirementRequired,
+			},
+		},
+	}
+
+	result := Match(request, job)
+
+	if len(result.SupportedRequirements) != 1 {
+		t.Fatalf(
+			"expected capability evidence to support non-duration experience requirement, got %+v",
+			result,
+		)
+	}
+}
+
+func TestExperienceYearsDoNotUseSkillOnlyEvidence(t *testing.T) {
+	request := jobs.SearchRequest{
+		ResumeText: "Skills: AWS, PostgreSQL, REST APIs, Docker, Kubernetes.",
+	}
+
+	job := jobs.Job{
+		ID:          "duration-remains-strict",
+		Title:       "Software Engineer",
+		Company:     "Example",
+		Description: "Cloud backend role.",
+		Requirements: []jobs.Requirement{
+			{
+				Text:       "5 years of AWS experience",
+				Category:   jobs.RequirementExperience,
+				Importance: jobs.RequirementRequired,
+			},
+		},
+	}
+
+	result := Match(request, job)
+
+	if len(result.SupportedRequirements) != 0 {
+		t.Fatalf(
+			"skill-only evidence must not establish years of experience: %+v",
+			result,
+		)
+	}
+}

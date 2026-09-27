@@ -435,8 +435,11 @@ func evaluateRequirementEvidence(
 	// Explicit years of experience remain a hard duration constraint.
 	if requirement.Category == jobs.RequirementExperience {
 		if _, hasYears := extractRequiredYears(requirementText); hasYears {
+			// Duration must come from locally scoped experience evidence.
+			// Skills, summaries, education dates, and unrelated résumé dates
+			// must never establish years of experience.
 			result, _ := evaluateExperienceEvidence(
-				relevant,
+				profile.Experience,
 				requirementText,
 			)
 
@@ -590,7 +593,18 @@ func relevantEvidence(
 		)
 
 	case jobs.RequirementExperience:
-		return profile.Experience
+		// Experience requirements without an explicit duration can be
+		// demonstrated by experience, projects, skills, or summary evidence.
+		//
+		// Explicit years-of-experience requirements are narrowed back to
+		// profile.Experience in evaluateRequirementEvidence so unrelated
+		// résumé dates cannot satisfy a duration constraint.
+		return combineEvidence(
+			profile.Experience,
+			profile.Projects,
+			profile.Skills,
+			profile.Summary,
+		)
 
 	case jobs.RequirementEducation:
 		return profile.Education
