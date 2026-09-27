@@ -27,25 +27,55 @@ func main() {
 	// Matching / inference
 	// ---------------------------------------------------------
 
-	semanticProvider := matching.NewOllamaSemanticProvider()
-
-	matching.SetSemanticRetriever(
-		matching.HybridSemanticRetriever{
-			Provider: semanticProvider,
-		},
+	openAIAPIKey := strings.TrimSpace(
+		os.Getenv("OPENAI_API_KEY"),
 	)
 
-	evidenceVerifier := matching.NewOllamaEvidenceVerifier()
-	matching.SetEvidenceVerifier(evidenceVerifier)
+	if openAIAPIKey != "" {
+		semanticProvider :=
+			matching.NewOpenAISemanticProvider(openAIAPIKey)
 
-	log.Println(
-		"Semantic evidence retrieval configured with Ollama (nomic-embed-text)",
-	)
+		matching.SetSemanticRetriever(
+			matching.HybridSemanticRetriever{
+				Provider: semanticProvider,
+			},
+		)
 
-	log.Println(
-		"Evidence verification configured with Ollama (qwen3:4b)",
-	)
+		evidenceVerifier :=
+			matching.NewOpenAIEvidenceVerifier(openAIAPIKey)
 
+		matching.SetEvidenceVerifier(evidenceVerifier)
+
+		log.Println(
+			"Semantic evidence retrieval configured with OpenAI (text-embedding-3-small)",
+		)
+
+		log.Println(
+			"Evidence verification configured with OpenAI",
+		)
+	} else {
+		semanticProvider :=
+			matching.NewOllamaSemanticProvider()
+
+		matching.SetSemanticRetriever(
+			matching.HybridSemanticRetriever{
+				Provider: semanticProvider,
+			},
+		)
+
+		evidenceVerifier :=
+			matching.NewOllamaEvidenceVerifier()
+
+		matching.SetEvidenceVerifier(evidenceVerifier)
+
+		log.Println(
+			"Semantic evidence retrieval configured with Ollama (nomic-embed-text)",
+		)
+
+		log.Println(
+			"Evidence verification configured with Ollama (qwen3:4b)",
+		)
+	}
 	// ---------------------------------------------------------
 	// PostgreSQL
 	// ---------------------------------------------------------
