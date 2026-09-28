@@ -273,6 +273,11 @@ func (s *Server) routes() {
 		"/api/v1/job-matches",
 		s.handleJobMatches,
 	)
+
+	s.mux.HandleFunc(
+		"/api/v1/resume-recommendation",
+		s.handleResumeRecommendation,
+	)
 }
 
 func (s *Server) Handler() http.Handler {
