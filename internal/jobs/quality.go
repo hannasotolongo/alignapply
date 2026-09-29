@@ -128,6 +128,12 @@ func EvaluateExtractionQuality(job Job) ExtractionQuality {
 			continue
 		}
 
+		// Your Fit measures candidate qualifications, not job logistics or
+		// uncategorized posting text. This rule is occupation-agnostic.
+		if !isCandidateFitQualification(requirement.Category) {
+			continue
+		}
+
 		validCount++
 
 		categories[requirement.Category] = struct{}{}
@@ -339,18 +345,5 @@ func isKnownRequirementImportance(
 func isStrongQualificationSignal(
 	requirement Requirement,
 ) bool {
-	switch requirement.Category {
-	case RequirementSkill,
-		RequirementExperience,
-		RequirementEducation,
-		RequirementLicense,
-		RequirementCertification,
-		RequirementPhysical,
-		RequirementTravel:
-
-		return true
-
-	default:
-		return false
-	}
+	return isCandidateFitQualification(requirement.Category)
 }

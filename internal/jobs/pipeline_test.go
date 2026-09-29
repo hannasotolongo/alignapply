@@ -706,3 +706,44 @@ func TestRemoteJobRejectsExplicitCountryMismatch(t *testing.T) {
 		})
 	}
 }
+
+func TestUniversalRoleRelevanceAcrossUnrelatedOccupations(t *testing.T) {
+	tests := []struct {
+		name       string
+		targetRole string
+		jobTitle   string
+		want       bool
+	}{
+		{"healthcare", "Registered Nurse", "Senior Registered Nurse", true},
+		{"software", "Software Engineer", "Senior Software Engineer", true},
+		{"sales", "Account Executive", "Enterprise Account Executive", true},
+		{"finance", "Financial Analyst", "Senior Financial Analyst", true},
+		{"operations", "Operations Manager", "Regional Operations Manager", true},
+		{"marketing", "Marketing Manager", "Growth Marketing Manager", true},
+		{"data", "Data Engineer", "Senior Data Engineer", true},
+		{"product", "Product Manager", "Senior Product Manager", true},
+
+		{"unrelated healthcare software", "Registered Nurse", "Software Engineer", false},
+		{"unrelated finance healthcare", "Financial Analyst", "Registered Nurse", false},
+		{"unrelated sales data", "Account Executive", "Data Engineer", false},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got := jobTitleMatchesTargetRole(
+				test.targetRole,
+				test.jobTitle,
+			)
+
+			if got != test.want {
+				t.Fatalf(
+					"jobTitleMatchesTargetRole(%q, %q) = %v; want %v",
+					test.targetRole,
+					test.jobTitle,
+					got,
+					test.want,
+				)
+			}
+		})
+	}
+}

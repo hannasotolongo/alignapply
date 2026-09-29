@@ -91,6 +91,26 @@ func validRequirementCategory(
 	}
 }
 
+// isCandidateFitQualification identifies requirement categories that describe
+// evidence about the candidate and can therefore participate in Your Fit.
+//
+// This is intentionally occupation-agnostic. It does not contain job titles,
+// industries, professions, technologies, credentials, or domain vocabulary.
+func isCandidateFitQualification(
+	category RequirementCategory,
+) bool {
+	switch category {
+	case RequirementSkill,
+		RequirementExperience,
+		RequirementEducation,
+		RequirementLicense,
+		RequirementCertification:
+		return true
+	default:
+		return false
+	}
+}
+
 func validRequirementImportance(
 	importance RequirementImportance,
 ) bool {
