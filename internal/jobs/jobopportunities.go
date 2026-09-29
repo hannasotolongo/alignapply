@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 )
@@ -65,7 +66,7 @@ func (p *JobOpportunitiesProvider) Search(
 	request SearchRequest,
 ) ([]Job, error) {
 	endpoint, err := url.Parse(
-		jobOpportunitiesBaseURL + "/public/jobs",
+		jobOpportunitiesBaseURL + "/v1/jobs",
 	)
 	if err != nil {
 		return nil, err
@@ -75,7 +76,7 @@ func (p *JobOpportunitiesProvider) Search(
 
 	// Retrieve a useful candidate pool while keeping the user's
 	// job title and requested geography as independent search constraints.
-	query.Set("limit", "100")
+	query.Set("limit", "50")
 	query.Set("include_description", "true")
 
 	role := strings.TrimSpace(request.TargetRole)
@@ -119,6 +120,17 @@ func (p *JobOpportunitiesProvider) Search(
 		return nil, err
 	}
 
+	httpRequest.Header.Set("Accept", "application/json")
+
+	apiKey := strings.TrimSpace(os.Getenv("JOA_API_KEY"))
+	if apiKey == "" {
+		return nil, fmt.Errorf("JOA_API_KEY is not configured")
+	}
+
+	httpRequest.Header.Set(
+		"Authorization",
+		"Bearer "+apiKey,
+	)
 	httpRequest.Header.Set("Accept", "application/json")
 
 	response, err := p.client.Do(httpRequest)
