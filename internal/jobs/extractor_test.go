@@ -1911,3 +1911,86 @@ While this role is primarily back-end/full-stack focused, experience in these ar
 		}
 	}
 }
+
+func TestExtractsModernATSQualificationHeadings(t *testing.T) {
+	description := `
+What You'll Bring:
+- 3+ years of software engineering experience
+- Experience building backend services in Go
+
+Nice to Haves:
+- Experience with vector databases
+- Experience with OpenSearch
+
+Bonus Points:
+- Experience with Neo4j
+`
+
+	requirements := ExtractRequirements(description)
+
+	assertRequirementContaining(
+		t,
+		requirements,
+		"software engineering",
+		RequirementExperience,
+		RequirementRequired,
+	)
+
+	assertRequirementContaining(
+		t,
+		requirements,
+		"backend services",
+		RequirementExperience,
+		RequirementRequired,
+	)
+
+	assertRequirementContaining(
+		t,
+		requirements,
+		"vector databases",
+		RequirementExperience,
+		RequirementPreferred,
+	)
+
+	assertRequirementContaining(
+		t,
+		requirements,
+		"OpenSearch",
+		RequirementExperience,
+		RequirementPreferred,
+	)
+
+	assertRequirementContaining(
+		t,
+		requirements,
+		"Neo4j",
+		RequirementExperience,
+		RequirementPreferred,
+	)
+}
+
+func TestExtractsGreatFitHeading(t *testing.T) {
+	description := `
+What Makes You a Great Fit:
+- Strong experience developing distributed systems
+- Proficiency with Go and cloud infrastructure
+`
+
+	requirements := ExtractRequirements(description)
+
+	assertRequirementContaining(
+		t,
+		requirements,
+		"distributed systems",
+		RequirementExperience,
+		RequirementRequired,
+	)
+
+	assertRequirementContaining(
+		t,
+		requirements,
+		"Go",
+		RequirementSkill,
+		RequirementRequired,
+	)
+}

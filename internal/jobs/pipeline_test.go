@@ -642,3 +642,67 @@ func TestJobTitleMatchesTargetRole(t *testing.T) {
 		})
 	}
 }
+
+func TestRemoteJobRejectsExplicitCountryMismatch(t *testing.T) {
+	request := SearchRequest{
+		Location:    "Miami, FL",
+		CountryCode: "US",
+		Remote:      true,
+	}
+
+	tests := []struct {
+		name     string
+		job      Job
+		expected bool
+	}{
+		{
+			name: "US remote accepted",
+			job: Job{
+				Location:        "Remote / USA",
+				CountryCode:     "US",
+				WorkArrangement: "remote",
+			},
+			expected: true,
+		},
+		{
+			name: "Colombia remote rejected",
+			job: Job{
+				Location:        "Remote / Colombia",
+				CountryCode:     "CO",
+				WorkArrangement: "remote",
+			},
+			expected: false,
+		},
+		{
+			name: "Brazil remote rejected",
+			job: Job{
+				Location:        "Remote / Brazil",
+				CountryCode:     "BR",
+				WorkArrangement: "remote",
+			},
+			expected: false,
+		},
+		{
+			name: "unknown remote country remains eligible",
+			job: Job{
+				Location:        "Remote",
+				WorkArrangement: "remote",
+			},
+			expected: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			actual := matchesLocationPreference(request, test.job)
+
+			if actual != test.expected {
+				t.Fatalf(
+					"matchesLocationPreference() = %v; want %v",
+					actual,
+					test.expected,
+				)
+			}
+		})
+	}
+}

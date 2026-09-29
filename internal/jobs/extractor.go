@@ -92,6 +92,39 @@ func makeSection(
 }
 
 var acceptedHeadings = []headingDefinition{
+	// Common ATS qualification-section variants.
+	{
+		Name:    "what you'll bring",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "what you’ll bring",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "what makes you a great fit",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "nice to haves",
+		Section: makeSection(RequirementOther, RequirementPreferred, true),
+	},
+	{
+		Name:    "nice-to-haves",
+		Section: makeSection(RequirementOther, RequirementPreferred, true),
+	},
+	{
+		Name:    "nice to have",
+		Section: makeSection(RequirementOther, RequirementPreferred, true),
+	},
+	{
+		Name:    "nice-to-have",
+		Section: makeSection(RequirementOther, RequirementPreferred, true),
+	},
+	{
+		Name:    "bonus points",
+		Section: makeSection(RequirementOther, RequirementPreferred, true),
+	},
 	// Natural-language and tool/skill qualification sections seen across ATS providers.
 	{
 		Name:    "we are looking for a person who has",

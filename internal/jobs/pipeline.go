@@ -190,9 +190,21 @@ func matchesLocationPreference(
 		return true
 	}
 
-	// Remote jobs can remain eligible when the user explicitly accepts
-	// remote work. Their physical office location may legitimately differ
-	// from the user's requested geography.
+	// An explicit country mismatch is authoritative, including for remote
+	// postings. Remote describes work arrangement; it does not mean the role
+	// is available worldwide.
+	requestCountry := strings.ToUpper(strings.TrimSpace(request.CountryCode))
+	jobCountry := strings.ToUpper(strings.TrimSpace(job.CountryCode))
+
+	if requestCountry != "" &&
+		jobCountry != "" &&
+		requestCountry != jobCountry {
+		return false
+	}
+
+	// Once explicit country compatibility has been established, remote jobs
+	// remain eligible without requiring the employer's office city to match
+	// the user's requested city.
 	if request.Remote &&
 		strings.EqualFold(
 			strings.TrimSpace(job.WorkArrangement),
