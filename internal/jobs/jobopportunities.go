@@ -73,28 +73,63 @@ func (p *JobOpportunitiesProvider) Search(
 
 	query := endpoint.Query()
 
-	// Discovery should maximize recall. AlignApply's own pipeline applies
-	// candidate preferences after retrieval, so avoid over-constraining the
-	// upstream provider before we have a useful candidate pool.
+	// Ask the broad provider for a large candidate pool.
+	//
+	// Do not encode AlignApply's full preference model into the upstream
+	// request. Provider APIs vary in how they interpret title, location,
+	// remote, and employment-type parameters. Over-constraining discovery
+	// upstream can make different searches collapse into the same small
+	// result set.
 	query.Set("limit", "100")
 	query.Set("include_description", "true")
 
-	if role := strings.TrimSpace(request.TargetRole); role != "" {
-		query.Set("title", role)
+	role := strings.TrimSpace(request.TargetRole)
+	location := strings.TrimSpace(request.Location)
+	country := strings.TrimSpace(request.CountryCode)
+
+	// Build discovery entirely from the user's request. Nothing here is
+	// hard-coded to a profession, city, state, or employer.
+	//
+	// q is deliberately the broad discovery input. AlignApply's central
+	// pipeline performs title relevance, geography, arrangement,
+	// employment-type, salary, deduplication, extraction, and ranking.
+	searchParts := make([]string, 0, 2)
+
+	if role != "" {
+		searchParts = append(searchParts, role)
 	}
 
-	if country := strings.TrimSpace(request.CountryCode); country != "" {
-		query.Set("country", strings.ToUpper(country))
+	if location != "" {
+		searchParts = append(searchParts, location)
 	}
 
-	if location := strings.TrimSpace(request.Location); location != "" {
-		query.Set("q", location)
+	if len(searchParts) > 0 {
+		query.Set(
+			"q",
+			strings.Join(searchParts, " "),
+		)
 	}
 
-	// Work arrangement and employment type are intentionally NOT sent
-	// upstream. They remain user preferences enforced by AlignApply's
-	// provider-independent pipeline. This prevents the external provider
-	// from shrinking discovery before AlignApply can normalize and rank jobs.
+	// Country is safe to send as a broad geographic boundary and also
+	// prevents obviously wrong-country remote results.
+	if country != "" {
+		query.Set(
+			"country",
+			strings.ToUpper(country),
+		)
+	}
+
+	// IMPORTANT:
+	// Do not send title, remote, or employment_type here.
+	// Those are enforced consistently by AlignApply after discovery.
+	//
+	// This keeps discovery generic for arbitrary searches such as:
+	// software engineer / Miami
+	// nurse / Chicago
+	// accountant / New York
+	// recruiter / Dallas
+	// designer / Seattle
+	// or any other user-entered role and geography.
 
 	endpoint.RawQuery = query.Encode()
 
