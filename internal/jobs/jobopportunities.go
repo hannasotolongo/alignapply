@@ -73,7 +73,10 @@ func (p *JobOpportunitiesProvider) Search(
 
 	query := endpoint.Query()
 
-	query.Set("limit", "50")
+	// Discovery should maximize recall. AlignApply's own pipeline applies
+	// candidate preferences after retrieval, so avoid over-constraining the
+	// upstream provider before we have a useful candidate pool.
+	query.Set("limit", "100")
 	query.Set("include_description", "true")
 
 	if role := strings.TrimSpace(request.TargetRole); role != "" {
@@ -88,16 +91,10 @@ func (p *JobOpportunitiesProvider) Search(
 		query.Set("q", location)
 	}
 
-	if arrangement := requestedWorkArrangement(request); arrangement != "" {
-		query.Set("remote", arrangement)
-	}
-
-	if len(request.EmploymentType) > 0 {
-		query.Set(
-			"employment_type",
-			strings.Join(request.EmploymentType, ","),
-		)
-	}
+	// Work arrangement and employment type are intentionally NOT sent
+	// upstream. They remain user preferences enforced by AlignApply's
+	// provider-independent pipeline. This prevents the external provider
+	// from shrinking discovery before AlignApply can normalize and rank jobs.
 
 	endpoint.RawQuery = query.Encode()
 

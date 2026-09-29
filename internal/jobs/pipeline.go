@@ -157,6 +157,10 @@ func matchesRequestedPreferences(
 	request SearchRequest,
 	job Job,
 ) bool {
+	if !jobTitleMatchesTargetRole(request.TargetRole, job.Title) {
+		return false
+	}
+
 	if !matchesLocationPreference(request, job) {
 		return false
 	}
@@ -468,6 +472,90 @@ func normalizeArrangement(
 	default:
 		return ""
 	}
+}
+
+func jobTitleMatchesTargetRole(
+	targetRole string,
+	jobTitle string,
+) bool {
+	role := normalizePreferenceText(targetRole)
+	title := normalizePreferenceText(jobTitle)
+
+	if role == "" {
+		return true
+	}
+
+	if title == "" {
+		return false
+	}
+
+	if strings.Contains(title, role) ||
+		strings.Contains(role, title) {
+		return true
+	}
+
+	roleTokens := roleRelevanceTokens(role)
+	titleTokens := roleRelevanceTokens(title)
+
+	if len(roleTokens) == 0 || len(titleTokens) == 0 {
+		return false
+	}
+
+	matched := 0
+
+	for token := range roleTokens {
+		if _, exists := titleTokens[token]; exists {
+			matched++
+		}
+	}
+
+	if len(roleTokens) == 1 {
+		return matched == 1
+	}
+
+	// Multi-word specialties should share more than one meaningful term
+	// when the exact requested role is not already contained in the title.
+	return matched >= 2
+}
+
+func roleRelevanceTokens(
+	value string,
+) map[string]struct{} {
+	tokens := preferenceTokenSet(value)
+
+	generic := map[string]struct{}{
+		"engineer":    {},
+		"engineering": {},
+		"developer":   {},
+		"manager":     {},
+		"specialist":  {},
+		"analyst":     {},
+		"associate":   {},
+		"senior":      {},
+		"junior":      {},
+		"staff":       {},
+		"principal":   {},
+		"lead":        {},
+		"ii":          {},
+		"iii":         {},
+		"iv":          {},
+	}
+
+	meaningful := make(map[string]struct{})
+
+	for token := range tokens {
+		if _, skip := generic[token]; skip {
+			continue
+		}
+
+		meaningful[token] = struct{}{}
+	}
+
+	if len(meaningful) == 0 {
+		return tokens
+	}
+
+	return meaningful
 }
 
 func normalizePreferenceText(

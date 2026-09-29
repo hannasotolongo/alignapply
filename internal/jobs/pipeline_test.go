@@ -606,3 +606,39 @@ func TestNormalizeJobDescriptionDoesNotRewriteWords(t *testing.T) {
 		t.Fatalf("description wording changed unexpectedly: %q", got)
 	}
 }
+
+func TestJobTitleMatchesTargetRole(t *testing.T) {
+	tests := []struct {
+		name     string
+		role     string
+		title    string
+		expected bool
+	}{
+		{"exact", "Software Engineer", "Software Engineer", true},
+		{"seniority", "Software Engineer", "Senior Software Engineer", true},
+		{"staff", "Software Engineer", "Staff Software Engineer, Infrastructure", true},
+		{"backend", "Backend Engineer", "Senior Backend Software Engineer", true},
+		{"mechanical rejected", "Software Engineer", "Mechanical Engineer", false},
+		{"civil rejected", "Software Engineer", "Civil Engineer", false},
+		{"account executive rejected", "Software Engineer", "Account Executive", false},
+		{"data analyst rejected", "Software Engineer", "Data Analyst", false},
+		{"data engineer", "Data Engineer", "Senior Data Engineer", true},
+		{"ml engineer", "Machine Learning Engineer", "Senior Machine Learning Engineer", true},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			actual := jobTitleMatchesTargetRole(test.role, test.title)
+
+			if actual != test.expected {
+				t.Fatalf(
+					"jobTitleMatchesTargetRole(%q, %q) = %v; want %v",
+					test.role,
+					test.title,
+					actual,
+					test.expected,
+				)
+			}
+		})
+	}
+}

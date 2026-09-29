@@ -545,42 +545,8 @@ func leverPostingMatchesSearch(
 	request SearchRequest,
 	job Job,
 ) bool {
-	role := normalizePreferenceText(
+	return jobTitleMatchesTargetRole(
 		request.TargetRole,
-	)
-
-	if role == "" {
-		return true
-	}
-
-	title := normalizePreferenceText(
 		job.Title,
 	)
-
-	if title == "" {
-		return false
-	}
-
-	if strings.Contains(title, role) ||
-		strings.Contains(role, title) {
-		return true
-	}
-
-	roleTokens := preferenceTokenSet(role)
-	titleTokens := preferenceTokenSet(title)
-
-	if len(roleTokens) == 0 ||
-		len(titleTokens) == 0 {
-		return false
-	}
-
-	matched := 0
-
-	for token := range roleTokens {
-		if _, exists := titleTokens[token]; exists {
-			matched++
-		}
-	}
-
-	return matched > 0
 }
