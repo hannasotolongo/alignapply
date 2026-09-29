@@ -274,3 +274,31 @@ func containsString(
 
 	return false
 }
+
+func TestInferLeverCountryCode(t *testing.T) {
+	tests := []struct {
+		location string
+		expected string
+	}{
+		{"Remote / USA", "US"},
+		{"Remote / Colombia", "CO"},
+		{"Remote / Brazil", "BR"},
+		{"Remote / Canada", "CA"},
+		{"Remote / United Kingdom", "GB"},
+		{"Miami, Florida", "US"},
+		{"Unknown Remote Location", ""},
+	}
+
+	for _, test := range tests {
+		actual := inferLeverCountryCode(test.location)
+
+		if actual != test.expected {
+			t.Fatalf(
+				"inferLeverCountryCode(%q) = %q; want %q",
+				test.location,
+				actual,
+				test.expected,
+			)
+		}
+	}
+}

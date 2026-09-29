@@ -366,6 +366,10 @@ func normalizeLeverPosting(
 			input.Categories.Location,
 		),
 
+		CountryCode: inferLeverCountryCode(
+			input.Categories.Location,
+		),
+
 		WorkArrangement: normalizeLeverWorkplaceType(
 			input.WorkplaceType,
 		),
@@ -405,6 +409,65 @@ func normalizeLeverPosting(
 	}
 
 	return job
+}
+
+func inferLeverCountryCode(location string) string {
+	value := strings.ToLower(strings.TrimSpace(location))
+
+	countries := []struct {
+		code  string
+		names []string
+	}{
+		{"US", []string{"united states", "usa", "u.s.", "u.s.a."}},
+		{"CA", []string{"canada"}},
+		{"GB", []string{"united kingdom", "uk", "u.k."}},
+		{"CO", []string{"colombia"}},
+		{"BR", []string{"brazil"}},
+		{"MX", []string{"mexico"}},
+		{"IN", []string{"india"}},
+		{"DE", []string{"germany"}},
+		{"FR", []string{"france"}},
+		{"ES", []string{"spain"}},
+		{"IT", []string{"italy"}},
+		{"AU", []string{"australia"}},
+		{"IE", []string{"ireland"}},
+		{"NL", []string{"netherlands"}},
+		{"PT", []string{"portugal"}},
+		{"SG", []string{"singapore"}},
+		{"JP", []string{"japan"}},
+	}
+
+	for _, country := range countries {
+		for _, name := range country.names {
+			if strings.Contains(value, name) {
+				return country.code
+			}
+		}
+	}
+
+	// Common US state/city markers seen in Lever locations.
+	usMarkers := []string{
+		"remote / usa",
+		"remote / us",
+		"miami",
+		"florida",
+		"new york",
+		"california",
+		"texas",
+		"washington",
+		"massachusetts",
+		"illinois",
+		"colorado",
+		"georgia",
+	}
+
+	for _, marker := range usMarkers {
+		if strings.Contains(value, marker) {
+			return "US"
+		}
+	}
+
+	return ""
 }
 
 func buildLeverDescription(
