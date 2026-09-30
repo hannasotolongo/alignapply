@@ -342,6 +342,62 @@ var acceptedHeadings = []headingDefinition{
 		Section: makeSection(RequirementTravel, RequirementRequired, true),
 	},
 
+	// Generic real-world candidate qualification headings.
+	// These are structural signals only. They contain no occupation,
+	// industry, employer, technology, or profession-specific rules.
+	{
+		Name:    "recipe for success",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "knowledge, skills and abilities",
+		Section: makeSection(RequirementSkill, RequirementRequired, true),
+	},
+	{
+		Name:    "knowledge, skills & abilities",
+		Section: makeSection(RequirementSkill, RequirementRequired, true),
+	},
+	{
+		Name:    "knowledge skills & abilities",
+		Section: makeSection(RequirementSkill, RequirementRequired, true),
+	},
+	{
+		Name:    "your background",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "what you'll need",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "what you’ll need",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "what we look for",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "what we're looking for",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "what we’re looking for",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "candidate qualifications",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "experience and qualifications",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "education and qualifications",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+
 	// Broad fallbacks intentionally last.
 	{
 		Name:    "qualifications",
@@ -691,6 +747,31 @@ delimiter:
 
 	remainder := text[i:]
 
+	// Real-world providers frequently separate a recognized section heading
+	// from explanatory copy with a dash:
+	//
+	//     Qualifications – what we're looking for
+	//     What You Bring — ideal candidate profile
+	//
+	// Treat ASCII hyphen, en dash, and em dash as structural heading
+	// separators for headings already approved for flattened content.
+	// This is occupation-agnostic; the heading whitelist still controls
+	// which text can begin a qualification section.
+	if allowsFlattenedHeading(name) {
+		for _, separator := range []string{"-", "–", "—"} {
+			if strings.HasPrefix(remainder, separator) {
+				bodyStart := i + len(separator)
+
+				for bodyStart < len(text) &&
+					(text[bodyStart] == ' ' || text[bodyStart] == '\t') {
+					bodyStart++
+				}
+
+				return bodyStart, true
+			}
+		}
+	}
+
 	for _, bullet := range []string{
 		"•",
 		"▪",
@@ -835,6 +916,7 @@ func allowsFlattenedHeading(name string) bool {
 		"knowledge and skills",
 		"competencies",
 		"who you are",
+		"recipe for success",
 		"what you bring",
 		"what you need",
 		"what we're looking for",

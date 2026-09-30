@@ -1994,3 +1994,124 @@ What Makes You a Great Fit:
 		RequirementRequired,
 	)
 }
+
+func TestUniversalExtractorRecognizesRealWorldQualificationHeadings(t *testing.T) {
+	tests := []struct {
+		name        string
+		description string
+		contains    []string
+	}{
+		{
+			name: "recipe for success",
+			description: `
+Recipe for Success – apply now if this sounds like you!
+
+• Bachelor's degree in a related field
+• 2+ years of relevant experience
+• Strong analytical and modeling skills
+• Advanced Excel capability
+
+Benefits:
+Medical, dental and vision coverage.
+`,
+			contains: []string{
+				"Bachelor",
+				"2+ years",
+				"analytical",
+				"Excel",
+			},
+		},
+		{
+			name: "knowledge skills and abilities punctuation",
+			description: `
+Knowledge, Skills and Abilities:
+
+• Bachelor's degree in related field
+• Minimum of two years of related experience
+• Strong analytical and communication skills
+• Proficiency in Microsoft Excel
+
+Pay Range:
+Competitive salary.
+`,
+			contains: []string{
+				"Bachelor",
+				"two years",
+				"analytical",
+				"Excel",
+			},
+		},
+		{
+			name: "your background",
+			description: `
+Your Background
+
+Bachelor's degree required
+3-7 years of relevant professional experience
+Strong analytical and problem-solving skills
+Ability to analyze complex data sets using R and Python
+
+What We Offer:
+Comprehensive benefits package.
+`,
+			contains: []string{
+				"Bachelor",
+				"3-7 years",
+				"analytical",
+				"complex data",
+			},
+		},
+		{
+			name: "what youll need",
+			description: `
+What You'll Need:
+
+High school diploma or equivalent
+Three years of relevant experience
+Strong written and verbal communication skills
+
+Benefits:
+Paid time off.
+`,
+			contains: []string{
+				"high school",
+				"Three years",
+				"communication",
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			requirements := ExtractRequirements(test.description)
+
+			if len(requirements) == 0 {
+				t.Fatalf(
+					"expected qualification requirements, got none",
+				)
+			}
+
+			for _, expected := range test.contains {
+				found := false
+
+				for _, requirement := range requirements {
+					if strings.Contains(
+						strings.ToLower(requirement.Text),
+						strings.ToLower(expected),
+					) {
+						found = true
+						break
+					}
+				}
+
+				if !found {
+					t.Fatalf(
+						"expected extracted requirement containing %q; got %#v",
+						expected,
+						requirements,
+					)
+				}
+			}
+		})
+	}
+}
