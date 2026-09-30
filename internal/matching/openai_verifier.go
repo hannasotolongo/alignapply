@@ -73,9 +73,19 @@ func (v *OpenAIEvidenceVerifier) Verify(
 		return missingEvidence()
 	}
 
+	log.Printf(
+		"[evidence-verifier] START requirement=%q evidence=%q",
+		requirement,
+		evidence,
+	)
+
 	result, err := v.verifyWithModel(requirement, evidence)
 	if err != nil {
-		log.Printf("OpenAI evidence verifier failed: %v", err)
+		log.Printf(
+			"[evidence-verifier] ERROR requirement=%q error=%v",
+			requirement,
+			err,
+		)
 
 		// Preserve the existing conservative fallback behavior.
 		return verifyEvidenceDeterministically(
@@ -83,6 +93,12 @@ func (v *OpenAIEvidenceVerifier) Verify(
 			evidence,
 		)
 	}
+
+	log.Printf(
+		"[evidence-verifier] COMPLETE requirement=%q level=%d",
+		requirement,
+		result.Level,
+	)
 
 	return result
 }
