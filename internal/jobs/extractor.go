@@ -521,8 +521,12 @@ func ExtractRequirements(description string) []Requirement {
 	}
 
 	spans := extractSectionSpans(text)
+
+	// Prefer explicit qualification sections whenever the provider preserved
+	// them. When a provider flattened or removed section headings entirely,
+	// fall back to conservative, occupation-agnostic qualification discovery.
 	if len(spans) == 0 {
-		return []Requirement{}
+		return extractUnheadedRequirements(text)
 	}
 
 	requirements := make([]Requirement, 0)
@@ -545,6 +549,73 @@ func ExtractRequirements(description string) []Requirement {
 	}
 
 	return requirements
+}
+
+// extractUnheadedRequirements is the fallback for providers that preserve
+// job-description content but remove qualification section headings.
+//
+// It is intentionally occupation-agnostic. Candidate text must both look like
+// qualification language and classify as candidate evidence before it can
+// become a requirement. Responsibilities, travel/physical conditions,
+// marketing prose, and generic "other" text are not admitted into Your Fit.
+func extractUnheadedRequirements(text string) []Requirement {
+	text = normalizeListSeparators(text)
+
+	chunks := strings.Split(text, "\n")
+	result := make([]Requirement, 0)
+
+	section := makeSection(
+		RequirementOther,
+		RequirementRequired,
+		true,
+	)
+
+	for _, chunk := range chunks {
+		chunk = cleanRequirementText(chunk)
+
+		if chunk == "" ||
+			isExplicitNoneValue(chunk) ||
+			isMarketingOrCompanyProse(chunk) {
+			continue
+		}
+
+		// Reuse the existing flattened-text atomizer. It already knows how
+		// to split repeated requirement markers and semantic boundaries.
+		atoms := atomizeFlattenedChunk(chunk, section)
+
+		for _, atom := range atoms {
+			atom = cleanRequirementText(atom)
+
+			if atom == "" {
+				continue
+			}
+
+			// Without a trusted section heading, require an explicit generic
+			// qualification signal. This prevents arbitrary responsibility
+			// sentences from being interpreted as candidate requirements.
+			if !isLikelyRequirementStart(atom) {
+				continue
+			}
+
+			category := classifyRequirement(
+				atom,
+				RequirementOther,
+			)
+
+			if !isCandidateFitQualification(category) {
+				continue
+			}
+
+			addRequirement(
+				&result,
+				atom,
+				"",
+				section,
+			)
+		}
+	}
+
+	return result
 }
 
 func extractSectionSpans(text string) []sectionSpan {

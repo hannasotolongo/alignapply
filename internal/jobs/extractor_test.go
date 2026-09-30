@@ -2115,3 +2115,49 @@ Paid time off.
 		})
 	}
 }
+
+func TestUniversalUnheadedRequirementFallback(t *testing.T) {
+	description := `
+We are building a growing team and looking for someone who can contribute immediately.
+
+Bachelor's degree in a related field
+3 years of relevant experience
+Strong analytical and communication skills
+Proficiency with industry-standard tools
+
+You will work with cross-functional teams and support day-to-day business operations.
+`
+
+	requirements := ExtractRequirements(description)
+
+	if len(requirements) == 0 {
+		t.Fatal("expected unheaded qualification requirements, got none")
+	}
+
+	foundEducation := false
+	foundExperience := false
+	foundSkill := false
+
+	for _, requirement := range requirements {
+		switch requirement.Category {
+		case RequirementEducation:
+			foundEducation = true
+		case RequirementExperience:
+			foundExperience = true
+		case RequirementSkill:
+			foundSkill = true
+		}
+	}
+
+	if !foundEducation {
+		t.Errorf("expected education requirement, got %#v", requirements)
+	}
+
+	if !foundExperience {
+		t.Errorf("expected experience requirement, got %#v", requirements)
+	}
+
+	if !foundSkill {
+		t.Errorf("expected skill requirement, got %#v", requirements)
+	}
+}
