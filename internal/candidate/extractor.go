@@ -51,9 +51,28 @@ func ExtractProfile(resumeText string) Profile {
 		return profile
 	}
 
+	currentSection := EvidenceCategory("")
+
 	for _, unit := range resumeEvidenceUnits(raw) {
-		for _, evidence := range classifyEvidenceUnit(unit) {
+		if section, ok := resumeSectionCategory(unit); ok {
+			currentSection = section
+			continue
+		}
+
+		classified := classifyEvidenceUnit(unit)
+
+		for _, evidence := range classified {
 			addEvidence(&profile, evidence)
+		}
+
+		// Preserve résumé structure. Evidence appearing underneath a recognized
+		// section heading inherits that section's category in addition to any
+		// categories discovered from the text itself.
+		//
+		// This is occupation-agnostic: it relies on résumé structure rather
+		// than job titles, industries, technologies, or profession vocabulary.
+		if currentSection != "" {
+			addEvidence(&profile, newEvidence(unit, currentSection))
 		}
 	}
 
@@ -141,6 +160,62 @@ func splitEvidenceSentences(text string) []string {
 	}
 
 	return result
+}
+
+func resumeSectionCategory(text string) (EvidenceCategory, bool) {
+	text = cleanEvidenceText(text)
+
+	normalized := strings.ToLower(text)
+	normalized = strings.TrimSuffix(normalized, ":")
+	normalized = strings.TrimSpace(normalized)
+
+	switch normalized {
+	case "experience",
+		"work experience",
+		"professional experience",
+		"employment",
+		"employment history",
+		"work history":
+		return EvidenceExperience, true
+
+	case "education",
+		"academic background",
+		"academic history":
+		return EvidenceEducation, true
+
+	case "skills",
+		"technical skills",
+		"core skills",
+		"core competencies",
+		"competencies":
+		return EvidenceSkill, true
+
+	case "certifications",
+		"certification",
+		"certificates":
+		return EvidenceCertification, true
+
+	case "licenses",
+		"licensure",
+		"licenses and certifications",
+		"certifications and licenses":
+		// Mixed headings cannot safely force every child into one of the two
+		// hard-constraint categories. Let line-level classification decide.
+		return "", true
+
+	case "projects",
+		"project experience",
+		"selected projects":
+		return EvidenceProject, true
+
+	case "summary",
+		"professional summary",
+		"profile",
+		"about":
+		return EvidenceSummary, true
+	}
+
+	return "", false
 }
 
 func classifyEvidenceUnit(text string) []Evidence {

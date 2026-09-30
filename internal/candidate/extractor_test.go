@@ -228,3 +228,81 @@ func containsFold(
 
 	return false
 }
+
+func TestExtractProfilePreservesUniversalResumeSectionContext(t *testing.T) {
+	tests := []struct {
+		name     string
+		resume   string
+		category EvidenceCategory
+		contains string
+	}{
+		{
+			name: "finance experience",
+			resume: `Professional Experience
+Financial Analyst
+Performed forecasting, budgeting, variance analysis, and financial modeling.`,
+			category: EvidenceExperience,
+			contains: "Performed forecasting",
+		},
+		{
+			name: "healthcare experience",
+			resume: `Work Experience
+Registered Nurse
+Provided patient care, medication administration, and patient education.`,
+			category: EvidenceExperience,
+			contains: "Provided patient care",
+		},
+		{
+			name: "software experience",
+			resume: `Employment History
+Software Engineer
+Built distributed backend services and production APIs.`,
+			category: EvidenceExperience,
+			contains: "Built distributed backend",
+		},
+		{
+			name: "education context",
+			resume: `Education
+University of Florida
+Bachelor of Science in Biology`,
+			category: EvidenceEducation,
+			contains: "University of Florida",
+		},
+		{
+			name: "project context",
+			resume: `Projects
+Order Processing Platform
+Built a reliable distributed order-processing system.`,
+			category: EvidenceProject,
+			contains: "Order Processing Platform",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			profile := ExtractProfile(test.resume)
+
+			var evidence []Evidence
+
+			switch test.category {
+			case EvidenceExperience:
+				evidence = profile.Experience
+			case EvidenceEducation:
+				evidence = profile.Education
+			case EvidenceProject:
+				evidence = profile.Projects
+			default:
+				t.Fatalf("unsupported test category %q", test.category)
+			}
+
+			if !containsEvidence(evidence, test.contains) {
+				t.Fatalf(
+					"expected %q as %s evidence; got %#v",
+					test.contains,
+					test.category,
+					evidence,
+				)
+			}
+		})
+	}
+}
