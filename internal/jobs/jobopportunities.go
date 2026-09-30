@@ -166,12 +166,23 @@ func (p *JobOpportunitiesProvider) Search(
 
 		response, err := p.client.Do(httpRequest)
 		if err != nil {
+			log.Printf(
+				"[jobopportunities] ERROR search=%s stage=http_request error=%v",
+				search.name,
+				err,
+			)
 			searchErrors = append(
 				searchErrors,
 				fmt.Sprintf("%s: %v", search.name, err),
 			)
 			continue
 		}
+
+		log.Printf(
+			"[jobopportunities] HTTP search=%s status=%d",
+			search.name,
+			response.StatusCode,
+		)
 
 		if response.StatusCode < 200 || response.StatusCode >= 300 {
 			status := response.StatusCode
@@ -190,6 +201,11 @@ func (p *JobOpportunitiesProvider) Search(
 		response.Body.Close()
 
 		if decodeErr != nil {
+			log.Printf(
+				"[jobopportunities] ERROR search=%s stage=decode error=%v",
+				search.name,
+				decodeErr,
+			)
 			searchErrors = append(
 				searchErrors,
 				fmt.Sprintf("%s: %v", search.name, decodeErr),
