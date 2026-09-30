@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -65,109 +66,183 @@ func (p *JobOpportunitiesProvider) Search(
 	ctx context.Context,
 	request SearchRequest,
 ) ([]Job, error) {
-	endpoint, err := url.Parse(
-		jobOpportunitiesBaseURL + "/v1/jobs",
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	query := endpoint.Query()
-
-	// Retrieve a useful candidate pool while keeping the user's
-	// job title and requested geography as independent search constraints.
-	query.Set("limit", "50")
-	query.Set("include_description", "true")
-
 	role := strings.TrimSpace(request.TargetRole)
 	location := strings.TrimSpace(request.Location)
-	country := strings.TrimSpace(request.CountryCode)
+	country := strings.ToUpper(strings.TrimSpace(request.CountryCode))
 
-	// JOB TITLE:
-	// Completely dynamic. Whatever role the user enters is searched.
-	if role != "" {
-		query.Set("title", role)
+	// Discovery is intentionally occupation-agnostic.
+	//
+	// Pass 1 searches the user's exact role with their geography.
+	// If that produces too small a candidate pool, Pass 2 searches the
+	// exact role at country scope. AlignApply's provider-independent pipeline
+	// remains authoritative for title, location, arrangement, employment type,
+	// salary, freshness, and deduplication.
+	searches := []struct {
+		name            string
+		includeLocation bool
+	}{
+		{
+			name:            "role_and_location",
+			includeLocation: true,
+		},
+		{
+			name:            "role_country_fallback",
+			includeLocation: false,
+		},
 	}
 
-	// LOCATION:
-	// Completely dynamic. Whatever city/state/region the user enters
-	// is sent independently from the job title.
-	if location != "" {
-		query.Set("q", location)
-	}
+	const desiredCandidatePool = 10
 
-	// COUNTRY:
-	// Keep results inside the requested country when supplied.
-	if country != "" {
-		query.Set(
-			"country",
-			strings.ToUpper(country),
+	all := make([]Job, 0, 50)
+	seen := make(map[string]struct{})
+	var searchErrors []string
+
+	for index, search := range searches {
+		// Only use the fallback when the first pass did not produce
+		// a useful discovery pool.
+		if index > 0 && len(all) >= desiredCandidatePool {
+			break
+		}
+
+		endpoint, err := url.Parse(
+			jobOpportunitiesBaseURL + "/v1/jobs",
 		)
-	}
+		if err != nil {
+			return nil, err
+		}
 
-	// Do not send work arrangement or employment type upstream.
-	// AlignApply's pipeline handles those after job discovery.
+		query := endpoint.Query()
+		query.Set("limit", "50")
+		query.Set("include_description", "true")
 
-	endpoint.RawQuery = query.Encode()
+		// Whatever occupation the user entered is passed through dynamically.
+		if role != "" {
+			query.Set("title", role)
+		}
 
-	httpRequest, err := http.NewRequestWithContext(
-		ctx,
-		http.MethodGet,
-		endpoint.String(),
-		nil,
-	)
-	if err != nil {
-		return nil, err
-	}
+		// Preserve the existing provider geography query on the first pass.
+		// The second pass broadens discovery only; the downstream pipeline
+		// still enforces the user's actual location preference.
+		if search.includeLocation && location != "" {
+			query.Set("q", location)
+		}
 
-	httpRequest.Header.Set("Accept", "application/json")
+		if country != "" {
+			query.Set("country", country)
+		}
 
-	apiKey := strings.TrimSpace(os.Getenv("JOA_API_KEY"))
-	if apiKey == "" {
-		return nil, fmt.Errorf("JOA_API_KEY is not configured")
-	}
+		endpoint.RawQuery = query.Encode()
 
-	httpRequest.Header.Set(
-		"Authorization",
-		"Bearer "+apiKey,
-	)
-	httpRequest.Header.Set("Accept", "application/json")
-
-	response, err := p.client.Do(httpRequest)
-	if err != nil {
-		return nil, err
-	}
-	defer response.Body.Close()
-
-	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return nil, fmt.Errorf(
-			"job provider returned HTTP %d",
-			response.StatusCode,
+		log.Printf(
+			"[jobopportunities] search=%s role=%q location=%q country=%q",
+			search.name,
+			role,
+			func() string {
+				if search.includeLocation {
+					return location
+				}
+				return ""
+			}(),
+			country,
 		)
-	}
 
-	var payload jobOpportunitiesResponse
+		httpRequest, err := http.NewRequestWithContext(
+			ctx,
+			http.MethodGet,
+			endpoint.String(),
+			nil,
+		)
+		if err != nil {
+			return nil, err
+		}
 
-	if err := json.NewDecoder(response.Body).Decode(&payload); err != nil {
-		return nil, err
-	}
+		apiKey := strings.TrimSpace(os.Getenv("JOA_API_KEY"))
+		if apiKey == "" {
+			return nil, fmt.Errorf("JOA_API_KEY is not configured")
+		}
 
-	result := make([]Job, 0, len(payload.Data))
+		httpRequest.Header.Set("Authorization", "Bearer "+apiKey)
+		httpRequest.Header.Set("Accept", "application/json")
 
-	for _, externalJob := range payload.Data {
-		job := normalizeJobOpportunitiesJob(externalJob)
-
-		if job.ID == "" ||
-			job.Title == "" ||
-			job.Company == "" ||
-			job.ApplyURL == "" {
+		response, err := p.client.Do(httpRequest)
+		if err != nil {
+			searchErrors = append(
+				searchErrors,
+				fmt.Sprintf("%s: %v", search.name, err),
+			)
 			continue
 		}
 
-		result = append(result, job)
+		if response.StatusCode < 200 || response.StatusCode >= 300 {
+			status := response.StatusCode
+			response.Body.Close()
+
+			searchErrors = append(
+				searchErrors,
+				fmt.Sprintf("%s: HTTP %d", search.name, status),
+			)
+			continue
+		}
+
+		var payload jobOpportunitiesResponse
+
+		decodeErr := json.NewDecoder(response.Body).Decode(&payload)
+		response.Body.Close()
+
+		if decodeErr != nil {
+			searchErrors = append(
+				searchErrors,
+				fmt.Sprintf("%s: %v", search.name, decodeErr),
+			)
+			continue
+		}
+
+		added := 0
+
+		for _, externalJob := range payload.Data {
+			job := normalizeJobOpportunitiesJob(externalJob)
+
+			if job.ID == "" ||
+				job.Title == "" ||
+				job.Company == "" ||
+				job.ApplyURL == "" {
+				continue
+			}
+
+			key := strings.TrimSpace(job.Source) + "|" + strings.TrimSpace(job.ID)
+			if _, exists := seen[key]; exists {
+				continue
+			}
+
+			seen[key] = struct{}{}
+			all = append(all, job)
+			added++
+		}
+
+		log.Printf(
+			"[jobopportunities] search=%s upstream=%d normalized_added=%d candidate_pool=%d",
+			search.name,
+			len(payload.Data),
+			added,
+			len(all),
+		)
 	}
 
-	return result, nil
+	if len(all) == 0 && len(searchErrors) > 0 {
+		return nil, fmt.Errorf(
+			"job discovery failed: %s",
+			strings.Join(searchErrors, "; "),
+		)
+	}
+
+	if len(searchErrors) > 0 {
+		log.Printf(
+			"[jobopportunities] partial discovery errors: %s",
+			strings.Join(searchErrors, "; "),
+		)
+	}
+
+	return all, nil
 }
 
 func normalizeJobOpportunitiesJob(
