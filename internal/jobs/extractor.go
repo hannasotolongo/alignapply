@@ -476,17 +476,29 @@ var rejectedHeadings = []string{
 	"about us",
 	"who we are",
 	"our company",
+	"commitment to employees",
+	"our commitment to employees",
+	"commitment to our employees",
+	"employee benefits",
 	"our mission",
 	"our culture",
 	"why work here",
 	"why work with us",
 	"why join us",
 	"why join",
+	"why this role",
+	"why this position",
+	"why this opportunity",
 
 	// Application/contact/recruiting content.
 	"how to apply",
 	"application process",
 	"application instructions",
+	"interview policy",
+	"interview policy & privacy notice",
+	"interview policy and privacy notice",
+	"privacy notice",
+	"applicant privacy notice",
 	"contact information",
 	"recruiter contact",
 	"recruiting contact",
@@ -1670,10 +1682,39 @@ func candidateCompletesPreviousRequirement(
 	first := firstWord(after)
 
 	switch first {
-	case "skills", "skill":
+	case "skills", "skill", "knowledge", "proficiency":
+		if !previousTextLooksComplete(before) {
+			return true
+		}
+
+		fields := strings.Fields(before)
+
+		// These nouns can naturally complete a short modifier phrase:
+		//
+		//   Strong Excel skills
+		//   Deep accounting knowledge
+		//   Excellent communication skills
+		//
+		// Keep that phrase intact rather than treating the noun itself
+		// as the beginning of another requirement.
+		if len(fields) > 0 && len(fields) <= 6 {
+			return true
+		}
+
 		return precedingPhraseAcceptsSkillNoun(before)
 
+	case "ability", "abilities":
+		// Ability/abilities are commonly independent requirement starters:
+		//
+		//   Strong communication skills Ability to work independently
+		//
+		// Do not apply the short-phrase noun-completion rule here.
+		return false
+
 	case "experience":
+		if !previousTextLooksComplete(before) {
+			return true
+		}
 		return precedingPhraseAcceptsExperienceNoun(before)
 
 	case "certification", "certified":

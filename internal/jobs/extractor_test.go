@@ -2161,3 +2161,53 @@ You will work with cross-functional teams and support day-to-day business operat
 		t.Errorf("expected skill requirement, got %#v", requirements)
 	}
 }
+
+func TestUniversalRequirementBoundariesStayClean(t *testing.T) {
+	description := `
+Requirements:
+Bachelor's degree in a quantitative or analytical discipline
+0-3 years of experience in an analytical role
+Strong Excel skills and comfort working with large, imperfect datasets
+Ability to read a P&L and reason about what drives the numbers
+Clear written and verbal communication
+
+Why This Role
+This is an exciting opportunity to make an impact.
+
+Interview Policy & Privacy Notice
+Applicants may be asked to participate in interviews.
+
+Our Commitment to Employees
+We provide competitive benefits.
+`
+
+	requirements := ExtractRequirements(description)
+
+	if len(requirements) == 0 {
+		t.Fatal("expected qualification requirements")
+	}
+
+	var texts []string
+	for _, r := range requirements {
+		texts = append(texts, r.Text)
+	}
+
+	joined := strings.Join(texts, "\n")
+	lower := strings.ToLower(joined)
+
+	if !strings.Contains(joined, "Strong Excel skills") {
+		t.Fatalf("expected Excel requirement to remain intact: %#v", texts)
+	}
+
+	for _, bad := range []string{
+		"why this role",
+		"interview policy",
+		"privacy notice",
+		"commitment to employees",
+		"competitive benefits",
+	} {
+		if strings.Contains(lower, bad) {
+			t.Fatalf("non-qualification content leaked into requirements: %q: %#v", bad, texts)
+		}
+	}
+}
