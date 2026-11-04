@@ -1,4 +1,4 @@
-# CaseMade web SaaS: setup
+# CareerStore web SaaS: setup
 
 The Go server serves both the API and the web app (`internal/web/static`,
 embedded into the binary). One deploy, one origin, no CORS.
@@ -28,9 +28,9 @@ to create the web service and database together.
 In the Stripe dashboard (start in **test mode**):
 
 1. **Product catalog → Add product**, three prices:
-   - "CaseMade Pro Monthly": **recurring** $14.99 every 1 month → `STRIPE_PRICE_PRO_MONTHLY` (the 3-day trial is added by CaseMade at checkout)
+   - "CareerStore Pro Monthly": **recurring** $14.99 every 1 month → `STRIPE_PRICE_PRO_MONTHLY` (the 3-day trial is added by CareerStore at checkout)
    - "Job Search Sprint": **one-time** $39 → `STRIPE_PRICE_SPRINT`
-   - "CaseMade School License": **recurring** $1,000 every 1 year → `STRIPE_PRICE_SCHOOL`
+   - "CareerStore School License": **recurring** $1,000 every 1 year → `STRIPE_PRICE_SCHOOL`
 2. **Settings → Billing → Customer portal**: turn on cancel, update payment
    method, and switching between the two prices.
 3. **Developers → Webhooks → Add endpoint**
@@ -54,7 +54,7 @@ In the Stripe dashboard (start in **test mode**):
 | `STRIPE_PRICE_SPRINT` | at least one | one-time `price_…` |
 | `STRIPE_PRICE_SCHOOL` | at least one | recurring yearly `price_…` |
 | `PRO_MONTHLY_DISPLAY_PRICE` / `SPRINT_DISPLAY_PRICE` / `SCHOOL_DISPLAY_PRICE` | no | defaults `$14.99` / `$39` / `$1,000` (display only; Stripe charges the price ID) |
-| `RESEND_API_KEY` + `EMAIL_FROM` | for email | Resend API key, and a sender like `CaseMade <hello@yourdomain.com>` on a domain verified in Resend. Enables email confirmation, password reset, and school licenses |
+| `RESEND_API_KEY` + `EMAIL_FROM` | for email | Resend API key, and a sender like `CareerStore <hello@yourdomain.com>` on a domain verified in Resend. Enables email confirmation, password reset, and school licenses |
 | `SUPPORT_EMAIL` | yes | shown on Terms, Privacy, Refunds and Contact pages |
 | `TRUST_PROXY_HEADERS` | on Render | `true` so login rate limiting uses the real client IP |
 | `OPENAI_API_KEY` | prod | matching/verification (falls back to local Ollama) |

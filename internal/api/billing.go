@@ -562,7 +562,7 @@ func (s *Server) startOrganizationCheckout(
 	org, err := s.accountsRepo.UpsertOrganizationForOwner(ctx, organizationName, domain, user.ID)
 	if errors.Is(err, repository.ErrDomainAlreadyLicensed) {
 		writeJSON(w, http.StatusConflict, map[string]string{
-			"error": "someone at " + domain + " already set up a CaseMade license; contact support to be added",
+			"error": "someone at " + domain + " already set up a CareerStore license; contact support to be added",
 			"code":  "domain_taken",
 		})
 		return
@@ -811,7 +811,7 @@ func (s *Server) processStripeEvent(ctx context.Context, event billing.Event) er
 		}
 	}
 
-	log.Printf("Stripe event %s: no CaseMade user or school for customer %s", event.ID, subscription.Customer)
+	log.Printf("Stripe event %s: no CareerStore user or school for customer %s", event.ID, subscription.Customer)
 	return nil
 }
 
@@ -833,7 +833,7 @@ func (s *Server) grantPassFromCheckout(
 
 	_, err := s.billingRepo.GrantPass(ctx, customerID, userID, plan.PassDays)
 	if errors.Is(err, repository.ErrSubscriptionNotFound) {
-		log.Printf("Stripe event %s: no CaseMade user %s for customer %s", eventID, userID, customerID)
+		log.Printf("Stripe event %s: no CareerStore user %s for customer %s", eventID, userID, customerID)
 		return nil
 	}
 	return err

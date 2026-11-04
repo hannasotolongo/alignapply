@@ -8,7 +8,7 @@ import (
 	"sync"
 )
 
-// Provider is the common interface for every live job source CaseMade uses.
+// Provider is the common interface for every live job source CareerStore uses.
 //
 // Providers are responsible only for retrieving and normalizing jobs.
 // They must NOT decide whether a candidate is qualified for a job.

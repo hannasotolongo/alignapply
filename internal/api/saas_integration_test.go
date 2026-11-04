@@ -111,7 +111,7 @@ func TestWebSaaSIntegration(t *testing.T) {
 		writeJSON(w, http.StatusOK, map[string]string{"id": "email_test"})
 	}))
 	t.Cleanup(mailServer.Close)
-	mailClient, _ := mailer.NewResend("re_test_fake", "CaseMade <hello@casemade.test>")
+	mailClient, _ := mailer.NewResend("re_test_fake", "CareerStore <hello@casemade.test>")
 	mailClient.WithAPIBase(mailServer.URL)
 
 	tokenRE := regexp.MustCompile(`token=([A-Za-z0-9_-]+)`)
@@ -482,7 +482,7 @@ func TestWebSaaSIntegration(t *testing.T) {
 
 	verify := func(t *testing.T, address string, after int) int {
 		t.Helper()
-		token, next := waitForToken(t, address, "Confirm your CaseMade email", after)
+		token, next := waitForToken(t, address, "Confirm your CareerStore email", after)
 		response := do(http.MethodGet, "/verify-email?token="+token, nil, nil, nil)
 		if response.Code != http.StatusFound || response.Header().Get("Location") != "/app/billing?verified=1" {
 			t.Fatalf("verify link = %d %s", response.Code, response.Header().Get("Location"))
@@ -566,7 +566,7 @@ func TestWebSaaSIntegration(t *testing.T) {
 		if response := do(http.MethodPost, "/api/v1/auth/password-reset/request", map[string]string{"email": student}, nil, nil); response.Code != http.StatusOK {
 			t.Fatalf("reset request = %d", response.Code)
 		}
-		token, _ := waitForToken(t, student, "Reset your CaseMade password", cursor)
+		token, _ := waitForToken(t, student, "Reset your CareerStore password", cursor)
 
 		if weak := do(http.MethodPost, "/api/v1/auth/password-reset/confirm", map[string]string{"token": token, "password": "short"}, nil, nil); weak.Code != http.StatusBadRequest {
 			t.Fatalf("weak password = %d", weak.Code)

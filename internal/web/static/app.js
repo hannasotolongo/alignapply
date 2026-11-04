@@ -1,14 +1,14 @@
 "use strict";
 
 /*
- * CaseMade web app.
+ * CareerStore web app.
  *
  * No framework and no build step: the Go server embeds and serves these files.
  * All DOM is built with the h() helper, which only ever sets text content, so
  * job descriptions, résumé text, and user input can never inject markup.
  */
 
-const BRAND = "CaseMade";
+const BRAND = "CareerStore";
 
 // ---------------------------------------------------------------------------
 // DOM helpers
@@ -546,7 +546,7 @@ function paywall(title, body) {
 
 async function startCheckout(planKey, extra = {}) {
   if (!state.user) {
-    sessionStorage.setItem("casemade.pendingPlan", planKey);
+    sessionStorage.setItem("careerstore.pendingPlan", planKey);
     navigate("/signup");
     return;
   }
@@ -605,9 +605,9 @@ async function viewAuth(mode) {
       resetState();
       state.user = session.user;
 
-      const pendingPlan = sessionStorage.getItem("casemade.pendingPlan");
+      const pendingPlan = sessionStorage.getItem("careerstore.pendingPlan");
       if (pendingPlan) {
-        sessionStorage.removeItem("casemade.pendingPlan");
+        sessionStorage.removeItem("careerstore.pendingPlan");
         await startCheckout(pendingPlan);
         return;
       }
@@ -823,7 +823,7 @@ async function viewOnboarding() {
 
 async function finishOnboarding(autoSearch) {
   try { await savePreferences({ onboardingComplete: true }); } catch (error) { console.error(error); }
-  if (autoSearch) sessionStorage.setItem("casemade.autoSearch", "1");
+  if (autoSearch) sessionStorage.setItem("careerstore.autoSearch", "1");
   navigate("/app/jobs");
 }
 
@@ -1313,8 +1313,8 @@ async function viewJobs() {
     ? h("p", { class: "faint small" }, trialAvailable() ? "Start your 3-day free trial to see your matches. No charge if you cancel before it ends." : "Choose a plan to run searches.")
     : null;
 
-  if (sessionStorage.getItem("casemade.autoSearch")) {
-    sessionStorage.removeItem("casemade.autoSearch");
+  if (sessionStorage.getItem("careerstore.autoSearch")) {
+    sessionStorage.removeItem("careerstore.autoSearch");
     setTimeout(runSearch, 0);
   }
 
@@ -1768,7 +1768,7 @@ async function viewBilling() {
       }
     } }, "Send confirmation email");
     sections.push(h("div", { class: "card row-between notice" },
-      h("div", {}, h("h3", {}, "Confirm your email"), h("p", { class: "muted small" }, "We sent you a link when you signed up. Confirming lets you reset your password, and unlocks Pro if your school has a CaseMade license.")),
+      h("div", {}, h("h3", {}, "Confirm your email"), h("p", { class: "muted small" }, "We sent you a link when you signed up. Confirming lets you reset your password, and unlocks Pro if your school has a CareerStore license.")),
       resend));
   }
 

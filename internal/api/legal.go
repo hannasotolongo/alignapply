@@ -28,7 +28,7 @@ var legalShell = template.Must(template.New("legal").Parse(`<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{.Title}} · CaseMade</title>
+<title>{{.Title}} · CareerStore</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -37,7 +37,7 @@ var legalShell = template.Must(template.New("legal").Parse(`<!doctype html>
 </head>
 <body>
 <header class="site-nav"><div class="container">
-  <a class="brand" href="/"><span class="brand-mark">C</span>CaseMade</a>
+  <a class="brand" href="/"><span class="brand-mark">C</span>CareerStore</a>
   <nav class="row">
     <a class="btn btn-ghost btn-sm" href="/pricing">Pricing</a>
     <a class="btn btn-primary btn-sm" href="/app/jobs">Open app</a>
@@ -45,7 +45,7 @@ var legalShell = template.Must(template.New("legal").Parse(`<!doctype html>
 </div></header>
 <main class="legal container">{{.Body}}</main>
 <footer class="site-footer"><div class="container row-between">
-  <span>© CaseMade</span>
+  <span>© CareerStore</span>
   <nav class="footer-links">
     <a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/refunds">Refunds</a><a href="/contact">Contact</a>
   </nav>
