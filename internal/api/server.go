@@ -43,6 +43,9 @@ type Server struct {
 	billingConfig BillingConfig
 	web           WebConfig
 	authLimiter   *attemptLimiter
+
+	fitCheckAnonLimiter *attemptLimiter
+	fitCheckUserLimiter *attemptLimiter
 }
 
 // WebConfig configures the browser-facing SaaS: where it is hosted (used for
@@ -110,6 +113,9 @@ func NewServer(
 		pipeline: jobs.NewPipeline(),
 
 		authLimiter: newAttemptLimiter(10, 15*time.Minute),
+
+		fitCheckAnonLimiter: newAttemptLimiter(fitCheckAnonymousPerDay, 24*time.Hour),
+		fitCheckUserLimiter: newAttemptLimiter(ProJobMatchesPerHour, time.Hour),
 	}
 
 	if len(dependencies) > 0 {
@@ -359,6 +365,7 @@ func (s *Server) routes() {
 		s.mux.HandleFunc("/verify-email", s.handleVerifyEmailLink)
 
 		// Web (email + password) authentication.
+		s.mux.HandleFunc("/api/v1/fit-check", s.handleFitCheck)
 		s.mux.HandleFunc("/api/v1/auth/signup", s.handlePasswordSignUp)
 		s.mux.HandleFunc("/api/v1/auth/login", s.handlePasswordLogin)
 		s.mux.HandleFunc("/api/v1/auth/logout", s.handleLogout)

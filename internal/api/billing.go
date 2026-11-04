@@ -479,8 +479,8 @@ func (s *Server) handleBillingCheckout(w http.ResponseWriter, r *http.Request) {
 		CustomerID: customerID,
 		PriceID:    plan.PriceID,
 		UserID:     user.ID,
-		SuccessURL: s.web.BaseURL + "/app/billing?checkout=success",
-		CancelURL:  s.web.BaseURL + "/app/billing?checkout=canceled",
+		SuccessURL: s.web.BaseURL + "/app/activate?checkout=success",
+		CancelURL:  s.web.BaseURL + "/app/activate?checkout=canceled",
 		Metadata:   map[string]string{"plan_key": plan.Key},
 	}
 

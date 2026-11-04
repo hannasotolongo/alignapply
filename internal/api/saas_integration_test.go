@@ -317,7 +317,7 @@ func TestWebSaaSIntegration(t *testing.T) {
 		if got := stripeFake.lastCheckout.Get("line_items[0][price]"); got != "price_monthly" {
 			t.Fatalf("checkout price = %q", got)
 		}
-		if got := stripeFake.lastCheckout.Get("success_url"); got != "https://casemade.test/app/billing?checkout=success" {
+		if got := stripeFake.lastCheckout.Get("success_url"); got != "https://casemade.test/app/activate?checkout=success" {
 			t.Fatalf("success_url = %q", got)
 		}
 		if got := stripeFake.lastCheckout.Get("subscription_data[trial_period_days]"); got != "3" {

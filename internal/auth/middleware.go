@@ -147,3 +147,29 @@ func writeUnauthorized(
 		),
 	)
 }
+
+// OptionalUserID returns the signed-in user's ID when the request carries a
+// valid session (Bearer token or session cookie), and "" otherwise. It never
+// writes a response, so public endpoints can personalize without requiring
+// sign-in.
+func (m *SessionManager) OptionalUserID(r *http.Request) string {
+	if m == nil || r == nil {
+		return ""
+	}
+	tokenString, err := BearerToken(r.Header.Get("Authorization"))
+	if err != nil {
+		cookie, cookieErr := r.Cookie(SessionCookieName)
+		if cookieErr != nil {
+			return ""
+		}
+		tokenString = strings.TrimSpace(cookie.Value)
+	}
+	if tokenString == "" {
+		return ""
+	}
+	claims, err := m.Verify(tokenString)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(claims.UserID)
+}

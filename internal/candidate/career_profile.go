@@ -127,6 +127,8 @@ func addStructuredEvidence(
 		return
 	}
 
+	text = ExpandCredentialAbbreviations(text)
+
 	addEvidence(
 		profile,
 		Evidence{

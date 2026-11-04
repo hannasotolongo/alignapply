@@ -324,12 +324,15 @@ function resumeDropzone(onUploaded, { label = "Upload résumé PDFs", hint = "Se
 const routes = {
   "/": viewLanding,
   "/pricing": viewLanding,
+  "/fit-check": viewFitCheckPublic,
   "/login": () => viewAuth("login"),
   "/signup": () => viewAuth("signup"),
   "/forgot-password": viewForgotPassword,
   "/reset-password": viewResetPassword,
   "/app": () => navigate("/app/jobs", { replace: true }),
   "/app/welcome": viewOnboarding,
+  "/app/activate": viewActivate,
+  "/app/fit-check": () => appPage("fit", viewFitCheckApp),
   "/app/jobs": () => appPage("jobs", viewJobs),
   "/app/resumes": () => appPage("resumes", viewResumes),
   "/app/profile": () => appPage("profile", viewProfile),
@@ -406,11 +409,29 @@ function siteFooter() {
 async function viewLanding() {
   if (state.user === undefined) await loadUser();
   const plansInfo = await loadPlans();
+  const signedIn = !!state.user;
 
-  const steps = [
-    ["1", "Upload your résumé", "Drop in one or more PDFs. We read them in your browser and build your career profile from what's actually there."],
-    ["2", "We check every requirement", "Each posting is split into its real requirements. Then we check every one against your experience, without assuming licenses or degrees you don't have."],
-    ["3", "Apply where you fit", "See what you meet, what's partial, and what's missing. Then track every application from saved to offer."],
+  const differences = [
+    ["✓", "Honest, not hopeful", "Job boards show you everything. Jane tells you when to skip a job, so your applications go where you can actually win."],
+    ["≡", "Every requirement, checked", "Each posting is broken into its real requirements, and every one is checked against your experience. No keyword guessing, and no assuming a license or degree you don't have."],
+    ["↗", "Gap Closer", "For every gap, Jane tells you whether you probably have it (add it), it's a quick certification away, or it's a real gap worth knowing about."],
+    ["→", "Straight to the employer", "Apply on the employer's own site, then track every application from saved to offer. Connect Gmail and updates fill themselves in."],
+  ];
+
+  const compare = [
+    ["Shows you every job", "Shows you the jobs you can win"],
+    ["A vague match score", "Every requirement checked against your evidence"],
+    ["Silent about what you're missing", "Tells you exactly how to close each gap"],
+    ["“Easy apply” into a black hole", "Links to the employer's real application page"],
+    ["A spreadsheet to track it all", "A built-in tracker with Gmail sync"],
+  ];
+
+  const faqs = [
+    ["Why do I need a card for the free trial?", "It keeps the trial to one per person and means your access doesn't stop in the middle of a search. You won't be charged during the 3 days, and you can cancel from Plan & billing in two clicks."],
+    ["Is my résumé private?", "Your PDF is read right in your browser. Only the text is stored, it's never shared with employers, and you can delete it, or your whole account, at any time."],
+    ["What does “Jane would skip this one” mean?", "It means you're missing must-have requirements, like a license or years of experience the employer is firm about. Jane would rather tell you up front than let you spend an evening on an application that won't get read."],
+    ["Does Jane work for nurses and healthcare jobs?", "Yes. Jane knows an RN license from a BLS certification, and she never counts a credential you don't hold. Healthcare postings are some of the most requirement-heavy, which is exactly where she helps most."],
+    ["Can my school or program get access?", "Yes. A school license gives Pro to every student who confirms an email at your school's domain, with no codes or seat counting."],
   ];
 
   mount(h("div", {},
@@ -418,26 +439,65 @@ async function viewLanding() {
     h("main", {},
       h("section", { class: "hero" },
         h("div", { class: "container" },
-          h("span", { class: "pill eyebrow" }, "Less searching. Better matches."),
-          h("h1", {}, "Upload your résumé.", h("br"), "We find the fit."),
-          h("p", { class: "lead" }, `${BRAND} matches you to jobs using evidence from your real experience. It shows exactly why each role is a fit, and tracks every application in one place.`),
+          h("span", { class: "pill eyebrow" }, "Meet Jane, your honest job-search partner"),
+          h("h1", {}, "Know if you'll get the", h("br"), "interview before you apply."),
+          h("p", { class: "lead" }, "Paste any job. Jane checks every requirement against your résumé, tells you straight whether to apply, and shows you how to close the gaps."),
           h("div", { class: "row" },
-            link(state.user ? "/app/jobs" : "/signup", { class: "btn btn-primary" }, state.user ? `Open ${BRAND}` : "Start free trial"),
-            link("/pricing", { class: "btn" }, "See pricing"),
+            signedIn
+              ? link("/app/fit-check", { class: "btn btn-primary" }, "Run a Fit Check")
+              : h("a", { class: "btn btn-primary", href: "#fit-check" }, "Try a free Fit Check"),
+            link(signedIn ? "/app/jobs" : "/signup", { class: "btn" }, signedIn ? `Open ${BRAND}` : "Start 3-day free trial"),
+          ),
+          h("p", { class: "faint small hero-note" }, "Free Fit Check · No account needed"),
+        ),
+      ),
+      signedIn ? null : h("section", { class: "section", id: "fit-check" },
+        h("div", { class: "container narrow stack" },
+          h("div", { class: "stack-sm center" },
+            h("h2", { class: "section-title" }, "Try it on a real job"),
+            h("p", { class: "section-sub" }, "Your résumé is read in your browser. You'll get a score and a straight answer. The full gap breakdown comes with your trial."),
+          ),
+          fitCheckTool("public"),
+        ),
+      ),
+      h("section", { class: "section" },
+        h("div", { class: "container" },
+          h("h2", { class: "section-title" }, "Not another job board"),
+          h("p", { class: "section-sub" }, "Jane is built to get you interviews, not to keep you scrolling."),
+          h("div", { class: "grid-2 differences" },
+            differences.map(([icon, title, body]) =>
+              h("div", { class: "card feature" },
+                h("div", { class: "feature-icon", "aria-hidden": "true" }, icon),
+                h("h3", {}, title),
+                h("p", { class: "muted" }, body),
+              )),
           ),
         ),
       ),
       h("section", { class: "section" },
-        h("div", { class: "container grid-3" },
-          steps.map(([number, title, body]) =>
-            h("div", { class: "card feature" },
-              h("div", { class: "feature-icon", "aria-hidden": "true" }, number),
-              h("h3", {}, title),
-              h("p", { class: "muted" }, body),
-            )),
+        h("div", { class: "container narrow" },
+          h("div", { class: "card compare" },
+            h("div", { class: "compare-row compare-head" }, h("span", {}, "Typical job sites"), h("span", {}, BRAND)),
+            compare.map(([them, us]) => h("div", { class: "compare-row" },
+              h("span", { class: "faint" }, them), h("span", {}, h("span", { class: "text-good", "aria-hidden": "true" }, "✓ "), us))),
+          ),
         ),
       ),
       pricingSection(plansInfo),
+      h("section", { class: "section" },
+        h("div", { class: "container narrow stack" },
+          h("h2", { class: "section-title" }, "Questions"),
+          h("div", { class: "faq" }, faqs.map(([q, a]) => h("details", { class: "card faq-item" }, h("summary", {}, q), h("p", { class: "muted" }, a)))),
+        ),
+      ),
+      h("section", { class: "section cta-band" },
+        h("div", { class: "container center stack-sm" },
+          h("h2", { class: "section-title" }, "Stop applying blind."),
+          h("p", { class: "section-sub" }, "Let Jane show you where you fit, and what to do about the rest."),
+          h("div", { class: "row center" },
+            link(signedIn ? "/app/fit-check" : "/signup", { class: "btn btn-primary" }, signedIn ? "Run a Fit Check" : "Start 3-day free trial")),
+        ),
+      ),
     ),
     siteFooter(),
   ));
@@ -478,9 +538,9 @@ function planCards(plansInfo, { compact = false } = {}) {
   const school = planFor("school") || { key: "school", name: "School License", displayPrice: "$1,000", interval: "year" };
 
   const features = [
-    "Unlimited job-match searches",
-    "Requirement-by-requirement fit for every job",
-    "Résumé library and best-résumé recommendation",
+    "Unlimited Fit Checks and job-match searches",
+    "Gap Closer for every job",
+    "Best-résumé pick for each application",
     "Application tracker with Gmail sync",
   ];
   const ticks = () => h("ul", { class: "ticks" }, features.map((f) => h("li", {}, f)));
@@ -527,7 +587,7 @@ function pricingSection(plansInfo) {
   return h("section", { class: "section", id: "pricing" },
     h("div", { class: "container" },
       h("h2", { class: "section-title" }, "Simple pricing"),
-      h("p", { class: "section-sub" }, "Try every feature free for 3 days. Cancel anytime."),
+      h("p", { class: "section-sub" }, "Try everything free for 3 days. Cancel anytime before it ends and you pay nothing."),
       h("div", { class: "grid-3" }, planCards(plansInfo)),
       h("div", { class: "section-gap" }, checkoutNote()),
     ),
@@ -611,7 +671,7 @@ async function viewAuth(mode) {
         await startCheckout(pendingPlan);
         return;
       }
-      navigate(isSignup ? "/app/welcome" : "/app/jobs");
+      navigate(isSignup ? "/app/activate" : "/app/jobs");
     } catch (err) {
       error.textContent = err.message;
       error.classList.remove("hidden");
@@ -635,7 +695,7 @@ async function viewAuth(mode) {
       h("div", { class: "card auth-card stack" },
         h("div", { class: "stack-sm" },
           h("h1", {}, isSignup ? "Create your account" : "Welcome back"),
-          h("p", { class: "muted" }, isSignup ? "Free to start. No card required." : "Sign in to continue your search."),
+          h("p", { class: "muted" }, isSignup ? "3 days free. You'll add a card to activate, and you won't be charged if you cancel before the trial ends." : "Sign in to continue your search."),
         ),
         form,
         h("p", { class: "muted small" },
@@ -661,6 +721,12 @@ async function viewOnboarding() {
   if (state.user === undefined) await loadUser();
   if (!state.user) {
     navigate("/login", { replace: true });
+    return;
+  }
+
+  await Promise.all([loadBilling(), loadPlans()]);
+  if (needsActivation()) {
+    navigate("/app/activate", { replace: true });
     return;
   }
 
@@ -717,8 +783,8 @@ async function viewOnboarding() {
 
     return h("div", { class: "card stack" },
       h("div", { class: "stack-sm" },
-        h("h1", { class: "onboarding-title" }, "Your résumé powers your matches"),
-        h("p", { class: "muted" }, "Upload one or more résumés. We read them in your browser, keep only the text, and use it to build your profile. Add a version for each kind of role you're targeting."),
+        h("h1", { class: "onboarding-title" }, "Hi, I'm Jane. Let's see your résumé."),
+        h("p", { class: "muted" }, "Upload one or more résumés. I read them right in your browser and build your profile from them. Targeting different kinds of roles? Add a version for each."),
       ),
       resumeDropzone(() => { drawList(); next.disabled = false; }),
       list,
@@ -735,7 +801,7 @@ async function viewOnboarding() {
     return h("div", { class: "stack" },
       h("div", { class: "card stack-sm" },
         h("h1", { class: "onboarding-title" }, "About you"),
-        h("p", { class: "muted" }, "We pulled these from your résumé. Fix anything that's wrong, and remove anything that isn't true. Matches are only as honest as this profile."),
+        h("p", { class: "muted" }, "Here's what Jane picked up from your résumé. Add anything she missed. The more she knows, the sharper your matches."),
       ),
       editor.node,
       h("div", { class: "row-between" },
@@ -884,7 +950,12 @@ async function appPage(active, view) {
   await Promise.all([loadBilling(), loadPlans(), loadPreferences().catch(() => null)]);
   renderUsage(usageSlot);
 
-  if (state.preferences && !state.preferences.onboardingComplete) {
+  if (needsActivation() && active !== "billing") {
+    navigate("/app/activate", { replace: true });
+    return;
+  }
+
+  if (active !== "fit" && state.preferences && !state.preferences.onboardingComplete) {
     navigate("/app/welcome", { replace: true });
     return;
   }
@@ -901,6 +972,7 @@ async function appPage(active, view) {
 function appShell(active, content, usageSlot) {
   const items = [
     ["jobs", "/app/jobs", "Find jobs"],
+    ["fit", "/app/fit-check", "Fit Check"],
     ["applications", "/app/applications", "My jobs"],
     ["resumes", "/app/resumes", "Résumés"],
     ["profile", "/app/profile", "Career profile"],
@@ -975,7 +1047,7 @@ const EVIDENCE_SECTIONS = [
   ["skill", "Skills", "One skill per entry."],
   ["education", "Education", "Degrees and programs, e.g. “B.S. Computer Science, University of Florida”."],
   ["certification", "Certifications", ""],
-  ["license", "Licenses", "Only list licenses you currently hold."],
+  ["license", "Licenses", "Include the license type and state, e.g. “RN, Florida”."],
   ["project", "Projects", ""],
 ];
 
@@ -1100,7 +1172,7 @@ async function viewProfile() {
   draw(profile);
 
   return h("div", {},
-    pageHead("Career profile", "Matches are checked against what you put here. Only list what's true. That's what makes the scores trustworthy."),
+    pageHead("Career profile", "Jane matches every job against this profile. Add your wins, tools and credentials to sharpen your matches."),
     container,
   );
 }
@@ -1456,9 +1528,8 @@ function openJobDetail(match) {
       h("h3", {}, "Your match"),
       match.explanation ? h("p", { class: "muted" }, match.explanation) : null,
       reqList("supported", "You meet", match.supportedRequirements),
-      reqList("partial", "Partially", match.partialRequirements),
-      reqList("missing", "Missing", match.missingRequirements),
     ),
+    gapCloser(gapsFromMatch(match)),
     recommendationCard(match, recommendationSlot),
     required.length || preferred.length ? h("div", { class: "stack-sm" },
       h("h3", {}, "Posting requirements"),
@@ -1990,6 +2061,509 @@ async function viewResetPassword() {
         h("p", { class: "muted small" }, link("/forgot-password", {}, "Request a new link")),
       ),
     ),
+  ));
+}
+
+// ---------------------------------------------------------------------------
+// Activation: a card starts the trial before the app opens
+// ---------------------------------------------------------------------------
+
+const FIT_CHECK_KEY = "janecareers.fitCheck";
+
+function needsActivation() {
+  return !!(state.billing && state.billing.billingEnabled && !isPro());
+}
+
+function afterActivationPath() {
+  if (readSavedFitCheck()) return "/app/fit-check";
+  if (state.preferences && !state.preferences.onboardingComplete) return "/app/welcome";
+  return "/app/jobs";
+}
+
+async function viewActivate() {
+  if (state.user === undefined) await loadUser();
+  if (!state.user) {
+    navigate("/login", { replace: true });
+    return;
+  }
+
+  const params = new URLSearchParams(location.search);
+  const checkout = params.get("checkout");
+  if (checkout) history.replaceState(null, "", "/app/activate");
+
+  const body = h("div", { class: "container narrow stack" }, spinnerRow("Loading…"));
+  mount(h("div", {},
+    h("header", { class: "site-nav" }, h("div", { class: "container" }, brand(),
+      h("button", { class: "btn btn-ghost btn-sm", onclick: logout }, "Sign out"))),
+    h("main", { class: "activate" }, body),
+  ));
+
+  await Promise.all([loadBilling(), loadPlans(), loadPreferences().catch(() => null)]);
+
+  if (checkout === "success") {
+    body.replaceChildren(spinnerRow("Activating your account…"));
+    // Stripe's webhook can land a moment after the redirect.
+    for (let attempt = 0; attempt < 8 && !isPro(); attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await loadBilling();
+    }
+    if (isPro()) {
+      toast("You're in. Jane is ready.");
+      navigate(afterActivationPath(), { replace: true });
+      return;
+    }
+    toast("Payment received. Your account is still activating. Refresh in a moment.", true);
+  }
+  if (checkout === "canceled") toast("No problem. Your card wasn't charged.");
+
+  if (!needsActivation()) {
+    navigate(afterActivationPath(), { replace: true });
+    return;
+  }
+
+  const plansInfo = state.plans;
+  const monthly = planFor("monthly");
+  const trialEnd = new Date(Date.now() + ((monthly && monthly.trialDays) || 3) * 86400000);
+  const billing = state.billing;
+  const saved = readSavedFitCheck();
+
+  const school = (() => {
+    if (!billing.emailEnabled) {
+      return h("p", { class: "muted small" }, "Is your school or program a Jane Careers partner? Sign up with your school email and ",
+        link("/contact", {}, "contact us"), " to unlock access.");
+    }
+    if (billing.emailVerified) {
+      return h("p", { class: "muted small" }, "Your email is confirmed, but your school doesn't have a Jane Careers license yet. Ask your career center to ",
+        link("/contact", {}, "get in touch"), ".");
+    }
+    const send = h("button", { class: "btn btn-sm", onclick: async () => {
+      send.disabled = true;
+      try {
+        await api("/api/v1/auth/verify-email/send", { method: "POST" });
+        toast(`Check ${billing.email} for the confirmation link.`);
+      } catch (error) {
+        send.disabled = false;
+        toast(error.message, true);
+      }
+    } }, "Confirm school email");
+    return h("div", { class: "row-between" },
+      h("p", { class: "muted small" }, `Signed up with a school email? If your school has a Jane Careers license, confirming ${billing.email} activates your account for free.`),
+      send);
+  })();
+
+  body.replaceChildren(
+    h("div", { class: "stack-sm center" },
+      h("span", { class: "pill eyebrow" }, "One last step"),
+      h("h1", { class: "onboarding-title" }, saved ? "Unlock your full Fit Check" : "Activate your account"),
+      h("p", { class: "muted lead-sm" },
+        trialAvailable() && monthly && monthly.trialDays
+          ? `Start your ${monthly.trialDays}-day free trial. You won't be charged until ${formatDate(trialEnd.toISOString())}, and you can cancel in two clicks before then.`
+          : "Choose a plan to start matching."),
+    ),
+    plansInfo.billingEnabled ? h("div", { class: "grid-2" }, planCards(plansInfo, { compact: true })) : null,
+    h("ul", { class: "ticks activate-ticks" },
+      h("li", {}, "Every requirement checked against your real experience"),
+      h("li", {}, "Gap Closer: what to add, what to learn, what to skip"),
+      h("li", {}, "Direct links to the employer's own application page"),
+      h("li", {}, "Application tracker with Gmail sync"),
+    ),
+    checkoutNote(),
+    h("div", { class: "card inset" }, school),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Fit Check: paste a job, see whether to apply
+// ---------------------------------------------------------------------------
+
+function readSavedFitCheck() {
+  try {
+    const value = JSON.parse(sessionStorage.getItem(FIT_CHECK_KEY) || "null");
+    return value && value.jobDescription ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveFitCheck(input) {
+  try { sessionStorage.setItem(FIT_CHECK_KEY, JSON.stringify(input)); } catch { /* storage full or blocked */ }
+}
+
+function clearSavedFitCheck() {
+  try { sessionStorage.removeItem(FIT_CHECK_KEY); } catch { /* ignore */ }
+}
+
+// fitCheckTool renders the résumé + job form and the result.
+// context is "public" (landing page) or "app" (signed in).
+function fitCheckTool(context) {
+  const saved = readSavedFitCheck();
+  const result = h("div", { class: "fit-result-slot" });
+  const error = h("div", { class: "form-error hidden", role: "alert" });
+
+  let resumeTextValue = (saved && saved.resumeText) || "";
+  let resumeLabel = (saved && saved.resumeName) || "";
+
+  const resumeStatus = h("div", { class: "small muted", role: "status" });
+  const showResumeStatus = () => resumeStatus.replaceChildren(resumeTextValue
+    ? h("span", {}, "✓ ", resumeLabel || "Résumé added", h("span", { class: "faint" }, ` · ${resumeTextValue.split(/\s+/).length} words`))
+    : "");
+
+  // Résumé source: a saved résumé (signed in) or a file / pasted text.
+  const resumes = context === "app" ? (state.resumes || []) : [];
+  let picker = null;
+  if (resumes.length) {
+    picker = h("select", { "aria-label": "Résumé to check" },
+      resumes.map((r) => h("option", { value: r.id }, r.filename)),
+      h("option", { value: "" }, "Use a different file…"));
+    const primary = resumes.find((r) => r.isPrimary) || resumes[0];
+    picker.value = primary.id;
+    if (saved && saved.resumeText) picker.value = "";
+  }
+
+  const fileInput = h("input", { type: "file", accept: "application/pdf,.pdf,.txt,text/plain", class: "visually-hidden", id: `fit-file-${Math.random().toString(36).slice(2)}` });
+  const fileLabel = h("label", { class: "dropzone dropzone-compact", for: fileInput.id },
+    h("span", { class: "dropzone-icon", "aria-hidden": "true" }, "⇪"),
+    h("span", { class: "dropzone-title" }, "Upload your résumé (PDF)"),
+    h("span", { class: "faint small" }, "Read in your browser. Nothing is saved until you sign up."),
+  );
+  const readFile = async (file) => {
+    if (!file) return;
+    fileLabel.classList.add("busy");
+    resumeStatus.replaceChildren(spinnerRow(`Reading ${file.name}…`));
+    try {
+      resumeTextValue = await extractResumeText(file);
+      resumeLabel = file.name;
+      if (!resumeTextValue) throw new Error("Jane couldn't read any text in that PDF. If it's a scanned image, export it again as text, or paste it below.");
+      showResumeStatus();
+    } catch (err) {
+      resumeTextValue = "";
+      resumeStatus.replaceChildren(h("span", { class: "text-error" }, err.message));
+    } finally {
+      fileLabel.classList.remove("busy");
+      fileInput.value = "";
+    }
+  };
+  fileInput.addEventListener("change", () => readFile(fileInput.files[0]));
+  fileLabel.addEventListener("dragover", (event) => { event.preventDefault(); fileLabel.classList.add("over"); });
+  fileLabel.addEventListener("dragleave", () => fileLabel.classList.remove("over"));
+  fileLabel.addEventListener("drop", (event) => { event.preventDefault(); fileLabel.classList.remove("over"); readFile(event.dataTransfer.files[0]); });
+
+  const pasteResume = h("textarea", { rows: 6, maxlength: 40000, placeholder: "Or paste your résumé text here" });
+  const pasteToggle = h("details", { class: "paste-toggle" }, h("summary", { class: "faint small" }, "Paste résumé text instead"), pasteResume);
+  pasteResume.addEventListener("input", () => {
+    resumeTextValue = pasteResume.value.trim();
+    resumeLabel = "Pasted résumé";
+    showResumeStatus();
+  });
+
+  const fileArea = h("div", { class: "stack-sm" }, fileInput, fileLabel, pasteToggle, resumeStatus);
+  if (picker) {
+    const syncPicker = () => fileArea.classList.toggle("hidden", picker.value !== "");
+    picker.addEventListener("change", syncPicker);
+    syncPicker();
+  }
+  showResumeStatus();
+
+  const jobTitle = h("input", { type: "text", maxlength: 200, placeholder: "Job title (optional)", value: (saved && saved.jobTitle) || "" });
+  const company = h("input", { type: "text", maxlength: 200, placeholder: "Company (optional)", value: (saved && saved.company) || "" });
+  const job = h("textarea", { rows: 9, maxlength: 30000, placeholder: "Paste the full job posting, including the requirements or qualifications." });
+  job.value = (saved && saved.jobDescription) || "";
+
+  const submit = h("button", { class: "btn btn-primary btn-block", type: "submit" }, "Check my fit");
+
+  const gatherResume = async () => {
+    if (picker && picker.value) {
+      const chosen = resumes.find((r) => r.id === picker.value);
+      return { text: await resumeText(picker.value), name: chosen ? chosen.filename : "" };
+    }
+    return { text: resumeTextValue, name: resumeLabel };
+  };
+
+  const run = async () => {
+    error.classList.add("hidden");
+    const resume = await gatherResume();
+    const input = {
+      resumeText: resume.text,
+      resumeName: resume.name,
+      jobDescription: job.value.trim(),
+      jobTitle: jobTitle.value.trim(),
+      company: company.value.trim(),
+    };
+    const problems = [];
+    if (!input.resumeText) problems.push("Add your résumé.");
+    if (input.jobDescription.length < 200) problems.push("Paste the full job posting (at least a few paragraphs).");
+    if (problems.length) {
+      error.textContent = problems.join(" ");
+      error.classList.remove("hidden");
+      return;
+    }
+
+    submit.disabled = true;
+    result.replaceChildren(h("div", { class: "card inset" }, spinnerRow("Jane is reading every requirement…")));
+    result.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    try {
+      const data = await api("/api/v1/fit-check", {
+        method: "POST",
+        allowUnauthorized: true,
+        body: { resumeText: input.resumeText, jobDescription: input.jobDescription, jobTitle: input.jobTitle, company: input.company },
+      });
+      if (data.locked) saveFitCheck(input);
+      else clearSavedFitCheck();
+      result.replaceChildren(fitResult(data, input, { context, rerun: run }));
+    } catch (err) {
+      result.replaceChildren();
+      if (err.code === "fit_check_limit") {
+        saveFitCheck(input);
+        result.replaceChildren(fitUnlockCard(err.message));
+      } else {
+        error.textContent = err.message;
+        error.classList.remove("hidden");
+      }
+    } finally {
+      submit.disabled = false;
+    }
+  };
+
+  const form = h("form", { class: "stack fit-form", novalidate: true, onsubmit: (event) => { event.preventDefault(); run(); } },
+    h("div", { class: "stack-sm" },
+      h("span", { class: "field-label" }, "1. Your résumé"),
+      picker,
+      fileArea,
+    ),
+    h("div", { class: "stack-sm" },
+      h("span", { class: "field-label" }, "2. The job"),
+      h("div", { class: "grid-2" }, jobTitle, company),
+      job,
+    ),
+    error,
+    submit,
+  );
+
+  const node = h("div", { class: "fit-tool stack" }, h("div", { class: "card fit-card" }, form), result);
+
+  // Coming back from checkout with a saved check: run it straight away.
+  if (context === "app" && saved && isPro()) setTimeout(run, 0);
+
+  return node;
+}
+
+function fitUnlockCard(message) {
+  const signedIn = !!state.user;
+  return h("div", { class: "card unlock stack-sm center" },
+    h("h3", {}, "See every gap, and how to close it"),
+    h("p", { class: "muted" }, message || "Jane found the requirements you're missing. Start your free trial to see them, with a plan for each one."),
+    h("div", { class: "row center" },
+      link(signedIn ? "/app/activate" : "/signup", { class: "btn btn-primary" }, trialAvailable() ? "Start 3-day free trial" : "Choose a plan")),
+    h("p", { class: "faint small" }, "Your résumé and this job stay in your browser, so your full report is waiting after you sign up."),
+  );
+}
+
+function fitLevelClass(data) {
+  if (!data.scorable) return "low";
+  return fitClass({ matchLevel: data.matchLevel });
+}
+
+function fitResult(data, input, { context, rerun }) {
+  const cls = fitLevelClass(data);
+  // CSP blocks inline style attributes; CSSOM property writes are allowed.
+  const ring = h("div", { class: `score-ring ${cls}` }, h("span", {}, data.scorable ? `${data.matchPercentage}%` : "—"));
+  ring.style.setProperty("--pct", String(Math.max(0, Math.min(100, data.matchPercentage || 0))));
+  const header = h("div", { class: "fit-summary" },
+    ring,
+    h("div", { class: "stack-sm" },
+      h("span", { class: `pill pill-${cls}` }, data.scorable ? data.matchLevel : "Can't score"),
+      h("h3", { class: "verdict" }, data.verdict),
+      data.scorable ? h("p", { class: "faint small" },
+        `${data.supportedCount} met · ${data.partialCount} partial · ${data.missingCount} missing` +
+        (data.requiredMissing ? ` · ${data.requiredMissing} must-have${data.requiredMissing === 1 ? "" : "s"} missing` : "")) : null,
+    ),
+  );
+
+  const parts = [header];
+
+  if (data.scorable && data.locked) {
+    const teaser = Math.max(data.missingCount + data.partialCount, 3);
+    parts.push(h("div", { class: "locked-wrap" },
+      h("ul", { class: "reqs missing locked-blur", "aria-hidden": "true" },
+        Array.from({ length: Math.min(teaser, 5) }, (_, i) => h("li", {}, ["Requirement Jane couldn't confirm on your résumé", "A certification this employer asks for", "Years of experience in a specific area", "A tool or system named in the posting", "A preferred qualification"][i % 5]))),
+      fitUnlockCard(data.missingCount + data.partialCount
+        ? `Jane found ${data.missingCount + data.partialCount} requirement${data.missingCount + data.partialCount === 1 ? "" : "s"} to work on. Start your free trial to see each one, with what to add, what to learn, and what to skip.`
+        : "Start your free trial to see the full requirement-by-requirement breakdown."),
+    ));
+  } else if (data.scorable) {
+    if (data.explanation) parts.push(h("p", { class: "muted" }, data.explanation));
+    parts.push(reqList("supported", "You meet", data.supported));
+    parts.push(gapCloser(data.gaps || [], {
+      onAdded: rerun ? () => { toast("Added to your profile. Re-checking…"); rerun(); } : null,
+    }));
+    if (context === "app") {
+      parts.push(h("div", { class: "row" },
+        link("/app/jobs", { class: "btn btn-sm" }, "Find more jobs like this"),
+        input.jobTitle ? h("button", { class: "btn btn-sm", onclick: async (event) => {
+          event.currentTarget.disabled = true;
+          try {
+            const key = `${input.jobTitle}|${input.company}`.toLowerCase();
+            let hash = 0;
+            for (const ch of key) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+            await trackMatch({ id: `fit-${hash.toString(36)}`, source: "fit-check", title: input.jobTitle, company: input.company || "Unknown company", description: input.jobDescription });
+            toast("Added to My jobs");
+          } catch (err) {
+            toast(err.message, true);
+          }
+        } }, "Save to My jobs") : null,
+      ));
+    }
+  }
+
+  return h("div", { class: "card fit-result stack" }, parts);
+}
+
+async function viewFitCheckApp() {
+  await loadResumes().catch(() => null);
+  return h("div", {},
+    pageHead("Fit Check", "Paste any job. Jane checks every requirement against your résumé and tells you straight whether to apply."),
+    fitCheckTool("app"),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Gap Closer
+// ---------------------------------------------------------------------------
+
+const GAP_GROUPS = [
+  ["add_if_true", "You may already have these", "Jane didn't see these on your résumé. If they're true, add them and your score goes up."],
+  ["strengthen", "Make these clearer", "Your résumé hints at these. One specific example makes them count."],
+  ["quick_win", "Quick wins", "Usually a short course or exam away."],
+  ["real_gap", "Real gaps", "Experience, degrees or licenses you'd need to earn. Worth knowing before you apply."],
+];
+
+const GAP_EVIDENCE_CATEGORY = {
+  skill: "skill", other: "skill", certification: "certification", license: "license",
+  education: "education", experience: "experience",
+};
+
+// gapsFromMatch mirrors the server's Gap Closer rules for search results.
+function gapsFromMatch(match) {
+  const byText = new Map((match.requirements || []).map((r) => [r.text.toLowerCase().replace(/\s+/g, " ").trim(), r]));
+  const find = (text) => byText.get(text.toLowerCase().replace(/\s+/g, " ").trim()) || { text, category: "other", importance: "required" };
+  const gaps = [];
+  for (const text of match.missingRequirements || []) gaps.push(classifyGapClient(find(text), false));
+  for (const text of match.partialRequirements || []) gaps.push(classifyGapClient(find(text), true));
+  return gaps;
+}
+
+function classifyGapClient(requirement, partial) {
+  const gap = { requirement: requirement.text, category: requirement.category || "other", importance: requirement.importance || "required" };
+  if (partial) return { ...gap, kind: "strengthen", advice: "Your résumé hints at this but doesn't show it clearly. Add a specific example (what you did, with what, and the result)." };
+  switch (gap.category) {
+    case "certification": return { ...gap, kind: "quick_win", advice: "If you hold this certification, add it. If not, it's often a short course or exam." };
+    case "license": return { ...gap, kind: "real_gap", advice: "If you're licensed, add the license type and state. If not, this is usually a hard requirement." };
+    case "education": return { ...gap, kind: "real_gap", advice: "If you have this degree or are enrolled, add it. If not, look for \"or equivalent experience\"." };
+    case "experience": return { ...gap, kind: "real_gap", advice: "If you have this experience, spell out the years and role. If not, treat this job as a stretch." };
+    case "physical":
+    case "travel": return { ...gap, kind: "add_if_true", advice: "Résumés rarely mention this. If it's true for you, say so in your application or interview." };
+    default: return { ...gap, kind: "add_if_true", advice: "Jane didn't see this on your résumé. If you've used it, add it with one real example." };
+  }
+}
+
+async function addEvidenceToProfile(category, text) {
+  const profile = await loadProfile(true);
+  const draft = {
+    headline: profile.headline, summary: profile.summary, targetRole: profile.targetRole, location: profile.location,
+    evidence: (profile.evidence || []).map((e) => ({ category: e.category, text: e.text })),
+  };
+  draft.evidence.push({ category, text });
+  await saveProfileDraft(draft);
+  state.lastSearch = null;
+}
+
+function gapItem(gap, onAdded) {
+  const evidenceCategory = GAP_EVIDENCE_CATEGORY[gap.category];
+  const actions = h("div", { class: "row" });
+  const item = h("li", { class: "gap-item" },
+    h("div", { class: "gap-text" },
+      h("span", {}, gap.requirement),
+      gap.importance === "required" ? h("span", { class: "pill pill-low pill-xs" }, "Must-have") : h("span", { class: "pill pill-xs" }, "Nice to have")),
+    h("p", { class: "faint small" }, gap.advice),
+    actions,
+  );
+
+  if (evidenceCategory && state.user) {
+    const open = h("button", { class: "btn btn-sm", type: "button", onclick: () => {
+      const field = h("textarea", { rows: 2, maxlength: 2000 });
+      field.value = gap.requirement;
+      const save = h("button", { class: "btn btn-primary btn-sm", type: "button", onclick: async () => {
+        const text = field.value.trim();
+        if (!text) return;
+        save.disabled = true;
+        try {
+          await addEvidenceToProfile(evidenceCategory, text);
+          actions.replaceChildren(h("span", { class: "small text-good" }, "✓ Added to your profile"));
+          if (onAdded) onAdded();
+          else toast("Added to your profile. Run your search again to update scores.");
+        } catch (err) {
+          save.disabled = false;
+          toast(err.message, true);
+        }
+      } }, "Add to profile");
+      actions.replaceChildren(h("div", { class: "stack-sm gap-add" },
+        h("span", { class: "faint small" }, "Describe where you've done this. Only add what's true: a recruiter will ask."),
+        field,
+        h("div", { class: "row" }, save, h("button", { class: "btn btn-ghost btn-sm", type: "button", onclick: () => actions.replaceChildren(open) }, "Cancel"))));
+      field.focus();
+    } }, gap.kind === "strengthen" ? "Add an example" : "I have this");
+    actions.append(open);
+  }
+  return item;
+}
+
+function gapCloser(gaps, { onAdded } = {}) {
+  if (!gaps.length) {
+    return h("div", { class: "card inset stack-sm" },
+      h("h3", {}, "Gap Closer"),
+      h("p", { class: "muted" }, "No gaps. Jane found evidence for every requirement. Apply with confidence."));
+  }
+  return h("div", { class: "card inset stack gap-closer" },
+    h("div", { class: "stack-sm" },
+      h("h3", {}, "Gap Closer"),
+      h("p", { class: "muted small" }, "Every requirement Jane couldn't confirm, and what to do about it."),
+    ),
+    GAP_GROUPS.map(([kind, title, hint]) => {
+      const items = gaps.filter((g) => g.kind === kind);
+      if (!items.length) return null;
+      return h("div", { class: `stack-sm gap-group gap-${kind}` },
+        h("span", { class: "section-label" }, `${title} (${items.length})`),
+        h("p", { class: "faint small" }, hint),
+        h("ul", { class: "gap-list" }, items.map((gap) => gapItem(gap, onAdded))),
+      );
+    }),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Public Fit Check page
+// ---------------------------------------------------------------------------
+
+async function viewFitCheckPublic() {
+  if (state.user === undefined) await loadUser();
+  if (state.user) {
+    navigate("/app/fit-check", { replace: true });
+    return;
+  }
+  await loadPlans();
+  mount(h("div", {},
+    siteNav(),
+    h("main", { class: "section" },
+      h("div", { class: "container narrow stack" },
+        h("div", { class: "stack-sm center" },
+          h("span", { class: "pill eyebrow" }, "Free Fit Check"),
+          h("h1", { class: "onboarding-title" }, "Should you apply?"),
+          h("p", { class: "muted" }, "Upload your résumé and paste a job. Jane checks every requirement and gives you a straight answer in under a minute. No account needed."),
+        ),
+        fitCheckTool("public"),
+      ),
+    ),
+    siteFooter(),
   ));
 }
 

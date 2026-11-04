@@ -33,7 +33,7 @@ var (
 )
 
 func ExtractProfile(resumeText string) Profile {
-	raw := strings.TrimSpace(resumeText)
+	raw := ExpandCredentialAbbreviations(strings.TrimSpace(resumeText))
 
 	profile := Profile{
 		RawResumeText:  raw,
