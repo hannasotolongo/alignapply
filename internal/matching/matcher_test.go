@@ -1026,6 +1026,7 @@ Built backend services in Go.
 
 func TestFitCategoryUsesApplicantLabels(t *testing.T) {
 	strong := determineFitCategory(
+		100,
 		4,
 		4,
 		0,
@@ -1042,6 +1043,7 @@ func TestFitCategoryUsesApplicantLabels(t *testing.T) {
 	}
 
 	moderate := determineFitCategory(
+		60,
 		4,
 		2,
 		1,
@@ -1058,6 +1060,7 @@ func TestFitCategoryUsesApplicantLabels(t *testing.T) {
 	}
 
 	reach := determineFitCategory(
+		70,
 		4,
 		3,
 		0,
@@ -1071,6 +1074,15 @@ func TestFitCategoryUsesApplicantLabels(t *testing.T) {
 			"expected Reach, got %q",
 			reach,
 		)
+	}
+}
+
+func TestPreferredOnlyFitLevelAgreesWithScore(t *testing.T) {
+	cases := map[int]string{0: "Reach", 39: "Reach", 40: "Moderate Match", 75: "Strong Applicant", 100: "Strong Applicant"}
+	for percentage, want := range cases {
+		if got := determineFitCategory(percentage, 0, 0, 0, 0, 0, 0); got != want {
+			t.Fatalf("preferred-only %d%%: got %q, want %q", percentage, got, want)
+		}
 	}
 }
 

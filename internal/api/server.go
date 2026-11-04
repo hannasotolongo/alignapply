@@ -1234,6 +1234,16 @@ func (s *Server) handleJobMatches(
 		len(matches),
 	)
 
+	// Postings with no readable requirements can't be scored; showing them
+	// as 0% results is noise, so they're left out of the response.
+	scored := matches[:0]
+	for _, match := range matches {
+		if match.MatchLevel != "Insufficient Evidence" {
+			scored = append(scored, match)
+		}
+	}
+	matches = scored
+
 	sortStarted := time.Now()
 
 	sortJobMatches(matches)

@@ -35,6 +35,14 @@ func main() {
 		os.Getenv("OPENAI_API_KEY"),
 	)
 
+	// Never send a key from another service to OpenAI. A Stripe or webhook
+	// secret pasted into OPENAI_API_KEY would otherwise be transmitted to a
+	// third party on every request.
+	if looksLikeNonOpenAIKey(openAIAPIKey) {
+		log.Printf("SECURITY: OPENAI_API_KEY contains a non-OpenAI secret (Stripe/webhook key); refusing to use it. Set your OpenAI key (sk-proj-...) instead.")
+		openAIAPIKey = ""
+	}
+
 	if openAIAPIKey != "" {
 		semanticProvider :=
 			matching.NewOpenAISemanticProvider(openAIAPIKey)
@@ -358,6 +366,13 @@ func main() {
 	var stripeClient *billing.Client
 
 	if secret := strings.TrimSpace(os.Getenv("STRIPE_SECRET_KEY")); secret != "" {
+		if !strings.HasPrefix(secret, "sk_") && !strings.HasPrefix(secret, "rk_") {
+			log.Fatal("STRIPE_SECRET_KEY must be a Stripe secret key (sk_live_..., sk_test_..., or rk_...)")
+		}
+		if ws := strings.TrimSpace(os.Getenv("STRIPE_WEBHOOK_SECRET")); ws != "" && !strings.HasPrefix(ws, "whsec_") {
+			log.Fatal("STRIPE_WEBHOOK_SECRET must be a Stripe webhook signing secret (whsec_...)")
+		}
+
 		stripeClient, err = billing.NewClient(secret)
 		if err != nil {
 			log.Fatalf("create Stripe client: %v", err)
@@ -444,4 +459,15 @@ func envOrDefault(key string, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+// looksLikeNonOpenAIKey reports secrets that belong to other services.
+// OpenAI keys use "sk-" (hyphen); Stripe uses "sk_", "rk_", "pk_", "whsec_".
+func looksLikeNonOpenAIKey(key string) bool {
+	for _, prefix := range []string{"sk_live_", "sk_test_", "rk_live_", "rk_test_", "pk_live_", "pk_test_", "whsec_", "re_"} {
+		if strings.HasPrefix(key, prefix) {
+			return true
+		}
+	}
+	return false
 }

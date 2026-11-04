@@ -115,7 +115,7 @@ func Match(
 		result.MatchPercentage = 0
 		result.MatchLevel = "Insufficient Evidence"
 		result.Explanation =
-			"AlignApply could not extract enough reliable qualification evidence from this posting to classify the fit."
+			"Jane couldn't find enough clear requirements in this posting to score your fit."
 
 		return result
 	}
@@ -142,7 +142,7 @@ func Match(
 		result.MatchPercentage = 0
 		result.MatchLevel = "Insufficient Evidence"
 		result.Explanation =
-			"AlignApply does not have enough candidate evidence to classify the fit."
+			"Jane needs more of your experience to score this job. Add your résumé or profile details."
 
 		return result
 	}
@@ -324,7 +324,7 @@ func Match(
 		result.MatchPercentage = 0
 		result.MatchLevel = "Insufficient Evidence"
 		result.Explanation =
-			"AlignApply could not identify enough usable qualification evidence to classify the fit."
+			"Jane couldn't find enough usable requirements in this posting to score your fit."
 
 		return result
 	}
@@ -346,6 +346,7 @@ func Match(
 	result.MatchPercentage = percentage
 
 	result.MatchLevel = determineFitCategory(
+		percentage,
 		requiredCount,
 		requiredSupported,
 		requiredPartial,
@@ -1094,6 +1095,7 @@ func isCriticalRequirement(
 }
 
 func determineFitCategory(
+	percentage int,
 	requiredCount int,
 	requiredSupported int,
 	requiredPartial int,
@@ -1102,7 +1104,16 @@ func determineFitCategory(
 	criticalRequiredNotSupported int,
 ) string {
 	if requiredCount == 0 {
-		return "Moderate Match"
+		// Postings that list only preferred qualifications are classified
+		// by overall coverage, so the level always agrees with the score.
+		switch {
+		case percentage >= 75:
+			return "Strong Applicant"
+		case percentage >= 40:
+			return "Moderate Match"
+		default:
+			return "Reach"
+		}
 	}
 
 	if criticalRequiredNotSupported > 0 {
