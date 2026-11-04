@@ -445,12 +445,9 @@ async function viewLanding() {
   const signedIn = !!state.user;
 
   const features = [
-    ["%", "Automatic match scores", "Know your odds before you apply.", "Jane scores every job she finds against your résumé, automatically, and tells you if you should: apply, close a gap first, or skip it."],
-    ["↗", "Gap Closer", "Close the gaps that cost you interviews.", "Every missing requirement, sorted: things you have but didn't list, quick certifications, and real gaps worth knowing about."],
-    ["✓", "Truth-locked Application Kit", "A résumé tailored to every job. Every word true.", "Jane rewrites your summary and bullets for the job, adds the right keywords, and preps you for the interview, using only what's on your résumé."],
-    ["⇄", "Best-résumé pick", "Got more than one résumé? Jane picks the winner.", "Upload every version you have. For each job, Jane scores them all and tells you which one to send."],
-    ["⌕", "Jobs found for you", "Your best matches, waiting when you sign in.", "Tell Jane the job title and city once. She finds open jobs, ranks them best fit first, and links you straight to the employer's real application page."],
-    ["▤", "Application tracker", "Every application in one place.", "Save jobs, mark them applied, and move them through interview and offer, so you always know where you stand and who to follow up with."],
+    ["%", "Find and score", "Know your odds before you apply.", "Jane finds open jobs for you and scores every one against your résumé, automatically, and tells you if you should: apply, close a gap first, or skip it."],
+    ["✓", "Get ready to apply", "Close the gaps. Send your strongest résumé.", "Jane shows what's missing and how to close it, picks your best résumé for the job, and tailors it with interview prep, using only experience you actually have."],
+    ["▤", "Track it all", "Every application in one place.", "Save jobs, mark them applied, and move them through interview and offer, so you always know where you stand."],
   ];
 
   const compare = [
