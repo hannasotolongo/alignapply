@@ -12,6 +12,7 @@ import (
 	"github.com/hannasotolongo/casemade-backend/internal/auth"
 	"github.com/hannasotolongo/casemade-backend/internal/billing"
 	"github.com/hannasotolongo/casemade-backend/internal/database"
+	"github.com/hannasotolongo/casemade-backend/internal/mailer"
 	"github.com/hannasotolongo/casemade-backend/internal/matching"
 	"github.com/hannasotolongo/casemade-backend/internal/repository"
 	"github.com/hannasotolongo/casemade-backend/internal/web"
@@ -313,19 +314,46 @@ func main() {
 			{
 				Key:          "monthly",
 				Name:         "Pro Monthly",
+				Kind:         api.PlanKindSubscription,
 				Interval:     "month",
-				DisplayPrice: envOrDefault("PRO_MONTHLY_DISPLAY_PRICE", "$2.99"),
+				TrialDays:    3,
+				DisplayPrice: envOrDefault("PRO_MONTHLY_DISPLAY_PRICE", "$14.99"),
 				PriceID:      strings.TrimSpace(os.Getenv("STRIPE_PRICE_PRO_MONTHLY")),
 			},
 			{
-				Key:          "six_month",
-				Name:         "Pro 6 Months",
-				Interval:     "6 months",
-				DisplayPrice: envOrDefault("PRO_SIX_MONTH_DISPLAY_PRICE", "$14.99"),
-				PriceID:      strings.TrimSpace(os.Getenv("STRIPE_PRICE_PRO_SIX_MONTH")),
+				Key:          "sprint",
+				Name:         "Job Search Sprint",
+				Kind:         api.PlanKindPass,
+				Interval:     "90 days",
+				PassDays:     90,
+				DisplayPrice: envOrDefault("SPRINT_DISPLAY_PRICE", "$39"),
+				PriceID:      strings.TrimSpace(os.Getenv("STRIPE_PRICE_SPRINT")),
+			},
+			{
+				Key:          "school",
+				Name:         "School License",
+				Kind:         api.PlanKindOrganization,
+				Interval:     "year",
+				DisplayPrice: envOrDefault("SCHOOL_DISPLAY_PRICE", "$1,000"),
+				PriceID:      strings.TrimSpace(os.Getenv("STRIPE_PRICE_SCHOOL")),
 			},
 		},
 	}
+
+	mailClient, err := mailer.NewResend(
+		os.Getenv("RESEND_API_KEY"),
+		os.Getenv("EMAIL_FROM"),
+	)
+	if err != nil {
+		log.Fatalf("configure email: %v", err)
+	}
+	if mailClient == nil {
+		log.Println("RESEND_API_KEY not set; email verification, password reset, and school licenses disabled")
+	} else {
+		log.Println("Transactional email configured (Resend)")
+	}
+
+	accountsRepository := repository.NewAccountsRepository(userCareerRepository)
 
 	var stripeClient *billing.Client
 
@@ -339,14 +367,19 @@ func main() {
 			log.Fatal("STRIPE_WEBHOOK_SECRET is required when STRIPE_SECRET_KEY is set")
 		}
 
-		if billingConfig.Plans[0].PriceID == "" &&
-			billingConfig.Plans[1].PriceID == "" {
-			log.Fatal("set STRIPE_PRICE_PRO_MONTHLY and/or STRIPE_PRICE_PRO_SIX_MONTH")
+		configuredPrices := 0
+		for _, plan := range billingConfig.Plans {
+			if plan.PriceID != "" {
+				configuredPrices++
+			}
+		}
+		if configuredPrices == 0 {
+			log.Fatal("set at least one of STRIPE_PRICE_PRO_MONTHLY, STRIPE_PRICE_SPRINT, STRIPE_PRICE_SCHOOL")
 		}
 
 		log.Println("Stripe billing configured")
 	} else {
-		log.Println("STRIPE_SECRET_KEY not set; billing disabled (all users on free tier)")
+		log.Println("STRIPE_SECRET_KEY not set; billing disabled (open access until Stripe is configured)")
 	}
 
 	// ---------------------------------------------------------
@@ -363,11 +396,13 @@ func main() {
 				AppleAuth:        appleAuthRepository,
 				EmailConnections: emailConnectionsRepository,
 				Billing:          billingRepository,
+				Accounts:         accountsRepository,
 			},
 			AppleVerifier:  appleVerifier,
 			AppleClient:    appleClient,
 			SessionManager: sessionManager,
 			Stripe:         stripeClient,
+			Mailer:         mailClient,
 			BillingConfig:  billingConfig,
 			Web: api.WebConfig{
 				BaseURL:      appBaseURL,

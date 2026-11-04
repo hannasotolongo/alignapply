@@ -165,14 +165,29 @@ type CheckoutParams struct {
 	UserID     string
 	SuccessURL string
 	CancelURL  string
+
+	// Mode is "subscription" (default) or "payment" for one-time passes.
+	Mode string
+
+	// TrialDays adds a free trial to a subscription. Checkout still
+	// collects a card, and Stripe charges when the trial ends.
+	TrialDays int
+
+	// Metadata is copied onto the resulting subscription or payment.
+	Metadata map[string]string
 }
 
 func (c *Client) CreateCheckoutSession(
 	ctx context.Context,
 	params CheckoutParams,
 ) (string, error) {
+	mode := params.Mode
+	if mode == "" {
+		mode = "subscription"
+	}
+
 	form := url.Values{}
-	form.Set("mode", "subscription")
+	form.Set("mode", mode)
 	form.Set("customer", params.CustomerID)
 	form.Set("client_reference_id", params.UserID)
 	form.Set("line_items[0][price]", params.PriceID)
@@ -180,7 +195,29 @@ func (c *Client) CreateCheckoutSession(
 	form.Set("success_url", params.SuccessURL)
 	form.Set("cancel_url", params.CancelURL)
 	form.Set("allow_promotion_codes", "true")
-	form.Set("subscription_data[metadata][user_id]", params.UserID)
+
+	for key, value := range params.Metadata {
+		form.Set("metadata["+key+"]", value)
+	}
+
+	switch mode {
+	case "subscription":
+		form.Set("subscription_data[metadata][user_id]", params.UserID)
+		for key, value := range params.Metadata {
+			form.Set("subscription_data[metadata]["+key+"]", value)
+		}
+		if params.TrialDays > 0 {
+			form.Set("subscription_data[trial_period_days]", strconv.Itoa(params.TrialDays))
+			form.Set("payment_method_collection", "always")
+		}
+
+	case "payment":
+		form.Set("payment_intent_data[metadata][user_id]", params.UserID)
+		for key, value := range params.Metadata {
+			form.Set("payment_intent_data[metadata]["+key+"]", value)
+		}
+		form.Set("invoice_creation[enabled]", "true")
+	}
 
 	var session struct {
 		URL string `json:"url"`

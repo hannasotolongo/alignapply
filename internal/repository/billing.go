@@ -23,14 +23,30 @@ type Subscription struct {
 	PriceID              string
 	CurrentPeriodEnd     *time.Time
 	CancelAtPeriodEnd    bool
+	PassExpiresAt        *time.Time
+	TrialUsed            bool
 	CreatedAt            time.Time
 	UpdatedAt            time.Time
 }
 
-// IsPro reports whether the subscription currently grants Pro access.
+// SubscriptionActive reports whether a recurring subscription grants Pro.
 // past_due keeps access during Stripe's automatic payment retries.
+func (s Subscription) SubscriptionActive() bool {
+	return SubscriptionStatusActive(s.Status)
+}
+
+// PassActive reports whether a one-time pass (e.g. the Sprint) is current.
+func (s Subscription) PassActive(now time.Time) bool {
+	return s.PassExpiresAt != nil && s.PassExpiresAt.After(now)
+}
+
+// IsPro reports whether the user's own purchases currently grant Pro.
 func (s Subscription) IsPro() bool {
-	switch s.Status {
+	return s.SubscriptionActive() || s.PassActive(time.Now())
+}
+
+func SubscriptionStatusActive(status string) bool {
+	switch status {
 	case "active", "trialing", "past_due":
 		return true
 	default:
@@ -67,6 +83,8 @@ const subscriptionColumns = `
 	COALESCE(price_id, ''),
 	current_period_end,
 	cancel_at_period_end,
+	pass_expires_at,
+	trial_used,
 	created_at,
 	updated_at
 `
@@ -81,6 +99,8 @@ func scanSubscription(row pgx.Row) (Subscription, error) {
 		&subscription.PriceID,
 		&subscription.CurrentPeriodEnd,
 		&subscription.CancelAtPeriodEnd,
+		&subscription.PassExpiresAt,
+		&subscription.TrialUsed,
 		&subscription.CreatedAt,
 		&subscription.UpdatedAt,
 	)
@@ -147,6 +167,7 @@ UPDATE subscriptions SET
 	price_id = NULLIF($4, ''),
 	current_period_end = $5,
 	cancel_at_period_end = $6,
+	trial_used = trial_used OR $2 <> '',
 	updated_at = NOW()
 WHERE stripe_customer_id = $1
 RETURNING ` + subscriptionColumns
@@ -238,4 +259,29 @@ func (r *BillingRepository) CountUsageSince(
 		return 0, fmt.Errorf("repository: count usage: %w", err)
 	}
 	return count, nil
+}
+
+// GrantPass extends (or starts) a one-time pass for the customer's user.
+// Extending from the later of now or the current expiry means buying a
+// second pass adds time instead of overlapping.
+func (r *BillingRepository) GrantPass(
+	ctx context.Context,
+	stripeCustomerID string,
+	userID string,
+	days int,
+) (Subscription, error) {
+	const query = `
+UPDATE subscriptions SET
+	pass_expires_at = GREATEST(COALESCE(pass_expires_at, NOW()), NOW()) + make_interval(days => $3),
+	updated_at = NOW()
+WHERE stripe_customer_id = $1 AND user_id::text = $2
+RETURNING ` + subscriptionColumns
+
+	subscription, err := scanSubscription(
+		r.pool.QueryRow(ctx, query, strings.TrimSpace(stripeCustomerID), strings.TrimSpace(userID), days),
+	)
+	if err != nil && !errors.Is(err, ErrSubscriptionNotFound) {
+		return Subscription{}, fmt.Errorf("repository: grant pass: %w", err)
+	}
+	return subscription, err
 }

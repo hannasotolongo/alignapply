@@ -467,3 +467,7 @@ input[type="file"]:focus-visible + .dropzone { outline: 2px solid rgba(255, 255,
 .sidebar-legal { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; padding: 0 4px; }
 @media (max-width: 860px) { .sidebar-legal { display: none; } }
 .section-gap { margin-top: 20px; }
+.notice { border-color: var(--border-strong); background: var(--elevated); }
+.paywall { border-color: var(--border-strong); }
+.paywall .price-card { background: var(--elevated); }
+.site-nav .btn, .btn-sm { white-space: nowrap; }

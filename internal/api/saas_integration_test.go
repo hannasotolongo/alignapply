@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -17,6 +18,7 @@ import (
 
 	"github.com/hannasotolongo/casemade-backend/internal/auth"
 	"github.com/hannasotolongo/casemade-backend/internal/billing"
+	"github.com/hannasotolongo/casemade-backend/internal/mailer"
 	"github.com/hannasotolongo/casemade-backend/internal/repository"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -95,6 +97,46 @@ func TestWebSaaSIntegration(t *testing.T) {
 	userJobsRepo, _ := repository.NewUserJobsRepository(pool)
 	appleAuthRepo, _ := repository.NewAppleAuthRepository(pool)
 	billingRepo, _ := repository.NewBillingRepository(pool)
+	accountsRepo := repository.NewAccountsRepository(userCareerRepo)
+
+	// Fake Resend: captures every email the server sends.
+	var mailMu sync.Mutex
+	var sentMail []map[string]any
+	mailServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var message map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&message)
+		mailMu.Lock()
+		sentMail = append(sentMail, message)
+		mailMu.Unlock()
+		writeJSON(w, http.StatusOK, map[string]string{"id": "email_test"})
+	}))
+	t.Cleanup(mailServer.Close)
+	mailClient, _ := mailer.NewResend("re_test_fake", "CaseMade <hello@casemade.test>")
+	mailClient.WithAPIBase(mailServer.URL)
+
+	tokenRE := regexp.MustCompile(`token=([A-Za-z0-9_-]+)`)
+	waitForToken := func(t *testing.T, to, subject string, after int) (string, int) {
+		t.Helper()
+		for i := 0; i < 100; i++ {
+			mailMu.Lock()
+			for index := after; index < len(sentMail); index++ {
+				message := sentMail[index]
+				recipients, _ := message["to"].([]any)
+				text, _ := message["text"].(string)
+				if len(recipients) == 1 && recipients[0] == to && strings.Contains(message["subject"].(string), subject) {
+					mailMu.Unlock()
+					if match := tokenRE.FindStringSubmatch(text); match != nil {
+						return match[1], index + 1
+					}
+					t.Fatalf("email without token: %q", text)
+				}
+			}
+			mailMu.Unlock()
+			time.Sleep(20 * time.Millisecond)
+		}
+		t.Fatalf("no %q email sent to %s", subject, to)
+		return "", 0
+	}
 
 	sessionManager, err := auth.NewSessionManager("alignapply-saas-integration-test-secret-123456789")
 	if err != nil {
@@ -117,29 +159,35 @@ func TestWebSaaSIntegration(t *testing.T) {
 			UserJobs:   userJobsRepo,
 			AppleAuth:  appleAuthRepo,
 			Billing:    billingRepo,
+			Accounts:   accountsRepo,
 		},
 		SessionManager: sessionManager,
 		Stripe:         stripeClient,
+		Mailer:         mailClient,
 		BillingConfig: BillingConfig{
 			WebhookSecret: webhookSecret,
 			Plans: []Plan{
-				{Key: "monthly", Name: "Pro Monthly", Interval: "month", DisplayPrice: "$2.99", PriceID: "price_monthly"},
+				{Key: "monthly", Name: "Pro Monthly", Kind: PlanKindSubscription, Interval: "month", TrialDays: 3, DisplayPrice: "$14.99", PriceID: "price_monthly"},
+				{Key: "sprint", Name: "Job Search Sprint", Kind: PlanKindPass, Interval: "90 days", PassDays: 90, DisplayPrice: "$39", PriceID: "price_sprint"},
+				{Key: "school", Name: "School License", Kind: PlanKindOrganization, Interval: "year", DisplayPrice: "$1,000", PriceID: "price_school"},
 			},
 		},
 		Web: WebConfig{
-			BaseURL: "https://alignapply.test",
+			BaseURL: "https://casemade.test",
 			Static:  fstest.MapFS{"index.html": {Data: []byte("<!doctype html><title>AlignApply</title>")}},
 		},
 	})
 	handler := server.Handler()
 
-	email := fmt.Sprintf("saas-%d@example.com", time.Now().UnixNano())
+	schoolDomain := fmt.Sprintf("school%d.test", time.Now().UnixNano())
+	email := "owner@" + schoolDomain
 	var userID string
 
 	t.Cleanup(func() {
 		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cleanupCancel()
-		_, _ = pool.Exec(cleanupCtx, `DELETE FROM users WHERE LOWER(email) = LOWER($1)`, email)
+		_, _ = pool.Exec(cleanupCtx, `DELETE FROM users WHERE LOWER(email) LIKE '%' || $1`, schoolDomain)
+		_, _ = pool.Exec(cleanupCtx, `DELETE FROM organizations WHERE email_domain = $1`, schoolDomain)
 		_, _ = pool.Exec(cleanupCtx, `DELETE FROM stripe_webhook_events WHERE event_id LIKE 'evt_saas_%'`)
 	})
 
@@ -226,20 +274,14 @@ func TestWebSaaSIntegration(t *testing.T) {
 		}
 	})
 
-	t.Run("free tier quota blocks job matches once used", func(t *testing.T) {
-		for i := 0; i < FreeJobMatchesPerWeek; i++ {
-			if err := billingRepo.RecordUsage(ctx, userID, featureJobMatch); err != nil {
-				t.Fatal(err)
-			}
-		}
-
+	t.Run("job matches require a plan", func(t *testing.T) {
 		response := do(http.MethodPost, "/api/v1/job-matches", map[string]any{
 			"careerProfile": map[string]any{"skills": []string{"Go"}},
 			"targetRole":    "Software Engineer",
 			"location":      "Miami, FL",
 		}, session, nil)
 
-		if response.Code != http.StatusPaymentRequired || !strings.Contains(response.Body.String(), "free_limit_reached") {
+		if response.Code != http.StatusPaymentRequired || !strings.Contains(response.Body.String(), "pro_required") {
 			t.Fatalf("status = %d; body = %s", response.Code, response.Body)
 		}
 	})
@@ -251,11 +293,11 @@ func TestWebSaaSIntegration(t *testing.T) {
 		}
 	})
 
-	t.Run("billing status reports free plan", func(t *testing.T) {
+	t.Run("billing status reports no plan and a trial available", func(t *testing.T) {
 		response := do(http.MethodGet, "/api/v1/billing/status", nil, session, nil)
 		var status billingStatusResponse
 		_ = json.NewDecoder(response.Body).Decode(&status)
-		if response.Code != http.StatusOK || status.Plan != "free" || status.JobMatches.Used != FreeJobMatchesPerWeek {
+		if response.Code != http.StatusOK || status.Plan != "none" || !status.TrialEligible || status.EmailVerified || !status.EmailEnabled {
 			t.Fatalf("status = %d; body = %+v", response.Code, status)
 		}
 	})
@@ -275,8 +317,11 @@ func TestWebSaaSIntegration(t *testing.T) {
 		if got := stripeFake.lastCheckout.Get("line_items[0][price]"); got != "price_monthly" {
 			t.Fatalf("checkout price = %q", got)
 		}
-		if got := stripeFake.lastCheckout.Get("success_url"); got != "https://alignapply.test/app/billing?checkout=success" {
+		if got := stripeFake.lastCheckout.Get("success_url"); got != "https://casemade.test/app/billing?checkout=success" {
 			t.Fatalf("success_url = %q", got)
+		}
+		if got := stripeFake.lastCheckout.Get("subscription_data[trial_period_days]"); got != "3" {
+			t.Fatalf("first checkout trial days = %q, want 3", got)
 		}
 
 		subscription, err := billingRepo.GetSubscription(ctx, userID)
@@ -363,6 +408,180 @@ func TestWebSaaSIntegration(t *testing.T) {
 
 		if gated := do(http.MethodPost, "/api/v1/resume-recommendation", map[string]any{}, session, nil); gated.Code != http.StatusPaymentRequired {
 			t.Fatalf("status after cancel = %d, want 402", gated.Code)
+		}
+	})
+
+	t.Run("a second subscription gets no new trial", func(t *testing.T) {
+		response := do(http.MethodPost, "/api/v1/billing/checkout", map[string]string{"plan": "monthly"}, session, nil)
+		if response.Code != http.StatusOK {
+			t.Fatalf("status = %d; body = %s", response.Code, response.Body)
+		}
+		if got := stripeFake.lastCheckout.Get("subscription_data[trial_period_days]"); got != "" {
+			t.Fatalf("repeat checkout trial days = %q, want none", got)
+		}
+	})
+
+	t.Run("Sprint pass checkout and payment grant 90 days of Pro", func(t *testing.T) {
+		response := do(http.MethodPost, "/api/v1/billing/checkout", map[string]string{"plan": "sprint"}, session, nil)
+		if response.Code != http.StatusOK || stripeFake.lastCheckout.Get("mode") != "payment" ||
+			stripeFake.lastCheckout.Get("metadata[plan_key]") != "sprint" {
+			t.Fatalf("sprint checkout = %d %s; form = %v", response.Code, response.Body, stripeFake.lastCheckout)
+		}
+
+		// Unpaid sessions grant nothing.
+		sendWebhook("evt_saas_pass_unpaid", "checkout.session.completed", map[string]any{
+			"mode": "payment", "customer": customerID, "client_reference_id": userID,
+			"payment_status": "unpaid", "metadata": map[string]string{"plan_key": "sprint"},
+		}, webhookSecret)
+		if gated := do(http.MethodPost, "/api/v1/resume-recommendation", map[string]any{}, session, nil); gated.Code != http.StatusPaymentRequired {
+			t.Fatalf("unpaid pass granted access: %d", gated.Code)
+		}
+
+		paid := sendWebhook("evt_saas_pass_paid", "checkout.session.completed", map[string]any{
+			"mode": "payment", "customer": customerID, "client_reference_id": userID,
+			"payment_status": "paid", "metadata": map[string]string{"plan_key": "sprint"},
+		}, webhookSecret)
+		if paid.Code != http.StatusOK {
+			t.Fatalf("pass webhook = %d", paid.Code)
+		}
+
+		status := do(http.MethodGet, "/api/v1/billing/status", nil, session, nil)
+		var body billingStatusResponse
+		_ = json.NewDecoder(status.Body).Decode(&body)
+		if body.Plan != "pro" || body.Source != sourcePass || body.PassExpiresAt == nil ||
+			body.PassExpiresAt.Before(time.Now().Add(89*24*time.Hour)) {
+			t.Fatalf("status after pass = %+v", body)
+		}
+
+		if subscribe := do(http.MethodPost, "/api/v1/billing/checkout", map[string]string{"plan": "monthly"}, session, nil); subscribe.Code != http.StatusConflict {
+			t.Fatalf("subscribing during pass = %d, want 409", subscribe.Code)
+		}
+	})
+
+	signUp := func(t *testing.T, address string) *http.Cookie {
+		t.Helper()
+		response := do(http.MethodPost, "/api/v1/auth/signup", map[string]string{"email": address, "password": "a-strong-password"}, nil, nil)
+		if response.Code != http.StatusOK {
+			t.Fatalf("sign up %s = %d %s", address, response.Code, response.Body)
+		}
+		for _, cookie := range response.Result().Cookies() {
+			if cookie.Name == auth.SessionCookieName {
+				return cookie
+			}
+		}
+		t.Fatal("no session cookie")
+		return nil
+	}
+
+	statusFor := func(t *testing.T, cookie *http.Cookie) billingStatusResponse {
+		t.Helper()
+		var body billingStatusResponse
+		_ = json.NewDecoder(do(http.MethodGet, "/api/v1/billing/status", nil, cookie, nil).Body).Decode(&body)
+		return body
+	}
+
+	verify := func(t *testing.T, address string, after int) int {
+		t.Helper()
+		token, next := waitForToken(t, address, "Confirm your CaseMade email", after)
+		response := do(http.MethodGet, "/verify-email?token="+token, nil, nil, nil)
+		if response.Code != http.StatusFound || response.Header().Get("Location") != "/app/billing?verified=1" {
+			t.Fatalf("verify link = %d %s", response.Code, response.Header().Get("Location"))
+		}
+		if reuse := do(http.MethodGet, "/verify-email?token="+token, nil, nil, nil); reuse.Header().Get("Location") != "/app/billing?verified=invalid" {
+			t.Fatalf("reused verify link = %s, want invalid", reuse.Header().Get("Location"))
+		}
+		return next
+	}
+
+	t.Run("school license covers verified users at exactly that domain", func(t *testing.T) {
+		unverified := do(http.MethodPost, "/api/v1/billing/checkout", map[string]string{"plan": "school", "organizationName": "Test School of Nursing"}, session, nil)
+		if unverified.Code != http.StatusForbidden || !strings.Contains(unverified.Body.String(), "email_unverified") {
+			t.Fatalf("unverified school checkout = %d %s", unverified.Code, unverified.Body)
+		}
+
+		// Sign-up already sent a verification email to the owner.
+		mailCursor := verify(t, email, 0)
+		if !statusFor(t, session).EmailVerified {
+			t.Fatal("owner email not verified")
+		}
+
+		checkout := do(http.MethodPost, "/api/v1/billing/checkout", map[string]string{"plan": "school", "organizationName": "Test School of Nursing"}, session, nil)
+		if checkout.Code != http.StatusOK || stripeFake.lastCheckout.Get("line_items[0][price]") != "price_school" ||
+			stripeFake.lastCheckout.Get("metadata[organization_id]") == "" {
+			t.Fatalf("school checkout = %d %s; form = %v", checkout.Code, checkout.Body, stripeFake.lastCheckout)
+		}
+
+		var orgCustomer string
+		if err := pool.QueryRow(ctx, `SELECT stripe_customer_id FROM organizations WHERE email_domain = $1`, schoolDomain).Scan(&orgCustomer); err != nil || orgCustomer == "" || orgCustomer == customerID {
+			t.Fatalf("organization customer = %q (personal %q), err %v", orgCustomer, customerID, err)
+		}
+
+		stripeFake.mu.Lock()
+		stripeFake.subscriptions["sub_school"] = map[string]any{
+			"id": "sub_school", "customer": orgCustomer, "status": "active",
+			"items": map[string]any{"data": []any{map[string]any{"current_period_end": time.Now().Add(365 * 24 * time.Hour).Unix(), "price": map[string]any{"id": "price_school"}}}},
+		}
+		stripeFake.mu.Unlock()
+		if response := sendWebhook("evt_saas_school", "customer.subscription.created", map[string]any{"id": "sub_school"}, webhookSecret); response.Code != http.StatusOK {
+			t.Fatalf("school webhook = %d", response.Code)
+		}
+
+		owner := statusFor(t, session)
+		if owner.OwnedLicense == nil || !owner.OwnedLicense.Active || owner.OwnedLicense.Domain != schoolDomain {
+			t.Fatalf("owner license = %+v", owner.OwnedLicense)
+		}
+
+		student := "student@" + schoolDomain
+		studentSession := signUp(t, student)
+		if before := statusFor(t, studentSession); before.Plan != "none" {
+			t.Fatalf("unverified student plan = %q, want none", before.Plan)
+		}
+		mailCursor = verify(t, student, mailCursor)
+		after := statusFor(t, studentSession)
+		if after.Plan != "pro" || after.Source != sourceOrganization || after.OrganizationName != "Test School of Nursing" {
+			t.Fatalf("verified student status = %+v", after)
+		}
+		if response := do(http.MethodPost, "/api/v1/resume-recommendation", map[string]any{}, studentSession, nil); response.Code != http.StatusBadRequest {
+			t.Fatalf("student past Pro gate = %d, want 400", response.Code)
+		}
+
+		sub := "alum@dept." + schoolDomain
+		subSession := signUp(t, sub)
+		verify(t, sub, mailCursor)
+		if status := statusFor(t, subSession); status.Plan != "none" {
+			t.Fatalf("subdomain user plan = %q, want none (no subdomains)", status.Plan)
+		}
+	})
+
+	t.Run("password reset by email", func(t *testing.T) {
+		student := "student@" + schoolDomain
+
+		mailMu.Lock()
+		cursor := len(sentMail)
+		mailMu.Unlock()
+
+		if response := do(http.MethodPost, "/api/v1/auth/password-reset/request", map[string]string{"email": "nobody@" + schoolDomain}, nil, nil); response.Code != http.StatusOK {
+			t.Fatalf("reset for unknown email = %d, want 200 (no account enumeration)", response.Code)
+		}
+		if response := do(http.MethodPost, "/api/v1/auth/password-reset/request", map[string]string{"email": student}, nil, nil); response.Code != http.StatusOK {
+			t.Fatalf("reset request = %d", response.Code)
+		}
+		token, _ := waitForToken(t, student, "Reset your CaseMade password", cursor)
+
+		if weak := do(http.MethodPost, "/api/v1/auth/password-reset/confirm", map[string]string{"token": token, "password": "short"}, nil, nil); weak.Code != http.StatusBadRequest {
+			t.Fatalf("weak password = %d", weak.Code)
+		}
+		if ok := do(http.MethodPost, "/api/v1/auth/password-reset/confirm", map[string]string{"token": token, "password": "brand-new-password"}, nil, nil); ok.Code != http.StatusOK {
+			t.Fatalf("confirm = %d %s", ok.Code, ok.Body)
+		}
+		if reuse := do(http.MethodPost, "/api/v1/auth/password-reset/confirm", map[string]string{"token": token, "password": "another-new-password"}, nil, nil); reuse.Code != http.StatusBadRequest {
+			t.Fatalf("reused reset token = %d, want 400", reuse.Code)
+		}
+		if old := do(http.MethodPost, "/api/v1/auth/login", map[string]string{"email": student, "password": "a-strong-password"}, nil, nil); old.Code != http.StatusUnauthorized {
+			t.Fatalf("old password still works: %d", old.Code)
+		}
+		if fresh := do(http.MethodPost, "/api/v1/auth/login", map[string]string{"email": student, "password": "brand-new-password"}, nil, nil); fresh.Code != http.StatusOK {
+			t.Fatalf("new password login = %d", fresh.Code)
 		}
 	})
 

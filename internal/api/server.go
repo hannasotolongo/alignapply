@@ -14,6 +14,7 @@ import (
 	"github.com/hannasotolongo/casemade-backend/internal/auth"
 	"github.com/hannasotolongo/casemade-backend/internal/billing"
 	"github.com/hannasotolongo/casemade-backend/internal/jobs"
+	"github.com/hannasotolongo/casemade-backend/internal/mailer"
 	"github.com/hannasotolongo/casemade-backend/internal/matching"
 	"github.com/hannasotolongo/casemade-backend/internal/repository"
 )
@@ -36,6 +37,8 @@ type Server struct {
 	sessionManager *auth.SessionManager
 
 	billingRepo   *repository.BillingRepository
+	accountsRepo  *repository.AccountsRepository
+	mailer        *mailer.Client
 	stripe        *billing.Client
 	billingConfig BillingConfig
 	web           WebConfig
@@ -59,6 +62,7 @@ type Repositories struct {
 	AppleAuth        *repository.AppleAuthRepository
 	EmailConnections *repository.EmailConnectionsRepository
 	Billing          *repository.BillingRepository
+	Accounts         *repository.AccountsRepository
 }
 
 type Dependencies struct {
@@ -69,6 +73,7 @@ type Dependencies struct {
 	SessionManager *auth.SessionManager
 
 	Stripe        *billing.Client
+	Mailer        *mailer.Client
 	BillingConfig BillingConfig
 	Web           WebConfig
 }
@@ -140,6 +145,8 @@ func NewServer(
 		server.billingRepo =
 			deps.Repositories.Billing
 
+		server.accountsRepo = deps.Repositories.Accounts
+		server.mailer = deps.Mailer
 		server.stripe = deps.Stripe
 		server.billingConfig = deps.BillingConfig
 		server.web = deps.Web
@@ -339,6 +346,17 @@ func (s *Server) routes() {
 				),
 			),
 		)
+
+		// Email verification and password reset.
+		s.mux.Handle(
+			"/api/v1/auth/verify-email/send",
+			s.sessionManager.Middleware(
+				http.HandlerFunc(s.handleSendVerificationEmail),
+			),
+		)
+		s.mux.HandleFunc("/api/v1/auth/password-reset/request", s.handlePasswordResetRequest)
+		s.mux.HandleFunc("/api/v1/auth/password-reset/confirm", s.handlePasswordResetConfirm)
+		s.mux.HandleFunc("/verify-email", s.handleVerifyEmailLink)
 
 		// Web (email + password) authentication.
 		s.mux.HandleFunc("/api/v1/auth/signup", s.handlePasswordSignUp)
@@ -1105,7 +1123,7 @@ func (s *Server) handleJobMatches(
 
 	// Count the search only once it is valid, so malformed requests do not
 	// spend a free user's weekly allowance.
-	if !s.consumeJobMatchQuota(w, r, user.ID) {
+	if !s.consumeJobMatchQuota(w, r, user) {
 		return
 	}
 

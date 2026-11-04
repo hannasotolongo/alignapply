@@ -2,31 +2,40 @@ package api
 
 import (
 	"context"
-
 	"encoding/json"
 	"errors"
-	emailservice "github.com/hannasotolongo/casemade-backend/internal/email"
 	"io"
 	"log"
 	"net/http"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/hannasotolongo/casemade-backend/internal/auth"
 	"github.com/hannasotolongo/casemade-backend/internal/billing"
+	emailservice "github.com/hannasotolongo/casemade-backend/internal/email"
 	"github.com/hannasotolongo/casemade-backend/internal/repository"
 )
 
 // ---------------------------------------------------------------------------
-// Plans and quotas
+// Plans
 // ---------------------------------------------------------------------------
 
-// Plan is one purchasable Pro price.
+const (
+	PlanKindSubscription = "subscription" // recurring, may include a trial
+	PlanKindPass         = "pass"         // one-time payment for N days of Pro
+	PlanKindOrganization = "organization" // school license for an email domain
+)
+
+// Plan is one purchasable price.
 type Plan struct {
 	Key          string `json:"key"`
 	Name         string `json:"name"`
+	Kind         string `json:"kind"`
 	DisplayPrice string `json:"displayPrice"`
 	Interval     string `json:"interval"`
+	TrialDays    int    `json:"trialDays,omitempty"`
+	PassDays     int    `json:"passDays,omitempty"`
 	PriceID      string `json:"-"`
 }
 
@@ -37,11 +46,6 @@ type BillingConfig struct {
 
 const (
 	featureJobMatch = "job_match"
-
-	// Free accounts get a small rolling weekly allowance of job-match
-	// searches. Each search fans out to job providers and LLM verification,
-	// so this is the main cost to protect.
-	FreeJobMatchesPerWeek = 3
 
 	// Pro is "unlimited" for normal use; this hourly ceiling only stops
 	// scripted abuse of the expensive matching pipeline.
@@ -72,44 +76,104 @@ func (s *Server) billingEnabled() bool {
 		len(s.billingConfig.Plans) > 0
 }
 
+// Public email providers can never be licensed as a school domain;
+// otherwise one purchase could unlock Pro for every Gmail user.
+var publicEmailDomains = map[string]struct{}{
+	"gmail.com": {}, "googlemail.com": {}, "yahoo.com": {}, "ymail.com": {},
+	"outlook.com": {}, "hotmail.com": {}, "live.com": {}, "msn.com": {},
+	"icloud.com": {}, "me.com": {}, "mac.com": {}, "aol.com": {},
+	"proton.me": {}, "protonmail.com": {}, "pm.me": {}, "gmx.com": {},
+	"gmx.net": {}, "mail.com": {}, "yandex.com": {}, "zoho.com": {},
+	"hey.com": {}, "fastmail.com": {}, "tutanota.com": {}, "qq.com": {},
+	"163.com": {}, "comcast.net": {}, "att.net": {}, "verizon.net": {},
+}
+
+func emailDomain(email string) string {
+	at := strings.LastIndex(email, "@")
+	if at < 0 {
+		return ""
+	}
+	return strings.ToLower(strings.TrimSpace(email[at+1:]))
+}
+
 // ---------------------------------------------------------------------------
 // Entitlements
 // ---------------------------------------------------------------------------
 
+const (
+	sourceSubscription = "subscription"
+	sourceTrial        = "trial"
+	sourcePass         = "pass"
+	sourceOrganization = "organization"
+	sourceOpen         = "open" // billing not configured yet: everyone has access
+)
+
 type entitlement struct {
-	Pro          bool
-	Subscription repository.Subscription
-	HasCustomer  bool
+	Pro           bool
+	Source        string
+	Subscription  repository.Subscription
+	HasCustomer   bool
+	TrialEligible bool
+	EmailVerified bool
+	Organization  *repository.Organization // license covering this user
+	OwnedLicense  *repository.Organization // license this user bought
 }
 
-func (s *Server) entitlementFor(
-	ctx context.Context,
-	userID string,
-) (entitlement, error) {
-	if s.billingRepo == nil {
-		return entitlement{}, nil
+func (s *Server) entitlementFor(ctx context.Context, user repository.User) (entitlement, error) {
+	current := entitlement{TrialEligible: true}
+
+	if s.accountsRepo != nil {
+		verified, err := s.accountsRepo.EmailVerified(ctx, user.ID)
+		if err != nil {
+			return entitlement{}, err
+		}
+		current.EmailVerified = verified
+
+		if owned, err := s.accountsRepo.OrganizationByOwner(ctx, user.ID); err == nil {
+			current.OwnedLicense = &owned
+		}
 	}
 
-	subscription, err := s.billingRepo.GetSubscription(ctx, userID)
-	if errors.Is(err, repository.ErrSubscriptionNotFound) {
-		return entitlement{}, nil
-	}
-	if err != nil {
-		return entitlement{}, err
+	if s.billingRepo != nil {
+		subscription, err := s.billingRepo.GetSubscription(ctx, user.ID)
+		switch {
+		case err == nil:
+			current.Subscription = subscription
+			current.HasCustomer = subscription.StripeCustomerID != ""
+			current.TrialEligible = !subscription.TrialUsed && !subscription.SubscriptionActive()
+			if subscription.SubscriptionActive() {
+				current.Pro = true
+				current.Source = sourceSubscription
+				if subscription.Status == "trialing" {
+					current.Source = sourceTrial
+				}
+			} else if subscription.PassActive(time.Now()) {
+				current.Pro = true
+				current.Source = sourcePass
+			}
+		case !errors.Is(err, repository.ErrSubscriptionNotFound):
+			return entitlement{}, err
+		}
 	}
 
-	return entitlement{
-		Pro:          subscription.IsPro(),
-		Subscription: subscription,
-		HasCustomer:  subscription.StripeCustomerID != "",
-	}, nil
+	if !current.Pro && current.EmailVerified && s.accountsRepo != nil {
+		if org, err := s.accountsRepo.ActiveOrganizationForDomain(ctx, emailDomain(user.Email)); err == nil {
+			current.Pro = true
+			current.Source = sourceOrganization
+			current.Organization = &org
+		}
+	}
+
+	if !current.Pro && !s.billingEnabled() {
+		current.Pro = true
+		current.Source = sourceOpen
+	}
+
+	return current, nil
 }
 
 // requireSessionUser confirms the session belongs to an active user.
-func (s *Server) requireSessionUser(
-	w http.ResponseWriter,
-	r *http.Request,
-) (repository.User, bool) {
+func (s *Server) requireSessionUser(w http.ResponseWriter, r *http.Request) (repository.User, bool) {
 	if s.userCareerRepo == nil {
 		writeError(w, http.StatusServiceUnavailable, "persistence unavailable")
 		return repository.User{}, false
@@ -130,8 +194,15 @@ func (s *Server) requireSessionUser(
 	return user, true
 }
 
+func writeSubscriptionRequired(w http.ResponseWriter) {
+	writeJSON(w, http.StatusPaymentRequired, map[string]string{
+		"error": "start your free trial to use this feature",
+		"code":  "pro_required",
+	})
+}
+
 // requirePro wraps a session-authenticated handler so that only users with
-// an active Pro subscription can reach it.
+// Pro access (trial, subscription, pass, or school license) can reach it.
 func (s *Server) requirePro(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user, ok := s.requireSessionUser(w, r)
@@ -139,7 +210,7 @@ func (s *Server) requirePro(next http.Handler) http.Handler {
 			return
 		}
 
-		current, err := s.entitlementFor(r.Context(), user.ID)
+		current, err := s.entitlementFor(r.Context(), user)
 		if err != nil {
 			log.Printf("load entitlement for user %s: %v", user.ID, err)
 			writeError(w, http.StatusInternalServerError, "failed to load subscription")
@@ -147,10 +218,7 @@ func (s *Server) requirePro(next http.Handler) http.Handler {
 		}
 
 		if !current.Pro {
-			writeJSON(w, http.StatusPaymentRequired, map[string]string{
-				"error": "this feature requires CaseMade Pro",
-				"code":  "pro_required",
-			})
+			writeSubscriptionRequired(w)
 			return
 		}
 
@@ -158,69 +226,42 @@ func (s *Server) requirePro(next http.Handler) http.Handler {
 	})
 }
 
-// consumeJobMatchQuota enforces the free weekly allowance and the Pro hourly
-// ceiling, then records the use. It writes the error response itself.
-func (s *Server) consumeJobMatchQuota(
-	w http.ResponseWriter,
-	r *http.Request,
-	userID string,
-) bool {
-	if s.billingRepo == nil {
-		// Persistence is not configured (e.g. some tests); no metering.
-		return true
-	}
-
-	current, err := s.entitlementFor(r.Context(), userID)
+// consumeJobMatchQuota requires Pro access, enforces the hourly fair-use
+// ceiling, and records the search. It writes the error response itself.
+func (s *Server) consumeJobMatchQuota(w http.ResponseWriter, r *http.Request, user repository.User) bool {
+	current, err := s.entitlementFor(r.Context(), user)
 	if err != nil {
-		log.Printf("load entitlement for user %s: %v", userID, err)
+		log.Printf("load entitlement for user %s: %v", user.ID, err)
 		writeError(w, http.StatusInternalServerError, "failed to load subscription")
 		return false
 	}
 
-	limit, window, code, message :=
-		FreeJobMatchesPerWeek,
-		7*24*time.Hour,
-		"free_limit_reached",
-		"you've used this week's free job-match searches; upgrade to Pro for unlimited searches"
-
-	if current.Pro {
-		limit, window, code, message =
-			ProJobMatchesPerHour,
-			time.Hour,
-			"rate_limited",
-			"too many searches in the last hour; try again shortly"
+	if !current.Pro {
+		writeSubscriptionRequired(w)
+		return false
 	}
 
-	used, err := s.billingRepo.CountUsageSince(
-		r.Context(),
-		userID,
-		featureJobMatch,
-		time.Now().Add(-window),
-	)
+	if s.billingRepo == nil {
+		return true
+	}
+
+	used, err := s.billingRepo.CountUsageSince(r.Context(), user.ID, featureJobMatch, time.Now().Add(-time.Hour))
 	if err != nil {
-		log.Printf("count usage for user %s: %v", userID, err)
+		log.Printf("count usage for user %s: %v", user.ID, err)
 		writeError(w, http.StatusInternalServerError, "failed to check usage")
 		return false
 	}
 
-	if used >= limit {
-		status := http.StatusPaymentRequired
-		if current.Pro {
-			status = http.StatusTooManyRequests
-		}
-		writeJSON(w, status, map[string]string{
-			"error": message,
-			"code":  code,
+	if used >= ProJobMatchesPerHour {
+		writeJSON(w, http.StatusTooManyRequests, map[string]string{
+			"error": "too many searches in the last hour; try again shortly",
+			"code":  "rate_limited",
 		})
 		return false
 	}
 
-	if err := s.billingRepo.RecordUsage(
-		r.Context(),
-		userID,
-		featureJobMatch,
-	); err != nil {
-		log.Printf("record usage for user %s: %v", userID, err)
+	if err := s.billingRepo.RecordUsage(r.Context(), user.ID, featureJobMatch); err != nil {
+		log.Printf("record usage for user %s: %v", user.ID, err)
 		writeError(w, http.StatusInternalServerError, "failed to record usage")
 		return false
 	}
@@ -238,21 +279,36 @@ type usageResponse struct {
 	Period string `json:"period"`
 }
 
-type billingStatusResponse struct {
-	Plan              string        `json:"plan"`
-	PlanKey           string        `json:"planKey,omitempty"`
-	Status            string        `json:"status"`
-	CurrentPeriodEnd  *time.Time    `json:"currentPeriodEnd,omitempty"`
-	CancelAtPeriodEnd bool          `json:"cancelAtPeriodEnd"`
-	BillingEnabled    bool          `json:"billingEnabled"`
-	CanManageBilling  bool          `json:"canManageBilling"`
-	JobMatches        usageResponse `json:"jobMatches"`
+type licenseResponse struct {
+	Name              string     `json:"name"`
+	Domain            string     `json:"domain"`
+	Status            string     `json:"status"`
+	Active            bool       `json:"active"`
+	CurrentPeriodEnd  *time.Time `json:"currentPeriodEnd,omitempty"`
+	CancelAtPeriodEnd bool       `json:"cancelAtPeriodEnd"`
+	CanManage         bool       `json:"canManage"`
 }
 
-func (s *Server) handleBillingPlans(
-	w http.ResponseWriter,
-	r *http.Request,
-) {
+type billingStatusResponse struct {
+	Plan              string           `json:"plan"`
+	Source            string           `json:"source,omitempty"`
+	PlanKey           string           `json:"planKey,omitempty"`
+	Status            string           `json:"status"`
+	CurrentPeriodEnd  *time.Time       `json:"currentPeriodEnd,omitempty"`
+	CancelAtPeriodEnd bool             `json:"cancelAtPeriodEnd"`
+	PassExpiresAt     *time.Time       `json:"passExpiresAt,omitempty"`
+	TrialEligible     bool             `json:"trialEligible"`
+	OrganizationName  string           `json:"organizationName,omitempty"`
+	OwnedLicense      *licenseResponse `json:"ownedLicense,omitempty"`
+	BillingEnabled    bool             `json:"billingEnabled"`
+	CanManageBilling  bool             `json:"canManageBilling"`
+	Email             string           `json:"email"`
+	EmailVerified     bool             `json:"emailVerified"`
+	EmailEnabled      bool             `json:"emailEnabled"`
+	JobMatches        usageResponse    `json:"jobMatches"`
+}
+
+func (s *Server) handleBillingPlans(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		methodNotAllowed(w, "GET")
 		return
@@ -266,18 +322,15 @@ func (s *Server) handleBillingPlans(
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
-		"billingEnabled":        s.billingEnabled(),
-		"plans":                 plans,
-		"freeJobMatchesPerWeek": FreeJobMatchesPerWeek,
-		"gmailEnabled":          gmailConfigured(),
-		"supportEmail":          strings.TrimSpace(s.web.SupportEmail),
+		"billingEnabled": s.billingEnabled(),
+		"plans":          plans,
+		"gmailEnabled":   gmailConfigured(),
+		"emailEnabled":   s.emailEnabled(),
+		"supportEmail":   strings.TrimSpace(s.web.SupportEmail),
 	})
 }
 
-func (s *Server) handleBillingStatus(
-	w http.ResponseWriter,
-	r *http.Request,
-) {
+func (s *Server) handleBillingStatus(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		methodNotAllowed(w, "GET")
 		return
@@ -288,7 +341,7 @@ func (s *Server) handleBillingStatus(
 		return
 	}
 
-	current, err := s.entitlementFor(r.Context(), user.ID)
+	current, err := s.entitlementFor(r.Context(), user)
 	if err != nil {
 		log.Printf("load entitlement for user %s: %v", user.ID, err)
 		writeError(w, http.StatusInternalServerError, "failed to load subscription")
@@ -296,45 +349,47 @@ func (s *Server) handleBillingStatus(
 	}
 
 	response := billingStatusResponse{
-		Plan:              "free",
+		Plan:              "none",
+		Source:            current.Source,
 		Status:            "none",
 		BillingEnabled:    s.billingEnabled(),
 		CanManageBilling:  s.billingEnabled() && current.HasCustomer,
 		CancelAtPeriodEnd: current.Subscription.CancelAtPeriodEnd,
 		CurrentPeriodEnd:  current.Subscription.CurrentPeriodEnd,
-		JobMatches: usageResponse{
-			Limit:  FreeJobMatchesPerWeek,
-			Period: "week",
-		},
+		PassExpiresAt:     current.Subscription.PassExpiresAt,
+		TrialEligible:     current.TrialEligible,
+		Email:             user.Email,
+		EmailVerified:     current.EmailVerified,
+		EmailEnabled:      s.emailEnabled(),
+		JobMatches:        usageResponse{Limit: ProJobMatchesPerHour, Period: "hour"},
 	}
 
 	if current.Subscription.Status != "" {
 		response.Status = current.Subscription.Status
 	}
-
-	if plan, found := s.billingConfig.planByPriceID(
-		current.Subscription.PriceID,
-	); found {
-		response.PlanKey = plan.Key
-	}
-
-	window := 7 * 24 * time.Hour
 	if current.Pro {
 		response.Plan = "pro"
-		response.JobMatches = usageResponse{
-			Limit:  ProJobMatchesPerHour,
-			Period: "hour",
+	}
+	if current.Organization != nil {
+		response.OrganizationName = current.Organization.Name
+	}
+	if plan, found := s.billingConfig.planByPriceID(current.Subscription.PriceID); found {
+		response.PlanKey = plan.Key
+	}
+	if owned := current.OwnedLicense; owned != nil {
+		response.OwnedLicense = &licenseResponse{
+			Name:              owned.Name,
+			Domain:            owned.EmailDomain,
+			Status:            owned.Status,
+			Active:            owned.Active(),
+			CurrentPeriodEnd:  owned.CurrentPeriodEnd,
+			CancelAtPeriodEnd: owned.CancelAtPeriodEnd,
+			CanManage:         s.billingEnabled() && owned.StripeCustomerID != "",
 		}
-		window = time.Hour
 	}
 
 	if s.billingRepo != nil {
-		used, err := s.billingRepo.CountUsageSince(
-			r.Context(),
-			user.ID,
-			featureJobMatch,
-			time.Now().Add(-window),
-		)
+		used, err := s.billingRepo.CountUsageSince(r.Context(), user.ID, featureJobMatch, time.Now().Add(-time.Hour))
 		if err != nil {
 			log.Printf("count usage for user %s: %v", user.ID, err)
 		}
@@ -345,13 +400,11 @@ func (s *Server) handleBillingStatus(
 }
 
 type checkoutRequest struct {
-	Plan string `json:"plan"`
+	Plan             string `json:"plan"`
+	OrganizationName string `json:"organizationName,omitempty"`
 }
 
-func (s *Server) handleBillingCheckout(
-	w http.ResponseWriter,
-	r *http.Request,
-) {
+func (s *Server) handleBillingCheckout(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		methodNotAllowed(w, "POST")
 		return
@@ -379,49 +432,69 @@ func (s *Server) handleBillingCheckout(
 		return
 	}
 
-	current, err := s.entitlementFor(r.Context(), user.ID)
+	current, err := s.entitlementFor(r.Context(), user)
 	if err != nil {
 		log.Printf("load entitlement for user %s: %v", user.ID, err)
 		writeError(w, http.StatusInternalServerError, "failed to start checkout")
 		return
 	}
 
-	if current.Pro {
+	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
+	defer cancel()
+
+	if plan.Kind == PlanKindOrganization {
+		s.startOrganizationCheckout(ctx, w, user, plan, current, request.OrganizationName)
+		return
+	}
+
+	switch {
+	case current.Source == sourceOrganization:
 		writeJSON(w, http.StatusConflict, map[string]string{
-			"error": "you already have Pro; manage your plan from the billing portal",
+			"error": "you already have Pro through your school's license",
+			"code":  "already_subscribed",
+		})
+		return
+	case current.Subscription.SubscriptionActive():
+		writeJSON(w, http.StatusConflict, map[string]string{
+			"error": "you already have an active plan; manage it from the billing portal",
+			"code":  "already_subscribed",
+		})
+		return
+	case plan.Kind == PlanKindSubscription && current.Source == sourcePass:
+		writeJSON(w, http.StatusConflict, map[string]string{
+			"error": "your Sprint pass is still active; you can subscribe after it ends",
 			"code":  "already_subscribed",
 		})
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
-	defer cancel()
-
-	customerID := current.Subscription.StripeCustomerID
-	if customerID == "" {
-		customerID, err = s.stripe.CreateCustomer(ctx, user.Email, user.ID)
-		if err != nil {
-			log.Printf("create Stripe customer for user %s: %v", user.ID, err)
-			writeError(w, http.StatusBadGateway, "failed to start checkout")
-			return
-		}
-
-		attached, err := s.billingRepo.AttachStripeCustomer(ctx, user.ID, customerID)
-		if err != nil {
-			log.Printf("attach Stripe customer for user %s: %v", user.ID, err)
-			writeError(w, http.StatusInternalServerError, "failed to start checkout")
-			return
-		}
-		customerID = attached.StripeCustomerID
+	customerID, err := s.ensureUserCustomer(ctx, user, current)
+	if err != nil {
+		log.Printf("ensure Stripe customer for user %s: %v", user.ID, err)
+		writeError(w, http.StatusBadGateway, "failed to start checkout")
+		return
 	}
 
-	checkoutURL, err := s.stripe.CreateCheckoutSession(ctx, billing.CheckoutParams{
+	params := billing.CheckoutParams{
 		CustomerID: customerID,
 		PriceID:    plan.PriceID,
 		UserID:     user.ID,
 		SuccessURL: s.web.BaseURL + "/app/billing?checkout=success",
 		CancelURL:  s.web.BaseURL + "/app/billing?checkout=canceled",
-	})
+		Metadata:   map[string]string{"plan_key": plan.Key},
+	}
+
+	switch plan.Kind {
+	case PlanKindPass:
+		params.Mode = "payment"
+	default:
+		params.Mode = "subscription"
+		if current.TrialEligible && plan.TrialDays > 0 {
+			params.TrialDays = plan.TrialDays
+		}
+	}
+
+	checkoutURL, err := s.stripe.CreateCheckoutSession(ctx, params)
 	if err != nil {
 		log.Printf("create checkout session for user %s: %v", user.ID, err)
 		writeError(w, http.StatusBadGateway, "failed to start checkout")
@@ -431,10 +504,120 @@ func (s *Server) handleBillingCheckout(
 	writeJSON(w, http.StatusOK, map[string]string{"url": checkoutURL})
 }
 
-func (s *Server) handleBillingPortal(
+func (s *Server) ensureUserCustomer(ctx context.Context, user repository.User, current entitlement) (string, error) {
+	if current.Subscription.StripeCustomerID != "" {
+		return current.Subscription.StripeCustomerID, nil
+	}
+
+	customerID, err := s.stripe.CreateCustomer(ctx, user.Email, user.ID)
+	if err != nil {
+		return "", err
+	}
+
+	attached, err := s.billingRepo.AttachStripeCustomer(ctx, user.ID, customerID)
+	if err != nil {
+		return "", err
+	}
+	return attached.StripeCustomerID, nil
+}
+
+// startOrganizationCheckout sells an annual school license. The licensed
+// domain is the buyer's own verified email domain, never a typed value, so
+// nobody can license a domain they don't belong to.
+func (s *Server) startOrganizationCheckout(
+	ctx context.Context,
 	w http.ResponseWriter,
-	r *http.Request,
+	user repository.User,
+	plan Plan,
+	current entitlement,
+	organizationName string,
 ) {
+	if s.accountsRepo == nil {
+		writeError(w, http.StatusServiceUnavailable, "school licenses are not available")
+		return
+	}
+	if !current.EmailVerified {
+		writeJSON(w, http.StatusForbidden, map[string]string{
+			"error": "confirm your school email address before buying a school license",
+			"code":  "email_unverified",
+		})
+		return
+	}
+
+	domain := emailDomain(user.Email)
+	if _, public := publicEmailDomains[domain]; public || domain == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "sign in with your school or organization email to buy a license; personal email providers can't be licensed",
+			"code":  "public_email_domain",
+		})
+		return
+	}
+
+	organizationName = strings.TrimSpace(organizationName)
+	if n := utf8.RuneCountInString(organizationName); n < 2 || n > 120 {
+		writeError(w, http.StatusBadRequest, "enter your school or program name")
+		return
+	}
+
+	org, err := s.accountsRepo.UpsertOrganizationForOwner(ctx, organizationName, domain, user.ID)
+	if errors.Is(err, repository.ErrDomainAlreadyLicensed) {
+		writeJSON(w, http.StatusConflict, map[string]string{
+			"error": "someone at " + domain + " already set up a CaseMade license; contact support to be added",
+			"code":  "domain_taken",
+		})
+		return
+	}
+	if err != nil {
+		log.Printf("create organization for user %s: %v", user.ID, err)
+		writeError(w, http.StatusInternalServerError, "failed to start checkout")
+		return
+	}
+	if org.Active() {
+		writeJSON(w, http.StatusConflict, map[string]string{
+			"error": "your school license is already active; manage it from Plan & billing",
+			"code":  "already_subscribed",
+		})
+		return
+	}
+
+	customerID := org.StripeCustomerID
+	if customerID == "" {
+		customerID, err = s.stripe.CreateCustomer(ctx, user.Email, "org-"+org.ID)
+		if err != nil {
+			log.Printf("create Stripe customer for organization %s: %v", org.ID, err)
+			writeError(w, http.StatusBadGateway, "failed to start checkout")
+			return
+		}
+		if err := s.accountsRepo.AttachOrganizationCustomer(ctx, org.ID, customerID); err != nil {
+			log.Printf("attach Stripe customer for organization %s: %v", org.ID, err)
+			writeError(w, http.StatusInternalServerError, "failed to start checkout")
+			return
+		}
+	}
+
+	checkoutURL, err := s.stripe.CreateCheckoutSession(ctx, billing.CheckoutParams{
+		CustomerID: customerID,
+		PriceID:    plan.PriceID,
+		UserID:     user.ID,
+		Mode:       "subscription",
+		SuccessURL: s.web.BaseURL + "/app/billing?checkout=school",
+		CancelURL:  s.web.BaseURL + "/app/billing?checkout=canceled",
+		Metadata:   map[string]string{"plan_key": plan.Key, "organization_id": org.ID},
+	})
+	if err != nil {
+		log.Printf("create school checkout for organization %s: %v", org.ID, err)
+		writeError(w, http.StatusBadGateway, "failed to start checkout")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"url": checkoutURL})
+}
+
+type portalRequest struct {
+	Target string `json:"target,omitempty"` // "" (personal) or "organization"
+}
+
+func (s *Server) handleBillingPortal(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		methodNotAllowed(w, "POST")
 		return
@@ -450,14 +633,30 @@ func (s *Server) handleBillingPortal(
 		return
 	}
 
-	current, err := s.entitlementFor(r.Context(), user.ID)
+	var request portalRequest
+	if r.ContentLength > 0 {
+		if err := decodeApplicationJSON(r, &request); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid request body")
+			return
+		}
+	}
+
+	current, err := s.entitlementFor(r.Context(), user)
 	if err != nil {
 		log.Printf("load entitlement for user %s: %v", user.ID, err)
 		writeError(w, http.StatusInternalServerError, "failed to open billing portal")
 		return
 	}
 
-	if !current.HasCustomer {
+	customerID := current.Subscription.StripeCustomerID
+	if request.Target == "organization" {
+		customerID = ""
+		if current.OwnedLicense != nil {
+			customerID = current.OwnedLicense.StripeCustomerID
+		}
+	}
+
+	if customerID == "" {
 		writeError(w, http.StatusBadRequest, "no billing account yet; choose a plan first")
 		return
 	}
@@ -465,11 +664,7 @@ func (s *Server) handleBillingPortal(
 	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
 	defer cancel()
 
-	portalURL, err := s.stripe.CreatePortalSession(
-		ctx,
-		current.Subscription.StripeCustomerID,
-		s.web.BaseURL+"/app/billing",
-	)
+	portalURL, err := s.stripe.CreatePortalSession(ctx, customerID, s.web.BaseURL+"/app/billing")
 	if err != nil {
 		log.Printf("create portal session for user %s: %v", user.ID, err)
 		writeError(w, http.StatusBadGateway, "failed to open billing portal")
@@ -479,12 +674,13 @@ func (s *Server) handleBillingPortal(
 	writeJSON(w, http.StatusOK, map[string]string{"url": portalURL})
 }
 
+// ---------------------------------------------------------------------------
+// Stripe webhooks
+// ---------------------------------------------------------------------------
+
 const maxWebhookBodyBytes int64 = 1 << 20
 
-func (s *Server) handleStripeWebhook(
-	w http.ResponseWriter,
-	r *http.Request,
-) {
+func (s *Server) handleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		methodNotAllowed(w, "POST")
 		return
@@ -495,9 +691,7 @@ func (s *Server) handleStripeWebhook(
 		return
 	}
 
-	payload, err := io.ReadAll(
-		http.MaxBytesReader(w, r.Body, maxWebhookBodyBytes),
-	)
+	payload, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxWebhookBodyBytes))
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid payload")
 		return
@@ -516,11 +710,7 @@ func (s *Server) handleStripeWebhook(
 		return
 	}
 
-	first, err := s.billingRepo.MarkWebhookEventProcessed(
-		r.Context(),
-		event.ID,
-		event.Type,
-	)
+	first, err := s.billingRepo.MarkWebhookEventProcessed(r.Context(), event.ID, event.Type)
 	if err != nil {
 		log.Printf("record Stripe event %s: %v", event.ID, err)
 		writeError(w, http.StatusInternalServerError, "failed to record event")
@@ -536,10 +726,7 @@ func (s *Server) handleStripeWebhook(
 		log.Printf("process Stripe event %s (%s): %v", event.ID, event.Type, err)
 
 		// Let Stripe retry this event later.
-		if forgetErr := s.billingRepo.ForgetWebhookEvent(
-			context.Background(),
-			event.ID,
-		); forgetErr != nil {
+		if forgetErr := s.billingRepo.ForgetWebhookEvent(context.Background(), event.ID); forgetErr != nil {
 			log.Printf("forget Stripe event %s: %v", event.ID, forgetErr)
 		}
 
@@ -550,20 +737,25 @@ func (s *Server) handleStripeWebhook(
 	w.WriteHeader(http.StatusOK)
 }
 
-func (s *Server) processStripeEvent(
-	ctx context.Context,
-	event billing.Event,
-) error {
+func (s *Server) processStripeEvent(ctx context.Context, event billing.Event) error {
 	var subscriptionID string
 
 	switch event.Type {
-	case "checkout.session.completed":
+	case "checkout.session.completed", "checkout.session.async_payment_succeeded":
 		var session struct {
-			Mode         string `json:"mode"`
-			Subscription string `json:"subscription"`
+			Mode              string            `json:"mode"`
+			Subscription      string            `json:"subscription"`
+			Customer          string            `json:"customer"`
+			PaymentStatus     string            `json:"payment_status"`
+			ClientReferenceID string            `json:"client_reference_id"`
+			Metadata          map[string]string `json:"metadata"`
 		}
 		if err := json.Unmarshal(event.Data.Object, &session); err != nil {
 			return err
+		}
+
+		if session.Mode == "payment" {
+			return s.grantPassFromCheckout(ctx, event.ID, session.Customer, session.ClientReferenceID, session.PaymentStatus, session.Metadata)
 		}
 		if session.Mode != "subscription" || session.Subscription == "" {
 			return nil
@@ -597,33 +789,60 @@ func (s *Server) processStripeEvent(
 		return err
 	}
 
-	_, err = s.billingRepo.ApplyStripeSubscription(ctx, repository.StripeSubscriptionUpdate{
+	update := repository.StripeSubscriptionUpdate{
 		StripeCustomerID:     subscription.Customer,
 		StripeSubscriptionID: subscription.ID,
 		Status:               subscription.Status,
 		PriceID:              subscription.PriceID(),
 		CurrentPeriodEnd:     subscription.PeriodEnd(),
 		CancelAtPeriodEnd:    subscription.CancelAtPeriodEnd,
-	})
+	}
 
-	if errors.Is(err, repository.ErrSubscriptionNotFound) {
-		// A customer that was not created by AlignApply checkout.
-		log.Printf(
-			"Stripe event %s: no AlignApply user for customer %s",
-			event.ID,
-			subscription.Customer,
-		)
+	_, err = s.billingRepo.ApplyStripeSubscription(ctx, update)
+	if !errors.Is(err, repository.ErrSubscriptionNotFound) {
+		return err
+	}
+
+	// Not a personal subscription; it may be a school license.
+	if s.accountsRepo != nil {
+		err = s.accountsRepo.ApplyOrganizationSubscription(ctx, update)
+		if !errors.Is(err, repository.ErrOrganizationNotFound) {
+			return err
+		}
+	}
+
+	log.Printf("Stripe event %s: no CaseMade user or school for customer %s", event.ID, subscription.Customer)
+	return nil
+}
+
+func (s *Server) grantPassFromCheckout(
+	ctx context.Context,
+	eventID, customerID, userID, paymentStatus string,
+	metadata map[string]string,
+) error {
+	if paymentStatus != "paid" {
+		// Delayed payment methods report success in a later event.
 		return nil
 	}
 
+	plan, found := s.billingConfig.planByKey(metadata["plan_key"])
+	if !found || plan.Kind != PlanKindPass || plan.PassDays <= 0 {
+		log.Printf("Stripe event %s: payment for unknown pass plan %q", eventID, metadata["plan_key"])
+		return nil
+	}
+
+	_, err := s.billingRepo.GrantPass(ctx, customerID, userID, plan.PassDays)
+	if errors.Is(err, repository.ErrSubscriptionNotFound) {
+		log.Printf("Stripe event %s: no CaseMade user %s for customer %s", eventID, userID, customerID)
+		return nil
+	}
 	return err
 }
 
-// cancelBillingForDeletedAccount stops billing before an account is removed.
-func (s *Server) cancelBillingForDeletedAccount(
-	ctx context.Context,
-	userID string,
-) error {
+// cancelBillingForDeletedAccount stops a user's personal subscription before
+// their account is removed. School licenses are left running because they
+// belong to the school, not to the person who bought them.
+func (s *Server) cancelBillingForDeletedAccount(ctx context.Context, userID string) error {
 	if s.billingRepo == nil {
 		return nil
 	}

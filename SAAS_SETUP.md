@@ -8,7 +8,7 @@ embedded into the binary). One deploy, one origin, no CORS.
 | Area | What it does |
 |---|---|
 | Web auth | Email + password sign-up and login (`/api/v1/auth/signup`, `/login`, `/logout`). PBKDF2-SHA256 hashes, HttpOnly `SameSite=Lax` session cookie, 10 attempts per IP per 15 minutes. Bearer tokens still work for API clients. |
-| Plans | **Free**: 3 job-match searches per rolling week, career profile, application tracker. **Pro**: unlimited searches (30/hour fair-use ceiling), resume recommendation, Gmail sync. |
+| Plans | No free plan. **Pro Monthly** $14.99 with a 3-day free trial (card required, one trial per account). **Job Search Sprint** $39 one-time for 90 days. **School License** $1,000/year: every user who confirms an email at exactly that domain gets Pro. Profile and résumé setup work without a plan; job matching, résumé recommendations and Gmail need one. |
 | Billing | Stripe Checkout (subscribe), Stripe Billing Portal (change plan, update card, cancel), signed + idempotent webhooks. Deleting an account cancels its subscription immediately. |
 | Enforcement | All checks are server-side. `/job-matches` now requires sign-in and is metered; `/resume-recommendation` and all Gmail endpoints require Pro (HTTP 402 `pro_required` otherwise). |
 | Web app | Landing + pricing, sign up / sign in, 4-step onboarding (résumé → about you → preferences → ready), Find jobs with a résumé picker, job detail with full description, My jobs board (Saved / Applied / Interview / Offer / Closed) with timelines, résumé library (PDFs read in the browser with pdf.js; only text is stored), career profile with résumé prefill, Pro best-résumé recommendation, Pro Gmail sync, Plan & billing. |
@@ -27,14 +27,15 @@ to create the web service and database together.
 
 In the Stripe dashboard (start in **test mode**):
 
-1. **Product catalog → Add product** "CaseMade Pro" with two recurring prices:
-   - $2.99 every 1 month → copy its `price_…` ID
-   - $14.99 every 6 months → copy its `price_…` ID
+1. **Product catalog → Add product**, three prices:
+   - "CaseMade Pro Monthly": **recurring** $14.99 every 1 month → `STRIPE_PRICE_PRO_MONTHLY` (the 3-day trial is added by CaseMade at checkout)
+   - "Job Search Sprint": **one-time** $39 → `STRIPE_PRICE_SPRINT`
+   - "CaseMade School License": **recurring** $1,000 every 1 year → `STRIPE_PRICE_SCHOOL`
 2. **Settings → Billing → Customer portal**: turn on cancel, update payment
    method, and switching between the two prices.
 3. **Developers → Webhooks → Add endpoint**
    - URL: `https://YOUR_DOMAIN/api/v1/billing/webhook`
-   - Events: `checkout.session.completed`,
+   - Events: `checkout.session.completed`, `checkout.session.async_payment_succeeded`,
      `customer.subscription.created`, `customer.subscription.updated`,
      `customer.subscription.deleted`, `customer.subscription.paused`,
      `customer.subscription.resumed`
@@ -49,10 +50,12 @@ In the Stripe dashboard (start in **test mode**):
 | `APP_BASE_URL` | yes in prod | e.g. `https://alignapply.com`. Used for Stripe redirects; `https://` turns on `Secure` cookies |
 | `STRIPE_SECRET_KEY` | for billing | `sk_test_…` / `sk_live_…`. Unset = billing off, everyone on Free |
 | `STRIPE_WEBHOOK_SECRET` | with Stripe | `whsec_…` |
-| `STRIPE_PRICE_PRO_MONTHLY` | at least one | `price_…` |
-| `STRIPE_PRICE_PRO_SIX_MONTH` | at least one | `price_…` |
-| `PRO_MONTHLY_DISPLAY_PRICE` | no | default `$2.99` (display only; Stripe charges the price ID) |
-| `PRO_SIX_MONTH_DISPLAY_PRICE` | no | default `$14.99` |
+| `STRIPE_PRICE_PRO_MONTHLY` | at least one | recurring monthly `price_…` |
+| `STRIPE_PRICE_SPRINT` | at least one | one-time `price_…` |
+| `STRIPE_PRICE_SCHOOL` | at least one | recurring yearly `price_…` |
+| `PRO_MONTHLY_DISPLAY_PRICE` / `SPRINT_DISPLAY_PRICE` / `SCHOOL_DISPLAY_PRICE` | no | defaults `$14.99` / `$39` / `$1,000` (display only; Stripe charges the price ID) |
+| `RESEND_API_KEY` + `EMAIL_FROM` | for email | Resend API key, and a sender like `CaseMade <hello@yourdomain.com>` on a domain verified in Resend. Enables email confirmation, password reset, and school licenses |
+| `SUPPORT_EMAIL` | yes | shown on Terms, Privacy, Refunds and Contact pages |
 | `TRUST_PROXY_HEADERS` | on Render | `true` so login rate limiting uses the real client IP |
 | `OPENAI_API_KEY` | prod | matching/verification (falls back to local Ollama) |
 | `APPLE_CLIENT_ID` | no | now optional; only needed for Sign in with Apple |

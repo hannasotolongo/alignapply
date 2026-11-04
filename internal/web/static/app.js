@@ -326,6 +326,8 @@ const routes = {
   "/pricing": viewLanding,
   "/login": () => viewAuth("login"),
   "/signup": () => viewAuth("signup"),
+  "/forgot-password": viewForgotPassword,
+  "/reset-password": viewResetPassword,
   "/app": () => navigate("/app/jobs", { replace: true }),
   "/app/welcome": viewOnboarding,
   "/app/jobs": () => appPage("jobs", viewJobs),
@@ -401,12 +403,6 @@ function siteFooter() {
   );
 }
 
-function checkoutNote() {
-  return h("p", { class: "legal-note" },
-    "Subscriptions renew automatically until you cancel. Cancel anytime. 7-day money-back guarantee on your first payment. See our ",
-    h("a", { href: "/terms" }, "Terms"), " and ", h("a", { href: "/refunds" }, "Refund Policy"), ".");
-}
-
 async function viewLanding() {
   if (state.user === undefined) await loadUser();
   const plansInfo = await loadPlans();
@@ -426,7 +422,7 @@ async function viewLanding() {
           h("h1", {}, "Upload your résumé.", h("br"), "We find the fit."),
           h("p", { class: "lead" }, `${BRAND} matches you to jobs using evidence from your real experience. It shows exactly why each role is a fit, and tracks every application in one place.`),
           h("div", { class: "row" },
-            link(state.user ? "/app/jobs" : "/signup", { class: "btn btn-primary" }, state.user ? `Open ${BRAND}` : "Find my jobs"),
+            link(state.user ? "/app/jobs" : "/signup", { class: "btn btn-primary" }, state.user ? `Open ${BRAND}` : "Start free trial"),
             link("/pricing", { class: "btn" }, "See pricing"),
           ),
         ),
@@ -447,69 +443,124 @@ async function viewLanding() {
   ));
 }
 
-function pricingSection(plansInfo) {
-  const freeLimit = plansInfo.freeJobMatchesPerWeek || 3;
-  const plans = plansInfo.plans || [];
+// ---------------------------------------------------------------------------
+// Plans, paywall, and checkout
+// ---------------------------------------------------------------------------
 
-  const free = h("div", { class: "card price-card" },
-    h("div", {}, h("h3", {}, "Free"), h("p", { class: "muted small" }, "Try evidence-based matching.")),
-    h("div", { class: "price" }, "$0"),
-    h("ul", { class: "ticks" },
-      h("li", {}, `${freeLimit} job-match searches per week`),
-      h("li", {}, "Résumé library and career profile"),
-      h("li", {}, "Application tracker"),
-      h("li", { class: "off" }, "Unlimited searches"),
-      h("li", { class: "off" }, "Best-résumé recommendations"),
-      h("li", { class: "off" }, "Gmail application sync"),
+function planFor(key) {
+  return ((state.plans && state.plans.plans) || []).find((plan) => plan.key === key);
+}
+
+function trialAvailable() {
+  return !state.billing || state.billing.trialEligible !== false;
+}
+
+function subscribeLabel(plan) {
+  return plan.trialDays && trialAvailable() ? `Start ${plan.trialDays}-day free trial` : `Subscribe for ${plan.displayPrice}/${plan.interval}`;
+}
+
+function checkoutNote() {
+  const monthly = planFor("monthly");
+  const sprint = planFor("sprint");
+  return h("p", { class: "legal-note" },
+    monthly && monthly.trialDays
+      ? `Pro Monthly is free for ${monthly.trialDays} days, then ${monthly.displayPrice}/month until you cancel. Cancel before the trial ends and you won't be charged. `
+      : "Subscriptions renew automatically until you cancel. ",
+    sprint ? `The ${sprint.name} is a one-time ${sprint.displayPrice} payment for ${sprint.interval} and doesn't renew. ` : "",
+    "7-day money-back guarantee on your first payment. See our ",
+    h("a", { href: "/terms" }, "Terms"), " and ", h("a", { href: "/refunds" }, "Refund Policy"), ".");
+}
+
+function planCards(plansInfo, { compact = false } = {}) {
+  const enabled = plansInfo.billingEnabled;
+  const monthly = planFor("monthly") || { key: "monthly", name: "Pro Monthly", displayPrice: "$14.99", interval: "month", trialDays: 3 };
+  const sprint = planFor("sprint") || { key: "sprint", name: "Job Search Sprint", displayPrice: "$39", interval: "90 days" };
+  const school = planFor("school") || { key: "school", name: "School License", displayPrice: "$1,000", interval: "year" };
+
+  const features = [
+    "Unlimited job-match searches",
+    "Requirement-by-requirement fit for every job",
+    "Résumé library and best-résumé recommendation",
+    "Application tracker with Gmail sync",
+  ];
+  const ticks = () => h("ul", { class: "ticks" }, features.map((f) => h("li", {}, f)));
+
+  const cards = [
+    h("div", { class: "card price-card" },
+      h("div", {}, h("h3", {}, monthly.name), h("p", { class: "muted small" }, monthly.trialDays ? `${monthly.trialDays}-day free trial, then monthly` : "Billed monthly")),
+      h("div", { class: "price" }, monthly.displayPrice, " ", h("small", {}, `/ ${monthly.interval}`)),
+      compact ? null : ticks(),
+      h("button", { class: "btn btn-primary btn-block", disabled: !enabled, onclick: () => startCheckout("monthly") },
+        enabled ? subscribeLabel(monthly) : "Coming soon"),
     ),
-    link(state.user ? "/app/jobs" : "/signup", { class: "btn btn-block" }, state.user ? "Open app" : "Start free"),
-  );
-
-  const proFeatures = () => h("ul", { class: "ticks" },
-    h("li", {}, "Unlimited job-match searches"),
-    h("li", {}, "Résumé library and career profile"),
-    h("li", {}, "Application tracker"),
-    h("li", {}, "Best-résumé recommendation for every job"),
-    h("li", {}, "Gmail application sync"),
-  );
-
-  const proCards = (plans.length ? plans : [{ key: "monthly", name: "Pro", displayPrice: "$2.99", interval: "month" }])
-    .map((plan, index, all) => h("div", { class: index === all.length - 1 ? "card price-card featured" : "card price-card" },
+    h("div", { class: "card price-card featured" },
       h("div", { class: "row-between" },
-        h("div", {}, h("h3", {}, plan.name), h("p", { class: "muted small" }, "For an active job search.")),
-        index === all.length - 1 && all.length > 1 ? h("span", { class: "pill pill-pro" }, "Best value") : null,
+        h("div", {}, h("h3", {}, sprint.name), h("p", { class: "muted small" }, `One payment, ${sprint.interval} of Pro`)),
+        h("span", { class: "pill pill-pro" }, "Best value"),
       ),
-      h("div", { class: "price" }, plan.displayPrice, " ", h("small", {}, `/ ${plan.interval}`)),
-      proFeatures(),
-      h("button", {
-        class: "btn btn-primary btn-block",
-        disabled: !plansInfo.billingEnabled,
-        onclick: () => startCheckout(plan.key),
-      }, plansInfo.billingEnabled ? `Get ${plan.name}` : "Coming soon"),
-    ));
+      h("div", { class: "price" }, sprint.displayPrice, " ", h("small", {}, "one-time")),
+      compact ? null : ticks(),
+      h("button", { class: "btn btn-primary btn-block", disabled: !enabled, onclick: () => startCheckout("sprint") },
+        enabled ? `Get the Sprint` : "Coming soon"),
+    ),
+  ];
 
+  if (!compact) {
+    cards.push(h("div", { class: "card price-card" },
+      h("div", {}, h("h3", {}, "Schools & programs"), h("p", { class: "muted small" }, "Career centers, nursing programs, bootcamps")),
+      h("div", { class: "price" }, school.displayPrice, " ", h("small", {}, `/ ${school.interval}`)),
+      h("ul", { class: "ticks" },
+        h("li", {}, "Pro for every student with a verified school email"),
+        h("li", {}, "No seat counting or codes to hand out"),
+        h("li", {}, "Free 2-week pilot available"),
+      ),
+      state.user
+        ? link("/app/billing", { class: "btn btn-block" }, "Get a school license")
+        : link("/signup", { class: "btn btn-block" }, "Get a school license"),
+    ));
+  }
+
+  return cards;
+}
+
+function pricingSection(plansInfo) {
   return h("section", { class: "section", id: "pricing" },
     h("div", { class: "container" },
       h("h2", { class: "section-title" }, "Simple pricing"),
-      h("p", { class: "section-sub" }, "Start free. Upgrade when your search gets serious. Cancel anytime."),
-      h("div", { class: proCards.length > 1 ? "grid-3" : "grid-2" }, free, proCards),
+      h("p", { class: "section-sub" }, "Try every feature free for 3 days. Cancel anytime."),
+      h("div", { class: "grid-3" }, planCards(plansInfo)),
       h("div", { class: "section-gap" }, checkoutNote()),
     ),
   );
 }
 
-async function startCheckout(planKey) {
+// paywall is shown where a feature needs a plan.
+function paywall(title, body) {
+  const plansInfo = state.plans || { billingEnabled: false };
+  return h("div", { class: "card stack paywall" },
+    h("div", { class: "stack-sm" }, h("h3", {}, title), h("p", { class: "muted" }, body)),
+    h("div", { class: "grid-2" }, planCards(plansInfo, { compact: true })),
+    plansInfo.billingEnabled ? checkoutNote() : null,
+  );
+}
+
+async function startCheckout(planKey, extra = {}) {
   if (!state.user) {
     sessionStorage.setItem("casemade.pendingPlan", planKey);
     navigate("/signup");
     return;
   }
   try {
-    const { url } = await api("/api/v1/billing/checkout", { method: "POST", body: { plan: planKey } });
+    const { url } = await api("/api/v1/billing/checkout", { method: "POST", body: { plan: planKey, ...extra } });
     window.location.assign(url);
   } catch (error) {
     if (error.code === "already_subscribed") {
-      toast("You already have Pro.");
+      toast(error.message);
+      navigate("/app/billing");
+      return;
+    }
+    if (error.code === "email_unverified") {
+      toast("Confirm your school email first. Check your inbox for the link.", true);
       navigate("/app/billing");
       return;
     }
@@ -571,7 +622,7 @@ async function viewAuth(mode) {
     h("label", { class: "field" }, "Email", h("input", { type: "email", name: "email", autocomplete: "email", required: true })),
     h("label", { class: "field" }, "Password",
       h("input", { type: "password", name: "password", autocomplete: isSignup ? "new-password" : "current-password", required: true, minlength: isSignup ? 10 : undefined }),
-      isSignup ? h("span", { class: "faint small" }, "At least 10 characters.") : null,
+      isSignup ? h("span", { class: "faint small" }, "At least 10 characters.") : link("/forgot-password", { class: "faint small" }, "Forgot password?"),
     ),
     error,
     submit,
@@ -830,7 +881,7 @@ async function appPage(active, view) {
   const usageSlot = h("div", {});
   mount(appShell(active, content, usageSlot));
 
-  await Promise.all([loadBilling(), loadPreferences().catch(() => null)]);
+  await Promise.all([loadBilling(), loadPlans(), loadPreferences().catch(() => null)]);
   renderUsage(usageSlot);
 
   if (state.preferences && !state.preferences.onboardingComplete) {
@@ -873,26 +924,31 @@ function appShell(active, content, usageSlot) {
   );
 }
 
+function planStatusLine(billing) {
+  if (!billing) return "";
+  switch (billing.source) {
+    case "trial": return billing.currentPeriodEnd ? `Free trial · ends ${formatDate(billing.currentPeriodEnd)}` : "Free trial";
+    case "subscription": return billing.cancelAtPeriodEnd && billing.currentPeriodEnd ? `Pro · ends ${formatDate(billing.currentPeriodEnd)}` : "Pro Monthly";
+    case "pass": return `Sprint · until ${formatDate(billing.passExpiresAt)}`;
+    case "organization": return `Pro via ${billing.organizationName}`;
+    case "open": return "Early access";
+    default: return "No plan yet";
+  }
+}
+
 function renderUsage(slot) {
   const billing = state.billing;
   if (!billing) { slot.replaceChildren(); return; }
 
-  const usage = billing.jobMatches || { used: 0, limit: 0, period: "week" };
-  const fill = h("span", {});
-  fill.style.width = `${Math.min(100, (usage.used / Math.max(1, usage.limit)) * 100)}%`;
-
+  const pro = billing.plan === "pro";
   slot.replaceChildren(h("div", { class: "usage-card" },
     h("div", { class: "row-between" },
-      h("span", { class: "small muted" }, billing.plan === "pro" ? `${BRAND} Pro` : "Free plan"),
-      billing.plan === "pro" ? h("span", { class: "pill pill-pro" }, "PRO") : null,
+      h("span", { class: "small muted" }, planStatusLine(billing)),
+      pro && billing.source !== "open" ? h("span", { class: "pill pill-pro" }, billing.source === "trial" ? "TRIAL" : "PRO") : null,
     ),
-    billing.plan === "pro"
-      ? h("span", { class: "small faint" }, "Unlimited searches")
-      : [
-          h("div", { class: "meter", role: "progressbar", "aria-valuemin": 0, "aria-valuemax": usage.limit, "aria-valuenow": usage.used }, fill),
-          h("span", { class: "small faint" }, `${usage.used} of ${usage.limit} searches this ${usage.period}`),
-          link("/app/billing", { class: "btn btn-primary btn-sm" }, "Upgrade"),
-        ],
+    pro
+      ? null
+      : link("/app/billing", { class: "btn btn-primary btn-sm" }, trialAvailable() ? "Start free trial" : "Choose a plan"),
   ));
 }
 
@@ -906,7 +962,7 @@ function pageHead(title, subtitle, ...actions) {
 function upsell(title, body) {
   return h("div", { class: "card upsell" },
     h("div", {}, h("h3", {}, title), h("p", { class: "muted" }, body)),
-    link("/app/billing", { class: "btn btn-primary" }, "Upgrade to Pro"),
+    link("/app/billing", { class: "btn btn-primary" }, "See plans"),
   );
 }
 
@@ -1222,8 +1278,8 @@ async function viewJobs() {
       renderMatches(results, state.lastSearch.matches);
       savePreferences({ minimumSalary: request.minimumSalary, remote: request.remote, hybrid: request.hybrid, onsite: request.onsite }).catch(() => {});
     } catch (error) {
-      results.replaceChildren(error.code === "free_limit_reached"
-        ? upsell("You've used this week's free searches", "Upgrade to Pro for unlimited job-match searches.")
+      results.replaceChildren(error.code === "pro_required"
+        ? paywall("Your matches are ready to check", "Start your free trial to see every job ranked by how well your experience fits, with what you meet, what's partial, and what's missing.")
         : h("div", { class: "form-error" }, error.message));
     } finally {
       submit.disabled = false;
@@ -1253,8 +1309,8 @@ async function viewJobs() {
 
   if (state.lastSearch) renderMatches(results, state.lastSearch.matches);
 
-  const freeNotice = !isPro() && state.billing
-    ? h("p", { class: "faint small" }, `Free plan: ${state.billing.jobMatches.used} of ${state.billing.jobMatches.limit} searches used this week.`)
+  const freeNotice = !isPro() && state.billing && state.billing.billingEnabled
+    ? h("p", { class: "faint small" }, trialAvailable() ? "Start your 3-day free trial to see your matches. No charge if you cancel before it ends." : "Choose a plan to run searches.")
     : null;
 
   if (sessionStorage.getItem("casemade.autoSearch")) {
@@ -1675,32 +1731,48 @@ function applicationCard(application, onUpdate) {
 async function viewBilling() {
   const params = new URLSearchParams(location.search);
   const checkout = params.get("checkout");
-  if (checkout) {
-    history.replaceState(null, "", "/app/billing");
-    if (checkout === "success") {
-      toast(`Payment received. Welcome to ${BRAND} Pro!`);
-      // The webhook may land a moment after the redirect.
-      for (let attempt = 0; attempt < 6 && !isPro(); attempt++) {
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-        await loadBilling();
-      }
-      refreshUsage();
+  const verified = params.get("verified");
+  if (checkout || verified) history.replaceState(null, "", "/app/billing");
+
+  if (verified === "1") toast("Email confirmed.");
+  if (verified === "invalid") toast("That confirmation link is invalid or expired. Send a new one below.", true);
+
+  if (checkout === "success" || checkout === "school") {
+    toast(checkout === "school" ? "School license purchased. Your students can sign up now." : `You're in! Welcome to ${BRAND} Pro.`);
+    // The webhook may land a moment after the redirect.
+    for (let attempt = 0; attempt < 6; attempt++) {
+      await loadBilling();
+      if (checkout === "school" ? state.billing.ownedLicense && state.billing.ownedLicense.active : isPro()) break;
+      await new Promise((resolve) => setTimeout(resolve, 1500));
     }
+    refreshUsage();
   }
 
   const billing = state.billing || await loadBilling();
   const plansInfo = await loadPlans();
   const pro = isPro();
 
-  const statusLine = (() => {
-    if (!pro) return "Free plan";
-    if (!billing.currentPeriodEnd) return "Active";
-    const date = formatDate(billing.currentPeriodEnd);
-    if (billing.cancelAtPeriodEnd) return `Cancels on ${date}`;
-    if (billing.status === "past_due") return "Payment past due. Update your card to keep Pro.";
-    return `Renews on ${date}`;
-  })();
+  const sections = [pageHead("Plan & billing", billing.email ? `Signed in as ${billing.email}` : null)];
 
+  // Email confirmation
+  if (billing.emailEnabled && !billing.emailVerified) {
+    const resend = h("button", { class: "btn btn-sm", onclick: async () => {
+      resend.disabled = true;
+      try {
+        await api("/api/v1/auth/verify-email/send", { method: "POST" });
+        toast(`Confirmation email sent to ${billing.email}.`);
+      } catch (error) {
+        toast(error.message, true);
+      } finally {
+        resend.disabled = false;
+      }
+    } }, "Send confirmation email");
+    sections.push(h("div", { class: "card row-between notice" },
+      h("div", {}, h("h3", {}, "Confirm your email"), h("p", { class: "muted small" }, "We sent you a link when you signed up. Confirming lets you reset your password, and unlocks Pro if your school has a CaseMade license.")),
+      resend));
+  }
+
+  // Current plan
   const manage = h("button", { class: "btn", onclick: async () => {
     manage.disabled = true;
     try {
@@ -1710,48 +1782,50 @@ async function viewBilling() {
       manage.disabled = false;
       toast(error.message, true);
     }
-  } }, "Manage billing");
+  } }, billing.source === "trial" ? "Manage or cancel trial" : "Manage billing");
 
-  const current = h("div", { class: "card stack" },
+  const detail = (() => {
+    switch (billing.source) {
+      case "trial": return billing.currentPeriodEnd
+        ? `Your trial ends ${formatDate(billing.currentPeriodEnd)}. ${billing.cancelAtPeriodEnd ? "It won't renew." : `Then ${(planFor("monthly") || {}).displayPrice || ""}/month unless you cancel.`}`
+        : "You're on a free trial.";
+      case "subscription": {
+        if (!billing.currentPeriodEnd) return "Active.";
+        if (billing.status === "past_due") return "Payment past due. Update your card to keep Pro.";
+        return billing.cancelAtPeriodEnd ? `Cancels on ${formatDate(billing.currentPeriodEnd)}.` : `Renews on ${formatDate(billing.currentPeriodEnd)}.`;
+      }
+      case "pass": return `Your Sprint gives you Pro until ${formatDate(billing.passExpiresAt)}. It doesn't renew.`;
+      case "organization": return `You have Pro through ${billing.organizationName}'s license.`;
+      case "open": return "Full access during early access.";
+      default: return "Choose a plan to start matching.";
+    }
+  })();
+
+  sections.push(h("div", { class: "card stack" },
     h("div", { class: "plan-row" },
       h("div", {},
-        h("div", { class: "row" }, h("span", { class: "plan-name" }, pro ? `${BRAND} Pro` : "Free"), pro ? h("span", { class: "pill pill-pro" }, "PRO") : null),
-        h("p", { class: "muted" }, statusLine),
+        h("div", { class: "row" }, h("span", { class: "plan-name" }, pro ? planStatusLine(billing) : "No plan yet"), pro && billing.source !== "open" ? h("span", { class: "pill pill-pro" }, billing.source === "trial" ? "TRIAL" : "PRO") : null),
+        h("p", { class: "muted" }, detail),
       ),
       billing.canManageBilling ? manage : null,
     ),
-    h("p", { class: "faint small" },
-      pro
-        ? `Unlimited job-match searches (fair-use limit ${billing.jobMatches.limit} per hour).`
-        : `${billing.jobMatches.used} of ${billing.jobMatches.limit} free searches used this week.`),
-  );
+  ));
 
-  const upgrade = !pro
-    ? h("div", { class: "stack" },
-        h("h2", {}, `Unlock ${BRAND} Pro`),
-        !plansInfo.billingEnabled
-          ? h("div", { class: "card muted" }, "Upgrades are coming soon.")
-          : h("div", { class: "grid-2" }, plansInfo.plans.map((plan) => {
-              const button = h("button", { class: "btn btn-primary btn-block", onclick: async () => {
-                button.disabled = true;
-                await startCheckout(plan.key);
-                button.disabled = false;
-              } }, `Choose ${plan.name}`);
-              return h("div", { class: "card price-card" },
-                h("h3", {}, plan.name),
-                h("div", { class: "price" }, plan.displayPrice, " ", h("small", {}, `/ ${plan.interval}`)),
-                h("ul", { class: "ticks" },
-                  h("li", {}, "Unlimited job-match searches"),
-                  h("li", {}, "Best-résumé recommendation for every job"),
-                  h("li", {}, "Gmail application sync"),
-                ),
-                button,
-              );
-            })),
-        plansInfo.billingEnabled ? checkoutNote() : null,
-      )
-    : null;
+  // Personal plans
+  if (!pro || billing.source === "pass") {
+    sections.push(h("div", { class: "stack" },
+      h("h2", {}, pro ? "Extend your access" : "Choose your plan"),
+      plansInfo.billingEnabled
+        ? h("div", { class: "grid-2" }, planCards(plansInfo, { compact: true }))
+        : h("div", { class: "card muted" }, "Plans are coming soon."),
+      plansInfo.billingEnabled ? checkoutNote() : null,
+    ));
+  }
 
+  // School license
+  sections.push(schoolLicenseCard(billing, plansInfo));
+
+  // Danger zone
   const deleteButton = h("button", { class: "btn btn-danger btn-sm", onclick: async () => {
     if (deleteButton.dataset.confirm !== "1") {
       deleteButton.dataset.confirm = "1";
@@ -1770,18 +1844,153 @@ async function viewBilling() {
     }
   } }, "Delete my account");
 
-  const danger = h("div", { class: "card stack-sm" },
+  sections.push(h("div", { class: "card stack-sm" },
     h("h3", {}, "Delete account"),
-    h("p", { class: "muted small" }, "Permanently deletes your profile, résumés and tracked jobs, and cancels any active subscription immediately."),
+    h("p", { class: "muted small" }, "Permanently deletes your profile, résumés and tracked jobs, and cancels any personal subscription immediately."),
     h("div", { class: "row" }, deleteButton),
+  ));
+
+  return h("div", { class: "stack" }, sections);
+}
+
+const PUBLIC_EMAIL_DOMAINS = new Set(["gmail.com", "googlemail.com", "yahoo.com", "ymail.com", "outlook.com", "hotmail.com", "live.com", "msn.com", "icloud.com", "me.com", "mac.com", "aol.com", "proton.me", "protonmail.com", "pm.me", "gmx.com", "gmx.net", "mail.com", "yandex.com", "zoho.com", "hey.com", "fastmail.com", "tutanota.com", "qq.com", "163.com", "comcast.net", "att.net", "verizon.net"]);
+
+function schoolLicenseCard(billing, plansInfo) {
+  const school = planFor("school");
+  const owned = billing.ownedLicense;
+  const domain = (billing.email || "").split("@")[1] || "";
+
+  if (owned && owned.active) {
+    const manage = h("button", { class: "btn btn-sm", onclick: async () => {
+      manage.disabled = true;
+      try {
+        const { url } = await api("/api/v1/billing/portal", { method: "POST", body: { target: "organization" } });
+        window.location.assign(url);
+      } catch (error) {
+        manage.disabled = false;
+        toast(error.message, true);
+      }
+    } }, "Manage license billing");
+    return h("div", { class: "card stack-sm" },
+      h("div", { class: "row-between" },
+        h("div", {}, h("h3", {}, `${owned.name} license`), h("p", { class: "muted small" },
+          `Everyone who signs up and confirms an @${owned.domain} email gets Pro.` +
+          (owned.currentPeriodEnd ? ` ${owned.cancelAtPeriodEnd ? "Ends" : "Renews"} ${formatDate(owned.currentPeriodEnd)}.` : ""))),
+        owned.canManage ? manage : null,
+      ),
+      h("p", { class: "faint small" }, `Share this with students: “Sign up at ${location.origin}/signup with your @${owned.domain} email, then confirm it.”`),
+    );
+  }
+
+  const base = h("div", { class: "stack-sm" },
+    h("h3", {}, "School & program license"),
+    h("p", { class: "muted small" }, `${school ? school.displayPrice : "$1,000"} per year. Every student and staff member who confirms an email at your school's domain gets Pro. Only that exact domain is covered, not subdomains.`),
   );
 
-  return h("div", { class: "stack" },
-    pageHead("Plan & billing", state.user.email ? `Signed in as ${state.user.email}` : null),
-    current,
-    upgrade,
-    danger,
+  if (!plansInfo.billingEnabled || !school) {
+    return h("div", { class: "card stack-sm" }, base, h("p", { class: "faint small" }, "Email us from the Contact page to set up a license or a free pilot."));
+  }
+  if (!billing.emailEnabled) {
+    return h("div", { class: "card stack-sm" }, base, h("p", { class: "faint small" }, "School licenses open soon. Email us from the Contact page to reserve one or start a pilot."));
+  }
+  if (PUBLIC_EMAIL_DOMAINS.has(domain)) {
+    return h("div", { class: "card stack-sm" }, base, h("p", { class: "faint small" }, `You're signed in with a personal @${domain} address. To buy a license, sign up with your school email instead.`));
+  }
+  if (!billing.emailVerified) {
+    return h("div", { class: "card stack-sm" }, base, h("p", { class: "faint small" }, `Confirm your email above first. The license will cover @${domain}.`));
+  }
+
+  const name = h("input", { type: "text", maxlength: 120, placeholder: "e.g. University of Florida College of Nursing", "aria-label": "School or program name" });
+  const buy = h("button", { class: "btn btn-primary", onclick: async () => {
+    if (name.value.trim().length < 2) {
+      toast("Enter your school or program name", true);
+      name.focus();
+      return;
+    }
+    buy.disabled = true;
+    await startCheckout("school", { organizationName: name.value.trim() });
+    buy.disabled = false;
+  } }, `Buy license for @${domain}`);
+
+  return h("div", { class: "card stack-sm" },
+    base,
+    h("label", { class: "field" }, "School or program name", name),
+    h("div", { class: "row" }, buy),
+    h("p", { class: "legal-note" }, "Renews yearly until canceled. Need an invoice or purchase order instead? Email us from the ", h("a", { href: "/contact" }, "Contact"), " page."),
   );
+}
+
+// ---------------------------------------------------------------------------
+// Forgot / reset password
+// ---------------------------------------------------------------------------
+
+async function viewForgotPassword() {
+  const error = h("div", { class: "form-error hidden", role: "alert" });
+  const done = h("div", { class: "card notice hidden", role: "status" });
+  const email = h("input", { type: "email", name: "email", autocomplete: "email", required: true });
+  const submit = h("button", { class: "btn btn-primary btn-block", type: "submit" }, "Send reset link");
+
+  const form = h("form", { class: "stack", onsubmit: async (event) => {
+    event.preventDefault();
+    error.classList.add("hidden");
+    submit.disabled = true;
+    try {
+      const result = await api("/api/v1/auth/password-reset/request", { method: "POST", body: { email: email.value.trim() }, allowUnauthorized: true });
+      done.textContent = result.message;
+      done.classList.remove("hidden");
+      form.classList.add("hidden");
+    } catch (err) {
+      error.textContent = err.message;
+      error.classList.remove("hidden");
+      submit.disabled = false;
+    }
+  } }, h("label", { class: "field" }, "Email", email), error, submit);
+
+  mount(h("div", {}, siteNav(),
+    h("div", { class: "auth-wrap" },
+      h("div", { class: "card auth-card stack" },
+        h("div", { class: "stack-sm" }, h("h1", {}, "Reset your password"), h("p", { class: "muted" }, "Enter your account email and we'll send you a reset link.")),
+        form, done,
+        h("p", { class: "muted small" }, link("/login", {}, "Back to sign in")),
+      ),
+    ),
+  ));
+}
+
+async function viewResetPassword() {
+  const token = new URLSearchParams(location.search).get("token") || "";
+  history.replaceState(null, "", "/reset-password");
+
+  const error = h("div", { class: "form-error hidden", role: "alert" });
+  const password = h("input", { type: "password", autocomplete: "new-password", minlength: 10, required: true });
+  const submit = h("button", { class: "btn btn-primary btn-block", type: "submit" }, "Set new password");
+
+  const form = h("form", { class: "stack", onsubmit: async (event) => {
+    event.preventDefault();
+    error.classList.add("hidden");
+    submit.disabled = true;
+    try {
+      await api("/api/v1/auth/password-reset/confirm", { method: "POST", body: { token, password: password.value }, allowUnauthorized: true });
+      toast("Password updated. Sign in with your new password.");
+      navigate("/login");
+    } catch (err) {
+      error.textContent = err.message;
+      error.classList.remove("hidden");
+      submit.disabled = false;
+    }
+  } },
+    h("label", { class: "field" }, "New password", password, h("span", { class: "faint small" }, "At least 10 characters.")),
+    error, submit);
+
+  mount(h("div", {}, siteNav(),
+    h("div", { class: "auth-wrap" },
+      h("div", { class: "card auth-card stack" },
+        h("h1", {}, "Choose a new password"),
+        token ? form : h("div", { class: "form-error" }, "This reset link is missing its token. Request a new one."),
+        h("p", { class: "muted small" }, link("/forgot-password", {}, "Request a new link")),
+      ),
+    ),
+  ));
 }
 
 // ---------------------------------------------------------------------------

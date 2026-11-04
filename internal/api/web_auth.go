@@ -93,6 +93,7 @@ func (s *Server) handlePasswordSignUp(
 		return
 	}
 
+	s.sendVerificationAfterSignUp(user)
 	s.startWebSession(w, user)
 }
 
