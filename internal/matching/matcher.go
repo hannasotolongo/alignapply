@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 	"unicode"
 
 	"github.com/hannasotolongo/casemade-backend/internal/candidate"
@@ -255,6 +256,7 @@ func Match(
 
 	criticalRequiredCount := 0
 	criticalRequiredNotSupported := 0
+	criticalRequiredMissing := 0
 
 	// Aggregate in requirement order. This keeps output deterministic even
 	// though evaluation itself is concurrent.
@@ -316,6 +318,7 @@ func Match(
 
 			if evaluation.critical {
 				criticalRequiredNotSupported++
+				criticalRequiredMissing++
 			}
 		}
 	}
@@ -353,6 +356,7 @@ func Match(
 		requiredMissing,
 		criticalRequiredCount,
 		criticalRequiredNotSupported,
+		criticalRequiredMissing,
 	)
 
 	result.Explanation = buildFitExplanation(
@@ -447,6 +451,7 @@ func evaluateRequirementEvidence(
 			result, _ := evaluateExperienceEvidence(
 				profile.Experience,
 				requirementText,
+				careerYears(profile, time.Now()),
 			)
 
 			return result
@@ -663,6 +668,7 @@ func combineEvidence(
 func evaluateExperienceEvidence(
 	evidence []candidate.Evidence,
 	requirement string,
+	datedCareerYears int,
 ) (evidenceResult, bool) {
 	requiredYears, hasYears :=
 		extractRequiredYears(requirement)
@@ -773,6 +779,13 @@ func evaluateExperienceEvidence(
 		if years > bestRelevantYears {
 			bestRelevantYears = years
 		}
+	}
+
+	// Most résumés show dates, not "N years of ...". When the relevant
+	// experience is confirmed, years measured from the résumé's work date
+	// ranges count toward the requirement.
+	if datedCareerYears > bestRelevantYears && contextResult.Level == evidenceSupported {
+		bestRelevantYears = datedCareerYears
 	}
 
 	if bestRelevantYears == 0 {
@@ -1102,6 +1115,7 @@ func determineFitCategory(
 	requiredMissing int,
 	criticalRequiredCount int,
 	criticalRequiredNotSupported int,
+	criticalRequiredMissing int,
 ) string {
 	if requiredCount == 0 {
 		// Postings that list only preferred qualifications are classified
@@ -1116,7 +1130,10 @@ func determineFitCategory(
 		}
 	}
 
-	if criticalRequiredNotSupported > 0 {
+	// A must-have that's clearly missing (license, degree, certification,
+	// required years) makes the job a reach. One that's only partly shown
+	// shouldn't, but it does keep the job below Strong Applicant.
+	if criticalRequiredMissing > 0 {
 		return "Reach"
 	}
 
@@ -1132,6 +1149,7 @@ func determineFitCategory(
 			float64(requiredCount)
 
 	if requiredMissing == 0 &&
+		criticalRequiredNotSupported == 0 &&
 		supportedRatio >= 0.75 &&
 		requiredPartial <= 1 {
 

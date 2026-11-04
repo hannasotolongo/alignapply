@@ -1033,6 +1033,7 @@ func TestFitCategoryUsesApplicantLabels(t *testing.T) {
 		0,
 		1,
 		0,
+		0,
 	)
 
 	if strong != "Strong Applicant" {
@@ -1048,6 +1049,7 @@ func TestFitCategoryUsesApplicantLabels(t *testing.T) {
 		2,
 		1,
 		1,
+		0,
 		0,
 		0,
 	)
@@ -1067,6 +1069,7 @@ func TestFitCategoryUsesApplicantLabels(t *testing.T) {
 		1,
 		1,
 		1,
+		1,
 	)
 
 	if reach != "Reach" {
@@ -1080,7 +1083,7 @@ func TestFitCategoryUsesApplicantLabels(t *testing.T) {
 func TestPreferredOnlyFitLevelAgreesWithScore(t *testing.T) {
 	cases := map[int]string{0: "Reach", 39: "Reach", 40: "Moderate Match", 75: "Strong Applicant", 100: "Strong Applicant"}
 	for percentage, want := range cases {
-		if got := determineFitCategory(percentage, 0, 0, 0, 0, 0, 0); got != want {
+		if got := determineFitCategory(percentage, 0, 0, 0, 0, 0, 0, 0); got != want {
 			t.Fatalf("preferred-only %d%%: got %q, want %q", percentage, got, want)
 		}
 	}
@@ -1129,5 +1132,16 @@ func TestRequiredQualificationCategoriesParticipateInFit(t *testing.T) {
 				category,
 			)
 		}
+	}
+}
+
+func TestPartialCriticalIsNotAutomaticallyReach(t *testing.T) {
+	// 5 required, 4 met, 1 critical requirement only partly shown.
+	if got := determineFitCategory(85, 5, 4, 1, 0, 2, 1, 0); got != "Moderate Match" {
+		t.Fatalf("partial must-have should be Moderate Match, got %q", got)
+	}
+	// A clearly missing must-have is still a reach.
+	if got := determineFitCategory(85, 5, 4, 0, 1, 2, 1, 1); got != "Reach" {
+		t.Fatalf("missing must-have should be Reach, got %q", got)
 	}
 }

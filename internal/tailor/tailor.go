@@ -38,7 +38,7 @@ func New(apiKey string) *Client {
 		APIKey:  apiKey,
 		BaseURL: "https://api.openai.com/v1",
 		Model:   defaultModel,
-		HTTP:    &http.Client{Timeout: 90 * time.Second},
+		HTTP:    &http.Client{Timeout: 150 * time.Second},
 	}
 }
 
@@ -127,8 +127,9 @@ func (c *Client) Build(ctx context.Context, request Request) (Kit, error) {
 	}
 
 	payload, err := json.Marshal(map[string]any{
-		"model": c.Model,
-		"input": []map[string]string{{"role": "user", "content": buildPrompt(request)}},
+		"model":     c.Model,
+		"reasoning": map[string]string{"effort": "low"},
+		"input":     []map[string]string{{"role": "user", "content": buildPrompt(request)}},
 		"text": map[string]any{"format": map[string]any{
 			"type": "json_schema", "name": "application_kit", "strict": true,
 			"schema": json.RawMessage(schema),
@@ -155,7 +156,11 @@ func (c *Client) Build(ctx context.Context, request Request) (Kit, error) {
 		return Kit{}, err
 	}
 	if response.StatusCode != http.StatusOK {
-		return Kit{}, fmt.Errorf("tailor: openai status %d", response.StatusCode)
+		snippet := string(body)
+		if len(snippet) > 300 {
+			snippet = snippet[:300]
+		}
+		return Kit{}, fmt.Errorf("tailor: openai status %d: %s", response.StatusCode, snippet)
 	}
 
 	var decoded struct {

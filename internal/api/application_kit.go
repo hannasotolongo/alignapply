@@ -33,21 +33,25 @@ func (s *Server) handleApplicationKit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if s.applicationKit == nil {
+		log.Printf("[application-kit] unavailable: OpenAI key not configured")
 		writeError(w, http.StatusServiceUnavailable, "Application kits aren't available right now. Please try again later.")
 		return
 	}
 	if !s.kitLimiter.Allow("kit:" + user.ID) {
+		log.Printf("[application-kit] user %s rate limited", user.ID)
 		writeError(w, http.StatusTooManyRequests, "You've built a lot of kits this hour. Give Jane a few minutes.")
 		return
 	}
 
 	var request applicationKitRequest
 	if err := decodeApplicationJSON(r, &request); err != nil {
+		log.Printf("[application-kit] user %s bad request body: %v", user.ID, err)
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 	request.ResumeText = strings.TrimSpace(request.ResumeText)
 	request.JobDescription = strings.TrimSpace(request.JobDescription)
+	log.Printf("[application-kit] START user=%s resume_chars=%d job_chars=%d", user.ID, len(request.ResumeText), len(request.JobDescription))
 	switch {
 	case request.ResumeText == "":
 		writeError(w, http.StatusBadRequest, "Add your résumé first.")
@@ -55,8 +59,9 @@ func (s *Server) handleApplicationKit(w http.ResponseWriter, r *http.Request) {
 	case len(request.ResumeText) > fitCheckMaxResumeChars:
 		writeError(w, http.StatusBadRequest, "That résumé is too long.")
 		return
-	case len(request.JobDescription) < fitCheckMinJobChars:
-		writeError(w, http.StatusBadRequest, "Jane needs the full job posting to tailor your résumé.")
+	case len(request.JobDescription) < 80:
+		log.Printf("[application-kit] user %s job description too short (%d chars)", user.ID, len(request.JobDescription))
+		writeError(w, http.StatusBadRequest, "This posting doesn't include enough detail for Jane to tailor your résumé.")
 		return
 	case len(request.JobDescription) > fitCheckMaxJobChars:
 		writeError(w, http.StatusBadRequest, "That posting is too long.")
@@ -66,7 +71,8 @@ func (s *Server) handleApplicationKit(w http.ResponseWriter, r *http.Request) {
 		request.Gaps = request.Gaps[:15]
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 100*time.Second)
+	started := time.Now()
+	ctx, cancel := context.WithTimeout(r.Context(), 160*time.Second)
 	defer cancel()
 
 	kit, err := s.applicationKit.Build(ctx, tailor.Request{
@@ -81,9 +87,10 @@ func (s *Server) handleApplicationKit(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusServiceUnavailable, err.Error())
 			return
 		}
-		log.Printf("application kit for user %s: %v", user.ID, err)
+		log.Printf("[application-kit] FAILED user=%s after=%s: %v", user.ID, time.Since(started), err)
 		writeError(w, http.StatusBadGateway, "Jane couldn't build this kit just now. Try again in a minute.")
 		return
 	}
+	log.Printf("[application-kit] DONE user=%s after=%s bullets=%d dropped=%d", user.ID, time.Since(started), len(kit.Bullets), kit.DroppedLines)
 	writeJSON(w, http.StatusOK, kit)
 }

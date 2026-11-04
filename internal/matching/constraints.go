@@ -1,7 +1,9 @@
 package matching
 
 import (
+	"regexp"
 	"strings"
+	"time"
 
 	"github.com/hannasotolongo/casemade-backend/internal/candidate"
 	"github.com/hannasotolongo/casemade-backend/internal/jobs"
@@ -19,15 +21,11 @@ func evaluateHardConstraint(
 	requirement jobs.Requirement,
 ) (evidenceResult, bool) {
 	switch requirement.Category {
-	case jobs.RequirementLicense:
+	case jobs.RequirementLicense, jobs.RequirementCertification:
+		// Résumés often combine "Licenses & Certifications", so either
+		// section can hold the credential.
 		return evaluateExplicitCredential(
-			profile.Licenses,
-			requirement.Text,
-		), true
-
-	case jobs.RequirementCertification:
-		return evaluateExplicitCredential(
-			profile.Certifications,
+			credentialEvidence(profile),
 			requirement.Text,
 		), true
 
@@ -46,6 +44,7 @@ func evaluateHardConstraint(
 			return evaluateExperienceYears(
 				profile.Experience,
 				requirement.Text,
+				careerYears(profile, time.Now()),
 			), true
 		}
 	}
@@ -66,6 +65,7 @@ func evaluateHardConstraint(
 func evaluateExperienceYears(
 	evidence []candidate.Evidence,
 	requirement string,
+	datedCareerYears int,
 ) evidenceResult {
 	requiredYears, ok :=
 		extractRequiredYears(requirement)
@@ -125,7 +125,7 @@ func evaluateExperienceYears(
 	}
 
 	if len(candidates) == 0 {
-		return missingEvidence()
+		return experienceFromDates(evidence, requirementWithoutYears, requiredYears, datedCareerYears)
 	}
 
 	// Semantic retrieval is used only to find the most relevant candidate
@@ -191,10 +191,105 @@ func evaluateExperienceYears(
 
 		// Relevant explicit experience was found, but the candidate's stated
 		// duration is below the required duration.
+		if datedCareerYears >= requiredYears && result.Level == evidenceSupported {
+			return supportedEvidence()
+		}
 		return partialEvidence()
 	}
 
-	return missingEvidence()
+	return experienceFromDates(evidence, requirementWithoutYears, requiredYears, datedCareerYears)
+}
+
+// experienceFromDates handles the common résumé that lists date ranges rather
+// than "N years of ...": if the résumé's work history shows relevant
+// experience, its dated length counts toward the required years.
+func experienceFromDates(
+	evidence []candidate.Evidence,
+	requirementWithoutYears string,
+	requiredYears int,
+	datedCareerYears int,
+) evidenceResult {
+	if datedCareerYears <= 0 {
+		return missingEvidence()
+	}
+
+	texts := make([]string, 0, len(evidence))
+	for _, item := range evidence {
+		text := normalize(item.Text)
+		if text != "" && !educationLikeEvidence(text) {
+			texts = append(texts, text)
+		}
+	}
+	if len(texts) == 0 {
+		return missingEvidence()
+	}
+
+	retrieved := currentSemanticRetriever().Retrieve(requirementWithoutYears, texts, 5)
+	combined := make([]string, 0, len(retrieved))
+	for _, item := range retrieved {
+		if text := strings.TrimSpace(item.Evidence); text != "" {
+			combined = append(combined, text)
+		}
+	}
+	if len(combined) == 0 {
+		combined = texts
+		if len(combined) > 8 {
+			combined = combined[:8]
+		}
+	}
+	joined := strings.Join(combined, "\n")
+
+	relevance := verifyEvidenceDeterministically(requirementWithoutYears, joined)
+	if relevance.Level != evidenceSupported {
+		relevance = currentEvidenceVerifier().Verify(requirementWithoutYears, joined)
+	}
+
+	switch {
+	case relevance.Level == evidenceMissing:
+		return missingEvidence()
+	case relevance.Level == evidenceSupported && datedCareerYears >= requiredYears:
+		return supportedEvidence()
+	default:
+		return partialEvidence()
+	}
+}
+
+func credentialEvidence(profile candidate.Profile) []candidate.Evidence {
+	evidence := make([]candidate.Evidence, 0, len(profile.Licenses)+len(profile.Certifications)+len(profile.Education))
+	evidence = append(evidence, profile.Licenses...)
+	evidence = append(evidence, profile.Certifications...)
+	// Résumé parsers don't always file credential lines under a credential
+	// heading ("BLS, ACLS (AHA)" can land in skills), so also include any
+	// line that names a credential explicitly.
+	for _, item := range profile.AllEvidence {
+		if credentialLine.MatchString(item.Text) {
+			evidence = append(evidence, item)
+		}
+	}
+	return evidence
+}
+
+// credentialFiller words describe a credential requirement without
+// identifying which credential it is.
+var credentialFiller = map[string]struct{}{
+	"required": {}, "require": {}, "requires": {}, "preferred": {}, "active": {}, "current": {}, "currently": {},
+	"valid": {}, "unrestricted": {}, "good": {}, "standing": {}, "must": {}, "have": {}, "hold": {}, "possess": {},
+	"certification": {}, "certifications": {}, "certified": {}, "certificate": {}, "license": {}, "licensed": {},
+	"licenses": {}, "licensure": {}, "card": {}, "state": {}, "upon": {}, "hire": {}, "within": {}, "days": {},
+	"months": {}, "obtain": {}, "maintain": {}, "eligible": {}, "eligibility": {}, "compact": {}, "multistate": {},
+	"multi": {}, "american": {}, "heart": {}, "association": {}, "aha": {}, "red": {}, "cross": {}, "both": {},
+}
+
+func credentialTokens(text string) []string {
+	text = candidate.CanonicalCredentials(text)
+	tokens := meaningfulTokens(normalize(text))
+	kept := tokens[:0]
+	for _, token := range tokens {
+		if _, filler := credentialFiller[token]; !filler {
+			kept = append(kept, token)
+		}
+	}
+	return kept
 }
 
 // Credentials are intentionally checked lexically inside their verified
@@ -210,14 +305,22 @@ func evaluateExplicitCredential(
 		return missingEvidence()
 	}
 
+	requirementTokens := credentialTokens(requirement)
+	if len(requirementTokens) == 0 {
+		return missingEvidence()
+	}
+
 	best := 0.0
 
 	for _, item := range evidence {
-		coverage :=
-			tokenCoverage(
-				requirement,
-				normalize(item.Text),
-			)
+		itemTokens := credentialTokens(item.Text)
+		matched := 0
+		for _, token := range requirementTokens {
+			if tokenDemonstrated(token, itemTokens) {
+				matched++
+			}
+		}
+		coverage := float64(matched) / float64(len(requirementTokens))
 
 		if coverage > best {
 			best = coverage
@@ -269,3 +372,5 @@ func educationLikeEvidence(text string) bool {
 
 	return false
 }
+
+var credentialLine = regexp.MustCompile(`(?i)(licens|certif|\b(bls|acls|pals|nrp|tncc|ccrn|cpr|cna|lpn|lvn|rn|aprn|np|cpa|pmp|cdl)\b)`)

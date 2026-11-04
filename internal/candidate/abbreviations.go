@@ -2,6 +2,7 @@ package candidate
 
 import (
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -71,4 +72,90 @@ func ExpandCredentialAbbreviations(text string) string {
 		return text
 	}
 	return text + "\n" + strings.Join(additions, "; ")
+}
+
+var inlineAbbreviationPatterns = func() []*regexp.Regexp {
+	patterns := make([]*regexp.Regexp, len(credentialAbbreviations))
+	for i, entry := range credentialAbbreviations {
+		dotted := strings.Join(strings.Split(entry.abbreviation, ""), `\.?`)
+		patterns[i] = regexp.MustCompile(`(?i)(^|[^A-Za-z])` + dotted + `\.?([^A-Za-z]|$)`)
+	}
+	return patterns
+}()
+
+// ReplaceCredentialAbbreviations rewrites known abbreviations to their full
+// wording ("Active FL RN license" -> "Active FL Registered Nurse license"),
+// case-insensitively, so credentials compare word for word.
+func ReplaceCredentialAbbreviations(text string) string {
+	for i, entry := range credentialAbbreviations {
+		replacement := "${1}" + strings.ToLower(entry.expansion) + "${2}"
+		// Apply twice so adjacent abbreviations ("BLS ACLS") both expand.
+		text = inlineAbbreviationPatterns[i].ReplaceAllString(text, replacement)
+		text = inlineAbbreviationPatterns[i].ReplaceAllString(text, replacement)
+	}
+	return text
+}
+
+// extraCredentialPhrases are other common ways postings and résumés spell
+// a credential.
+var extraCredentialPhrases = map[string][]string{
+	"bsn": {"bachelor's degree in nursing", "bachelors degree in nursing", "bachelor degree in nursing", "bachelor of nursing", "baccalaureate degree in nursing", "bachelor's in nursing", "bachelors in nursing"},
+	"msn": {"master's degree in nursing", "masters degree in nursing", "master of nursing"},
+	"adn": {"associate's degree in nursing", "associates degree in nursing", "associate degree nursing"},
+	"rn":  {"registered nurse license", "registered professional nurse"},
+	"bls": {"basic life support", "cpr/bls", "bls/cpr"},
+}
+
+type phraseAlias struct {
+	pattern *regexp.Regexp
+	token   string
+	length  int
+}
+
+var canonicalPhrases = func() []phraseAlias {
+	var aliases []phraseAlias
+	add := func(phrase, token string) {
+		words := strings.Fields(strings.ToLower(phrase))
+		for i, word := range words {
+			words[i] = regexp.QuoteMeta(word)
+		}
+		aliases = append(aliases, phraseAlias{
+			pattern: regexp.MustCompile(`(?i)(^|[^a-z0-9])` + strings.Join(words, `[\s,/-]+`) + `([^a-z0-9]|$)`),
+			token:   token,
+			length:  len(phrase),
+		})
+	}
+	for _, entry := range credentialAbbreviations {
+		token := strings.ToLower(entry.abbreviation)
+		add(entry.expansion, token)
+		// Dotted forms: "B.S.N." -> "bsn".
+		dotted := strings.Join(strings.Split(token, ""), `\.`) + `\.?`
+		aliases = append(aliases, phraseAlias{
+			pattern: regexp.MustCompile(`(?i)(^|[^a-z0-9])` + dotted + `([^a-z0-9]|$)`),
+			token:   token,
+			length:  len(token),
+		})
+	}
+	for token, phrases := range extraCredentialPhrases {
+		for _, phrase := range phrases {
+			add(phrase, token)
+		}
+	}
+	// Longest phrases first: "Critical Care Registered Nurse" must become
+	// "ccrn" before "Registered Nurse" can become "rn".
+	sort.SliceStable(aliases, func(i, j int) bool { return aliases[i].length > aliases[j].length })
+	return aliases
+}()
+
+// CanonicalCredentials rewrites credential phrases to one short token each,
+// so "Critical Care Registered Nurse" and "CCRN" compare as the same single
+// credential, and never as the loose words "critical" or "nurse".
+func CanonicalCredentials(text string) string {
+	text = strings.ToLower(text)
+	for _, alias := range canonicalPhrases {
+		for i := 0; i < 2; i++ {
+			text = alias.pattern.ReplaceAllString(text, "${1} "+alias.token+" ${2}")
+		}
+	}
+	return text
 }
