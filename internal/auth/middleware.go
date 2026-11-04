@@ -41,8 +41,15 @@ func (m *SessionManager) Middleware(
 				r.Header.Get("Authorization"),
 			)
 			if err != nil {
-				writeUnauthorized(w)
-				return
+				// Web clients authenticate with an HttpOnly session
+				// cookie instead of an Authorization header.
+				cookie, cookieErr := r.Cookie(SessionCookieName)
+				if cookieErr != nil ||
+					strings.TrimSpace(cookie.Value) == "" {
+					writeUnauthorized(w)
+					return
+				}
+				tokenString = strings.TrimSpace(cookie.Value)
 			}
 
 			claims, err := m.Verify(tokenString)

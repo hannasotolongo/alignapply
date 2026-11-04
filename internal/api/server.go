@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io/fs"
 	"log"
 	"net/http"
 	"sort"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/hannasotolongo/casemade-backend/internal/auth"
+	"github.com/hannasotolongo/casemade-backend/internal/billing"
 	"github.com/hannasotolongo/casemade-backend/internal/jobs"
 	"github.com/hannasotolongo/casemade-backend/internal/matching"
 	"github.com/hannasotolongo/casemade-backend/internal/repository"
@@ -32,6 +34,20 @@ type Server struct {
 	appleVerifier  *auth.AppleVerifier
 	appleClient    *auth.AppleClient
 	sessionManager *auth.SessionManager
+
+	billingRepo   *repository.BillingRepository
+	stripe        *billing.Client
+	billingConfig BillingConfig
+	web           WebConfig
+	authLimiter   *attemptLimiter
+}
+
+// WebConfig configures the browser-facing SaaS: where it is hosted (used for
+// Stripe redirect URLs), cookie security, and the static frontend to serve.
+type WebConfig struct {
+	BaseURL      string
+	CookieSecure bool
+	Static       fs.FS
 }
 
 type Repositories struct {
@@ -41,6 +57,7 @@ type Repositories struct {
 	UserJobs         *repository.UserJobsRepository
 	AppleAuth        *repository.AppleAuthRepository
 	EmailConnections *repository.EmailConnectionsRepository
+	Billing          *repository.BillingRepository
 }
 
 type Dependencies struct {
@@ -49,6 +66,10 @@ type Dependencies struct {
 	AppleVerifier  *auth.AppleVerifier
 	AppleClient    *auth.AppleClient
 	SessionManager *auth.SessionManager
+
+	Stripe        *billing.Client
+	BillingConfig BillingConfig
+	Web           WebConfig
 }
 
 type appleSignInRequest struct {
@@ -81,6 +102,8 @@ func NewServer(
 			),
 		),
 		pipeline: jobs.NewPipeline(),
+
+		authLimiter: newAttemptLimiter(10, 15*time.Minute),
 	}
 
 	if len(dependencies) > 0 {
@@ -112,6 +135,17 @@ func NewServer(
 
 		server.sessionManager =
 			deps.SessionManager
+
+		server.billingRepo =
+			deps.Repositories.Billing
+
+		server.stripe = deps.Stripe
+		server.billingConfig = deps.BillingConfig
+		server.web = deps.Web
+		server.web.BaseURL = strings.TrimRight(
+			strings.TrimSpace(server.web.BaseURL),
+			"/",
+		)
 	}
 
 	server.routes()
@@ -179,8 +213,10 @@ func (s *Server) routes() {
 		s.mux.Handle(
 			"/api/v1/email/gmail/connect",
 			s.sessionManager.Middleware(
-				http.HandlerFunc(
-					s.handleGmailConnect,
+				s.requirePro(
+					http.HandlerFunc(
+						s.handleGmailConnect,
+					),
 				),
 			),
 		)
@@ -188,8 +224,10 @@ func (s *Server) routes() {
 		s.mux.Handle(
 			"/api/v1/email/gmail/status",
 			s.sessionManager.Middleware(
-				http.HandlerFunc(
-					s.handleGmailConnectionStatus,
+				s.requirePro(
+					http.HandlerFunc(
+						s.handleGmailConnectionStatus,
+					),
 				),
 			),
 		)
@@ -197,8 +235,10 @@ func (s *Server) routes() {
 		s.mux.Handle(
 			"/api/v1/email/gmail/disconnect",
 			s.sessionManager.Middleware(
-				http.HandlerFunc(
-					s.handleGmailDisconnect,
+				s.requirePro(
+					http.HandlerFunc(
+						s.handleGmailDisconnect,
+					),
 				),
 			),
 		)
@@ -206,8 +246,10 @@ func (s *Server) routes() {
 		s.mux.Handle(
 			"/api/v1/email/gmail/profile",
 			s.sessionManager.Middleware(
-				http.HandlerFunc(
-					s.handleGmailProfile,
+				s.requirePro(
+					http.HandlerFunc(
+						s.handleGmailProfile,
+					),
 				),
 			),
 		)
@@ -215,8 +257,10 @@ func (s *Server) routes() {
 		s.mux.Handle(
 			"/api/v1/email/gmail/messages",
 			s.sessionManager.Middleware(
-				http.HandlerFunc(
-					s.handleGmailMessages,
+				s.requirePro(
+					http.HandlerFunc(
+						s.handleGmailMessages,
+					),
 				),
 			),
 		)
@@ -224,16 +268,20 @@ func (s *Server) routes() {
 		s.mux.Handle(
 			"/api/v1/email/gmail/classification-preview",
 			s.sessionManager.Middleware(
-				http.HandlerFunc(
-					s.handleGmailClassificationPreview,
+				s.requirePro(
+					http.HandlerFunc(
+						s.handleGmailClassificationPreview,
+					),
 				),
 			),
 		)
 		s.mux.Handle(
 			"/api/v1/email/gmail/sync",
 			s.sessionManager.Middleware(
-				http.HandlerFunc(
-					s.handleGmailSync,
+				s.requirePro(
+					http.HandlerFunc(
+						s.handleGmailSync,
+					),
 				),
 			),
 		)
@@ -269,15 +317,86 @@ func (s *Server) routes() {
 		)
 	}
 
-	s.mux.HandleFunc(
-		"/api/v1/job-matches",
-		s.handleJobMatches,
-	)
+	// -------------------------------------------------------------
+	// Paid / metered features. These run the expensive provider and
+	// LLM pipeline, so they always require a signed-in user.
+	// -------------------------------------------------------------
 
-	s.mux.HandleFunc(
-		"/api/v1/resume-recommendation",
-		s.handleResumeRecommendation,
-	)
+	if s.sessionManager != nil {
+		s.mux.Handle(
+			"/api/v1/job-matches",
+			s.sessionManager.Middleware(
+				http.HandlerFunc(s.handleJobMatches),
+			),
+		)
+
+		s.mux.Handle(
+			"/api/v1/resume-recommendation",
+			s.sessionManager.Middleware(
+				s.requirePro(
+					http.HandlerFunc(s.handleResumeRecommendation),
+				),
+			),
+		)
+
+		// Web (email + password) authentication.
+		s.mux.HandleFunc("/api/v1/auth/signup", s.handlePasswordSignUp)
+		s.mux.HandleFunc("/api/v1/auth/login", s.handlePasswordLogin)
+		s.mux.HandleFunc("/api/v1/auth/logout", s.handleLogout)
+
+		s.mux.Handle(
+			"/api/v1/applications/track",
+			s.sessionManager.Middleware(
+				http.HandlerFunc(s.handleTrackJob),
+			),
+		)
+
+		// Billing.
+		s.mux.Handle(
+			"/api/v1/billing/status",
+			s.sessionManager.Middleware(
+				http.HandlerFunc(s.handleBillingStatus),
+			),
+		)
+
+		s.mux.Handle(
+			"/api/v1/billing/checkout",
+			s.sessionManager.Middleware(
+				http.HandlerFunc(s.handleBillingCheckout),
+			),
+		)
+
+		s.mux.Handle(
+			"/api/v1/billing/portal",
+			s.sessionManager.Middleware(
+				http.HandlerFunc(s.handleBillingPortal),
+			),
+		)
+	} else {
+		s.mux.HandleFunc(
+			"/api/v1/job-matches",
+			s.handleAuthenticationUnavailable,
+		)
+
+		s.mux.HandleFunc(
+			"/api/v1/resume-recommendation",
+			s.handleAuthenticationUnavailable,
+		)
+	}
+
+	s.mux.HandleFunc("/api/v1/billing/plans", s.handleBillingPlans)
+
+	// Stripe calls this directly; it is authenticated by signature.
+	s.mux.HandleFunc("/api/v1/billing/webhook", s.handleStripeWebhook)
+
+	// Unknown API paths return JSON 404s rather than the web app.
+	s.mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
+		writeError(w, http.StatusNotFound, "not found")
+	})
+
+	if s.web.Static != nil {
+		s.mux.Handle("/", newStaticHandler(s.web.Static))
+	}
 }
 
 func (s *Server) Handler() http.Handler {
@@ -819,6 +938,24 @@ func (s *Server) handleAccount(
 		return
 	}
 
+	if err := s.cancelBillingForDeletedAccount(
+		r.Context(),
+		userID,
+	); err != nil {
+		log.Printf(
+			"account deletion blocked: cancel subscription for user %s: %v",
+			userID,
+			err,
+		)
+
+		writeError(
+			w,
+			http.StatusBadGateway,
+			"failed to cancel subscription; account not deleted",
+		)
+		return
+	}
+
 	if err :=
 		s.userCareerRepo.DeleteUser(
 			r.Context(),
@@ -883,9 +1020,16 @@ func (s *Server) handleJobMatches(
 		return
 	}
 
+	user, ok := s.requireSessionUser(w, r)
+	if !ok {
+		return
+	}
+
 	var request jobs.SearchRequest
 
-	decoder := json.NewDecoder(r.Body)
+	decoder := json.NewDecoder(
+		http.MaxBytesReader(w, r.Body, maxApplicationRequestBodyBytes),
+	)
 	decoder.DisallowUnknownFields()
 
 	if err := decoder.Decode(&request); err != nil {
@@ -933,6 +1077,12 @@ func (s *Server) handleJobMatches(
 		request.TargetRole,
 		request.Location,
 	)
+
+	// Count the search only once it is valid, so malformed requests do not
+	// spend a free user's weekly allowance.
+	if !s.consumeJobMatchQuota(w, r, user.ID) {
+		return
+	}
 
 	ctx, cancel :=
 		context.WithTimeout(

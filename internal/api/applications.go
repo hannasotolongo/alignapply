@@ -30,6 +30,17 @@ type applicationResponse struct {
 	Notes     string     `json:"notes"`
 	CreatedAt time.Time  `json:"createdAt"`
 	UpdatedAt time.Time  `json:"updatedAt"`
+
+	// Job is included in list responses so web clients can render the
+	// tracker without a request per application.
+	Job *applicationJobSummary `json:"job,omitempty"`
+}
+
+type applicationJobSummary struct {
+	Title    string `json:"title"`
+	Company  string `json:"company"`
+	Location string `json:"location,omitempty"`
+	ApplyURL string `json:"applyURL,omitempty"`
 }
 
 type applicationEventRequest struct {
@@ -162,10 +173,24 @@ func (s *Server) handleListApplications(
 	)
 
 	for _, application := range applications {
-		response = append(
-			response,
-			newApplicationResponse(application),
-		)
+		item := newApplicationResponse(application)
+
+		if s.jobRepo != nil {
+			job, err := s.jobRepo.GetJobByID(
+				r.Context(),
+				application.JobID,
+			)
+			if err == nil {
+				item.Job = &applicationJobSummary{
+					Title:    job.Title,
+					Company:  job.Company,
+					Location: job.Location,
+					ApplyURL: job.ApplyURL,
+				}
+			}
+		}
+
+		response = append(response, item)
 	}
 
 	writeJSON(

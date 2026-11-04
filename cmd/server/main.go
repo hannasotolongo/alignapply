@@ -10,9 +10,11 @@ import (
 
 	"github.com/hannasotolongo/casemade-backend/internal/api"
 	"github.com/hannasotolongo/casemade-backend/internal/auth"
+	"github.com/hannasotolongo/casemade-backend/internal/billing"
 	"github.com/hannasotolongo/casemade-backend/internal/database"
 	"github.com/hannasotolongo/casemade-backend/internal/matching"
 	"github.com/hannasotolongo/casemade-backend/internal/repository"
+	"github.com/hannasotolongo/casemade-backend/internal/web"
 )
 
 const (
@@ -159,22 +161,26 @@ func main() {
 	// Sign in with Apple
 	// ---------------------------------------------------------
 
+	// Optional: the web SaaS signs users in with email + password, so Sign in
+	// with Apple is only enabled when APPLE_CLIENT_ID is configured.
 	appleClientID := strings.TrimSpace(
 		os.Getenv("APPLE_CLIENT_ID"),
 	)
 
-	if appleClientID == "" {
-		log.Fatal(
-			"APPLE_CLIENT_ID environment variable is required",
-		)
-	}
+	var appleVerifier *auth.AppleVerifier
 
-	appleVerifier, err :=
-		auth.NewAppleVerifier(appleClientID)
-	if err != nil {
-		log.Fatalf(
-			"create Apple verifier: %v",
-			err,
+	if appleClientID != "" {
+		appleVerifier, err =
+			auth.NewAppleVerifier(appleClientID)
+		if err != nil {
+			log.Fatalf(
+				"create Apple verifier: %v",
+				err,
+			)
+		}
+	} else {
+		log.Println(
+			"APPLE_CLIENT_ID not set; Sign in with Apple disabled",
 		)
 	}
 
@@ -237,6 +243,12 @@ func main() {
 		)
 	}
 
+	if appleServerCredentialsConfigured && appleClientID == "" {
+		log.Fatal(
+			"APPLE_CLIENT_ID is required when Apple server credentials are configured",
+		)
+	}
+
 	if appleServerCredentialsConfigured {
 		appleClient, err =
 			auth.NewAppleClient(
@@ -269,6 +281,68 @@ func main() {
 	)
 
 	// ---------------------------------------------------------
+	// Web app + Stripe billing
+	// ---------------------------------------------------------
+
+	appBaseURL := strings.TrimRight(
+		strings.TrimSpace(os.Getenv("APP_BASE_URL")),
+		"/",
+	)
+	if appBaseURL == "" {
+		appBaseURL = "http://localhost:" + envOrDefault("PORT", defaultPort)
+	}
+
+	api.SetTrustProxyHeaders(os.Getenv("TRUST_PROXY_HEADERS") == "true")
+
+	billingRepository, err :=
+		repository.NewBillingRepository(db.Pool())
+	if err != nil {
+		log.Fatalf("create billing repository: %v", err)
+	}
+
+	billingConfig := api.BillingConfig{
+		WebhookSecret: strings.TrimSpace(os.Getenv("STRIPE_WEBHOOK_SECRET")),
+		Plans: []api.Plan{
+			{
+				Key:          "monthly",
+				Name:         "Pro Monthly",
+				Interval:     "month",
+				DisplayPrice: envOrDefault("PRO_MONTHLY_DISPLAY_PRICE", "$2.99"),
+				PriceID:      strings.TrimSpace(os.Getenv("STRIPE_PRICE_PRO_MONTHLY")),
+			},
+			{
+				Key:          "six_month",
+				Name:         "Pro 6 Months",
+				Interval:     "6 months",
+				DisplayPrice: envOrDefault("PRO_SIX_MONTH_DISPLAY_PRICE", "$14.99"),
+				PriceID:      strings.TrimSpace(os.Getenv("STRIPE_PRICE_PRO_SIX_MONTH")),
+			},
+		},
+	}
+
+	var stripeClient *billing.Client
+
+	if secret := strings.TrimSpace(os.Getenv("STRIPE_SECRET_KEY")); secret != "" {
+		stripeClient, err = billing.NewClient(secret)
+		if err != nil {
+			log.Fatalf("create Stripe client: %v", err)
+		}
+
+		if billingConfig.WebhookSecret == "" {
+			log.Fatal("STRIPE_WEBHOOK_SECRET is required when STRIPE_SECRET_KEY is set")
+		}
+
+		if billingConfig.Plans[0].PriceID == "" &&
+			billingConfig.Plans[1].PriceID == "" {
+			log.Fatal("set STRIPE_PRICE_PRO_MONTHLY and/or STRIPE_PRICE_PRO_SIX_MONTH")
+		}
+
+		log.Println("Stripe billing configured")
+	} else {
+		log.Println("STRIPE_SECRET_KEY not set; billing disabled (all users on free tier)")
+	}
+
+	// ---------------------------------------------------------
 	// API
 	// ---------------------------------------------------------
 
@@ -281,10 +355,18 @@ func main() {
 				UserJobs:         userJobsRepository,
 				AppleAuth:        appleAuthRepository,
 				EmailConnections: emailConnectionsRepository,
+				Billing:          billingRepository,
 			},
 			AppleVerifier:  appleVerifier,
 			AppleClient:    appleClient,
 			SessionManager: sessionManager,
+			Stripe:         stripeClient,
+			BillingConfig:  billingConfig,
+			Web: api.WebConfig{
+				BaseURL:      appBaseURL,
+				CookieSecure: strings.HasPrefix(appBaseURL, "https://"),
+				Static:       web.Static(),
+			},
 		},
 	)
 
@@ -312,4 +394,11 @@ func main() {
 
 		log.Fatal(err)
 	}
+}
+
+func envOrDefault(key string, fallback string) string {
+	if value := strings.TrimSpace(os.Getenv(key)); value != "" {
+		return value
+	}
+	return fallback
 }
