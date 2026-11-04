@@ -383,13 +383,28 @@ function siteNav() {
   );
 }
 
+function legalLinks(className) {
+  return h("nav", { class: className, "aria-label": "Legal" },
+    h("a", { href: "/terms" }, "Terms"),
+    h("a", { href: "/privacy" }, "Privacy"),
+    h("a", { href: "/refunds" }, "Refunds"),
+    h("a", { href: "/contact" }, "Contact"),
+  );
+}
+
 function siteFooter() {
   return h("footer", { class: "site-footer" },
     h("div", { class: "container row-between" },
-      h("span", {}, `© ${new Date().getFullYear()} ${BRAND}`),
-      h("span", {}, "Billing is handled securely by Stripe."),
+      h("span", {}, `© ${new Date().getFullYear()} ${BRAND} · Payments secured by Stripe`),
+      legalLinks("footer-links"),
     ),
   );
+}
+
+function checkoutNote() {
+  return h("p", { class: "legal-note" },
+    "Subscriptions renew automatically until you cancel. Cancel anytime. 7-day money-back guarantee on your first payment. See our ",
+    h("a", { href: "/terms" }, "Terms"), " and ", h("a", { href: "/refunds" }, "Refund Policy"), ".");
 }
 
 async function viewLanding() {
@@ -478,6 +493,7 @@ function pricingSection(plansInfo) {
       h("h2", { class: "section-title" }, "Simple pricing"),
       h("p", { class: "section-sub" }, "Start free. Upgrade when your search gets serious. Cancel anytime."),
       h("div", { class: proCards.length > 1 ? "grid-3" : "grid-2" }, free, proCards),
+      h("div", { class: "section-gap" }, checkoutNote()),
     ),
   );
 }
@@ -559,6 +575,8 @@ async function viewAuth(mode) {
     ),
     error,
     submit,
+    isSignup ? h("p", { class: "legal-note" }, "By creating an account you agree to our ",
+      h("a", { href: "/terms" }, "Terms"), " and ", h("a", { href: "/privacy" }, "Privacy Policy"), ".") : null,
   );
 
   mount(h("div", {}, siteNav(),
@@ -848,6 +866,7 @@ function appShell(active, content, usageSlot) {
       h("div", { class: "sidebar-foot" },
         usageSlot,
         h("button", { class: "btn btn-ghost btn-sm", onclick: logout }, "Sign out"),
+        legalLinks("sidebar-legal"),
       ),
     ),
     h("main", { class: "main" }, content),
@@ -1729,6 +1748,7 @@ async function viewBilling() {
                 button,
               );
             })),
+        plansInfo.billingEnabled ? checkoutNote() : null,
       )
     : null;
 

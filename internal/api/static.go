@@ -25,6 +25,11 @@ func newStaticHandler(static fs.FS) http.Handler {
 			name = "index.html"
 		}
 
+		if strings.HasPrefix(name, "legal/") {
+			http.NotFound(w, r)
+			return
+		}
+
 		if info, err := fs.Stat(static, name); err == nil && !info.IsDir() {
 			if name == "index.html" {
 				w.Header().Set("Cache-Control", "no-cache")

@@ -373,6 +373,7 @@ func main() {
 				BaseURL:      appBaseURL,
 				CookieSecure: strings.HasPrefix(appBaseURL, "https://"),
 				Static:       web.Static(),
+				SupportEmail: strings.TrimSpace(os.Getenv("SUPPORT_EMAIL")),
 			},
 		},
 	)

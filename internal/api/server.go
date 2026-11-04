@@ -48,6 +48,7 @@ type WebConfig struct {
 	BaseURL      string
 	CookieSecure bool
 	Static       fs.FS
+	SupportEmail string
 }
 
 type Repositories struct {
@@ -416,6 +417,9 @@ func (s *Server) routes() {
 	})
 
 	if s.web.Static != nil {
+		for path := range legalPages {
+			s.mux.HandleFunc(path, s.handleLegalPage)
+		}
 		s.mux.Handle("/", newStaticHandler(s.web.Static))
 	}
 }

@@ -270,6 +270,7 @@ func (s *Server) handleBillingPlans(
 		"plans":                 plans,
 		"freeJobMatchesPerWeek": FreeJobMatchesPerWeek,
 		"gmailEnabled":          gmailConfigured(),
+		"supportEmail":          strings.TrimSpace(s.web.SupportEmail),
 	})
 }
 
