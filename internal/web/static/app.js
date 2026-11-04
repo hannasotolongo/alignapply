@@ -368,7 +368,9 @@ async function render() {
 // ---------------------------------------------------------------------------
 
 function brand() {
-  return link("/", { class: "brand" }, h("span", { class: "brand-mark" }, "J"), BRAND);
+  return link("/", { class: "brand", "aria-label": BRAND },
+    h("img", { class: "brand-logo", src: "/logo-mark.svg", alt: "", width: 34, height: 34 }),
+    h("span", { class: "brand-text" }, h("span", { class: "brand-name" }, "Jane"), h("span", { class: "brand-sub" }, "Careers")));
 }
 
 function siteNav() {
@@ -407,28 +409,33 @@ function siteFooter() {
   );
 }
 
-// exampleResultCard is a clearly labeled sample of what Jane returns.
+// exampleResultCard previews Jane's matches screen with clearly labeled
+// sample data.
 function exampleResultCard() {
-  const ring = h("div", { class: "score-ring mid" }, h("span", {}, "78%"));
-  ring.style.setProperty("--pct", "78");
-  return h("div", { class: "card demo-card stack" },
+  const rows = [
+    ["ICU Registered Nurse", "Baptist Health · Miami, FL", 92, "good", "Apply. You meet every must-have."],
+    ["RN, Cardiac Step-Down", "Jackson Health · Miami, FL", 88, "good", "Strong fit. One nice-to-have to add."],
+    ["Charge Nurse, Emergency", "Mount Sinai · Miami Beach", 71, "mid", "Close one gap first: 3+ years ED."],
+  ];
+  return h("div", { class: "card demo-card stack-sm" },
     h("div", { class: "row-between" },
-      h("span", { class: "faint small" }, "Example · ICU Registered Nurse"),
-      h("span", { class: "pill" }, "Sample result")),
-    h("div", { class: "fit-summary" }, ring,
-      h("div", { class: "stack-sm" },
-        h("span", { class: "pill pill-mid" }, "Moderate Match"),
-        h("h3", { class: "verdict" }, "Worth applying if you close one gap first."),
-        h("p", { class: "faint small" }, "6 met · 1 partial · 1 missing"))),
-    h("ul", { class: "demo-list" },
-      h("li", { class: "demo-good" }, "✓ Active RN license, BLS & ACLS"),
-      h("li", { class: "demo-good" }, "✓ 2+ years acute care"),
-      h("li", { class: "demo-mid" }, "↗ Quick win: CCRN certification"),
-      h("li", { class: "demo-low" }, "✕ Real gap: Cerner EHR (you've used Epic)")),
-    h("div", { class: "demo-kit" },
-      h("span", { class: "truth-badge" }, "✓ Truth-locked Application Kit"),
-      h("p", { class: "small" }, "“Managed care for 6 patients per shift on a 32-bed med-surg unit”"),
-      h("p", { class: "faint small" }, "From your résumé: “Provided care for 6 patients per shift on a 32-bed med-surg unit”")),
+      h("div", { class: "stack-sm demo-head" },
+        h("span", { class: "demo-title" }, "Your matches today"),
+        h("span", { class: "faint small" }, "Registered Nurse · Miami, FL")),
+      h("span", { class: "pill" }, "Example")),
+    rows.map(([title, meta, pct, cls, note]) => {
+      const ring = h("div", { class: `score-ring mini ${cls}` }, h("span", {}, `${pct}%`));
+      ring.style.setProperty("--pct", String(pct));
+      return h("div", { class: "demo-match" },
+        h("div", { class: "stack-sm demo-match-text" },
+          h("strong", {}, title),
+          h("span", { class: "faint small" }, meta),
+          h("span", { class: `small demo-note demo-${cls}` }, note)),
+        ring);
+    }),
+    h("div", { class: "demo-foot" },
+      h("span", { class: "truth-badge" }, "✓ Truth-locked résumé ready for each"),
+      h("span", { class: "faint small" }, "Scored against your résumé, automatically")),
   );
 }
 
@@ -484,7 +491,7 @@ async function viewLanding() {
       h("section", { class: "section", id: "features" },
         h("div", { class: "container" },
           h("h2", { class: "section-title" }, "Everything Jane does for you"),
-          h("p", { class: "section-sub" }, "From the first search to the offer, Jane does the busywork and tells you the truth."),
+          h("p", { class: "section-sub" }, "Less searching, less guessing, more interviews. Here's how Jane gets you there."),
           h("div", { class: "grid-3 features-grid" },
             features.map(([icon, name, promise, body]) =>
               h("div", { class: "card feature-card" },

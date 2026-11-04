@@ -801,3 +801,33 @@ input:focus, textarea:focus, select:focus {
 .tracker-stat strong { font-size: 22px; font-weight: 800; }
 .tracker-stat span { font-size: 12px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.05em; }
 .tracker-stat:hover { border-color: rgba(255,255,255,0.25); }
+
+/* ---- Logo A1 ---- */
+.brand { gap: 10px; }
+.brand-logo { width: 34px; height: 34px; display: block; }
+.brand-text { display: grid; line-height: 1; }
+.brand-name { font-size: 19px; font-weight: 700; letter-spacing: -0.03em; color: #fff; }
+.brand-sub { font-size: 9.5px; font-weight: 500; letter-spacing: 0.32em; color: #a1a1aa; margin-top: 3px; text-transform: uppercase; }
+
+/* ---- Hero matches preview ---- */
+.demo-card { gap: 12px; }
+.demo-title { font-weight: 700; font-size: 16px; }
+.demo-head { gap: 2px; }
+.demo-match { display: flex; justify-content: space-between; align-items: center; gap: 14px; padding: 12px 14px; border-radius: 14px; background: rgba(255, 255, 255, 0.035); border: 1px solid rgba(255, 255, 255, 0.09); }
+.demo-match-text { gap: 2px; min-width: 0; }
+.demo-match-text strong { font-size: 15px; }
+.demo-note { margin-top: 2px; }
+.demo-good { color: var(--good); }
+.demo-mid { color: var(--mid); }
+.score-ring.mini { width: 52px; height: 52px; flex: 0 0 auto; }
+.score-ring.mini span { width: 42px; height: 42px; font-size: 13px; font-weight: 800; }
+.demo-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; padding-top: 4px; }
+.hero h1 .hl {
+  background: none;
+  -webkit-text-fill-color: #fff;
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 255, 255, 0.55);
+  text-decoration-thickness: 3px;
+  text-underline-offset: 8px;
+}
+.hero-split .demo-card { text-align: left; }

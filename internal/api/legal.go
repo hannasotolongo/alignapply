@@ -37,7 +37,7 @@ var legalShell = template.Must(template.New("legal").Parse(`<!doctype html>
 </head>
 <body>
 <header class="site-nav"><div class="container">
-  <a class="brand" href="/"><span class="brand-mark">J</span>Jane Careers</a>
+  <a class="brand" href="/" aria-label="Jane Careers"><img class="brand-logo" src="/logo-mark.svg" alt="" width="34" height="34"><span class="brand-text"><span class="brand-name">Jane</span><span class="brand-sub">Careers</span></span></a>
   <nav class="row">
     <a class="btn btn-ghost btn-sm" href="/pricing">Pricing</a>
     <a class="btn btn-primary btn-sm" href="/app/jobs">My account</a>
