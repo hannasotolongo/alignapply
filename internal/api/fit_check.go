@@ -252,7 +252,7 @@ func fitVerdict(response fitCheckResponse) string {
 		return "Worth applying if you close a gap or two first."
 	default:
 		if response.MatchPercentage >= 50 {
-			return "A stretch, but not out of reach. Close the must-have gaps first, or apply knowing it's a long shot."
+			return "A stretch, but not out of reach. Strengthen the partial matches first, or apply knowing it's a long shot."
 		}
 		return "Jane would skip this one. Your time is better spent on closer matches."
 	}
