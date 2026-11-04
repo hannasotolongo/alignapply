@@ -119,7 +119,7 @@ func NewServer(
 		),
 		pipeline: jobs.NewPipeline(),
 
-		authLimiter: newAttemptLimiter(10, 15*time.Minute),
+		authLimiter: newAttemptLimiter(20, 15*time.Minute),
 
 		kitLimiter:          newAttemptLimiter(20, time.Hour),
 		fitCheckAnonLimiter: newAttemptLimiter(fitCheckAnonymousPerDay, 24*time.Hour),

@@ -174,7 +174,7 @@ func (s *Server) handlePasswordResetRequest(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	if !s.emailEnabled() {
-		writeError(w, http.StatusServiceUnavailable, "password reset by email isn't available yet; contact support")
+		writeError(w, http.StatusServiceUnavailable, "Password reset email isn't available right now. Call customer service at 646-821-2027 and we'll help you get back in.")
 		return
 	}
 	if !s.authLimiter.Allow("reset:" + clientIP(r)) {

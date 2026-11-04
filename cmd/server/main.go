@@ -309,7 +309,9 @@ func main() {
 		appBaseURL = "http://localhost:" + envOrDefault("PORT", defaultPort)
 	}
 
-	api.SetTrustProxyHeaders(os.Getenv("TRUST_PROXY_HEADERS") == "true")
+	// Render sets RENDER=true; behind its proxy every request arrives from
+	// the same internal address, so the visitor IP must come from headers.
+	api.SetTrustProxyHeaders(os.Getenv("TRUST_PROXY_HEADERS") == "true" || os.Getenv("RENDER") != "")
 
 	billingRepository, err :=
 		repository.NewBillingRepository(db.Pool())

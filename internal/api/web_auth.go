@@ -43,7 +43,7 @@ func (s *Server) handlePasswordSignUp(
 	}
 
 	if !s.authLimiter.Allow(clientIP(r)) {
-		writeError(w, http.StatusTooManyRequests, "too many attempts; try again later")
+		writeError(w, http.StatusTooManyRequests, "Too many attempts. Wait a few minutes and try again.")
 		return
 	}
 
@@ -84,7 +84,10 @@ func (s *Server) handlePasswordSignUp(
 		passwordHash,
 	)
 	if errors.Is(err, repository.ErrEmailAlreadyRegistered) {
-		writeError(w, http.StatusConflict, "an account with this email already exists")
+		writeJSON(w, http.StatusConflict, map[string]string{
+			"error": "You already have an account with this email. Sign in instead, or reset your password if you forgot it.",
+			"code":  "account_exists",
+		})
 		return
 	}
 	if err != nil {
@@ -111,13 +114,19 @@ func (s *Server) handlePasswordLogin(
 	}
 
 	if !s.authLimiter.Allow(clientIP(r)) {
-		writeError(w, http.StatusTooManyRequests, "too many attempts; try again later")
+		writeError(w, http.StatusTooManyRequests, "Too many sign-in attempts. Wait a few minutes and try again.")
 		return
 	}
 
 	var request passwordLoginRequest
 	if err := decodeApplicationJSON(r, &request); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	// Also limit by account, so spreading guesses across IPs doesn't help.
+	if !s.authLimiter.Allow("login-email:" + strings.ToLower(strings.TrimSpace(request.Email))) {
+		writeError(w, http.StatusTooManyRequests, "Too many sign-in attempts for this account. Wait a few minutes, or reset your password.")
 		return
 	}
 
@@ -131,7 +140,7 @@ func (s *Server) handlePasswordLogin(
 		// Spend the same hashing time as a real check so that response
 		// timing does not reveal whether the email is registered.
 		_ = auth.VerifyPassword(request.Password, auth.DummyPasswordHash())
-		writeError(w, http.StatusUnauthorized, "incorrect email or password")
+		writeError(w, http.StatusUnauthorized, "That email and password don't match. Check for typos, or reset your password.")
 		return
 
 	case err != nil:
@@ -141,7 +150,7 @@ func (s *Server) handlePasswordLogin(
 	}
 
 	if err := auth.VerifyPassword(request.Password, passwordHash); err != nil {
-		writeError(w, http.StatusUnauthorized, "incorrect email or password")
+		writeError(w, http.StatusUnauthorized, "That email and password don't match. Check for typos, or reset your password.")
 		return
 	}
 
@@ -271,6 +280,12 @@ func (l *attemptLimiter) Allow(key string) bool {
 // TRUST_PROXY_HEADERS so the first X-Forwarded-For hop is used instead.
 func clientIP(r *http.Request) string {
 	if trustProxyHeaders {
+		// Render's edge (Cloudflare) sets these to the real visitor IP.
+		for _, header := range []string{"True-Client-IP", "CF-Connecting-IP"} {
+			if ip := strings.TrimSpace(r.Header.Get(header)); ip != "" {
+				return ip
+			}
+		}
 		if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
 			first, _, _ := strings.Cut(forwarded, ",")
 			if ip := strings.TrimSpace(first); ip != "" {

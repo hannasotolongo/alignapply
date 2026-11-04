@@ -729,7 +729,13 @@ async function viewAuth(mode) {
       }
       navigate(isSignup ? "/app/activate" : "/app/jobs");
     } catch (err) {
-      error.textContent = err.message;
+      const extra = [];
+      if (err.code === "account_exists") {
+        extra.push(" ", link("/login", {}, "Sign in"), " · ", link("/forgot-password", {}, "Reset password"));
+      } else if (!isSignup && err.status === 401) {
+        extra.push(" ", link("/forgot-password", {}, "Reset your password"));
+      }
+      error.replaceChildren(err.message, ...extra);
       error.classList.remove("hidden");
       submit.disabled = false;
     }
