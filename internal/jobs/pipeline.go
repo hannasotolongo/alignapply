@@ -26,7 +26,7 @@ func NewPipeline() *Pipeline {
 }
 
 // Process takes normalized jobs returned by providers and applies the
-// provider-independent rules CareerStore expects every source to follow.
+// provider-independent rules Jane Careers expects every source to follow.
 //
 // Provider-specific code should retrieve and normalize data.
 // Candidate matching belongs to the matching package.
@@ -180,7 +180,7 @@ func (p *Pipeline) Process(
 // the pipeline decides whether dated postings are plausible/current enough
 // to present to the user.
 //
-// Unknown dates remain eligible because CareerStore must not invent a posting
+// Unknown dates remain eligible because Jane Careers must not invent a posting
 // date or discard a job merely because the provider omitted one.
 func (p *Pipeline) isCurrentJob(job Job) bool {
 	now := time.Now().UTC()
@@ -420,7 +420,7 @@ func matchesMinimumSalaryPreference(
 		return true
 	}
 
-	// Unknown salary must remain eligible. Otherwise CareerStore would silently
+	// Unknown salary must remain eligible. Otherwise Jane Careers would silently
 	// discard jobs simply because a provider or employer omitted compensation.
 	if job.SalaryMin == nil &&
 		job.SalaryMax == nil {

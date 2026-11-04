@@ -66,12 +66,12 @@ func (s *Server) sendAccountEmail(ctx context.Context, user repository.User, pur
 		return err
 	}
 
-	ttl, path, subject, intro, action := verifyEmailTTL, "/verify-email", "Confirm your CareerStore email",
-		"Confirm your email address to finish setting up CareerStore. If you have a school license, confirming unlocks it.",
+	ttl, path, subject, intro, action := verifyEmailTTL, "/verify-email", "Confirm your Jane Careers email",
+		"Confirm your email address to finish setting up Jane Careers. If you have a school license, confirming unlocks it.",
 		"Confirm email"
 	if purpose == purposeResetPassword {
-		ttl, path, subject, intro, action = resetPasswordTTL, "/reset-password", "Reset your CareerStore password",
-			"We received a request to reset your CareerStore password. This link expires in 1 hour. If you didn't ask for this, you can ignore this email.",
+		ttl, path, subject, intro, action = resetPasswordTTL, "/reset-password", "Reset your Jane Careers password",
+			"We received a request to reset your Jane Careers password. This link expires in 1 hour. If you didn't ask for this, you can ignore this email.",
 			"Reset password"
 	}
 
@@ -83,9 +83,9 @@ func (s *Server) sendAccountEmail(ctx context.Context, user repository.User, pur
 	return s.mailer.Send(ctx, mailer.Message{
 		To:      user.Email,
 		Subject: subject,
-		Text:    intro + "\n\n" + action + ": " + link + "\n\n— CareerStore",
+		Text:    intro + "\n\n" + action + ": " + link + "\n\n— Jane Careers",
 		HTML: `<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;color:#111">` +
-			`<h2 style="margin:0 0 12px">CareerStore</h2>` +
+			`<h2 style="margin:0 0 12px">Jane Careers</h2>` +
 			`<p style="line-height:1.6">` + html.EscapeString(intro) + `</p>` +
 			`<p style="margin:24px 0"><a href="` + html.EscapeString(link) + `" style="background:#111;color:#fff;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:600">` + action + `</a></p>` +
 			`<p style="color:#666;font-size:13px;line-height:1.5">Or paste this link into your browser:<br>` + html.EscapeString(link) + `</p></div>`,
