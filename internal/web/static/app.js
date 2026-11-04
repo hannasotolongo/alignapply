@@ -436,10 +436,13 @@ async function viewLanding() {
   const plansInfo = await loadPlans();
   const signedIn = !!state.user;
 
-  const steps = [
-    ["1", "Check", "Should I apply?", "Paste any job. Jane checks every requirement against your résumé and gives you a straight answer: apply, close a gap first, or skip it."],
-    ["2", "Close", "What am I missing?", "Gap Closer sorts every gap: things you probably have but didn't list, quick certifications, and real gaps worth knowing about."],
-    ["3", "Apply", "Make my résumé fit.", "Jane tailors your résumé to the job and preps you for the interview, then sends you to the employer's real application page."],
+  const features = [
+    ["%", "Fit Check", "Know your odds before you apply.", "Paste any job. Jane checks every requirement against your résumé and tells you straight: apply, close a gap first, or skip it."],
+    ["↗", "Gap Closer", "Close the gaps that cost you interviews.", "Every missing requirement, sorted: things you have but didn't list, quick certifications, and real gaps worth knowing about."],
+    ["✓", "Truth-locked Application Kit", "A résumé tailored to every job. Every word true.", "Jane rewrites your summary and bullets for the job, adds the right keywords, and preps you for the interview, using only what's on your résumé."],
+    ["⇄", "Best-résumé pick", "Got more than one résumé? Jane picks the winner.", "Upload every version you have. For each job, Jane scores them all and tells you which one to send."],
+    ["⌕", "Smart job search", "Jobs that fit you, best match first.", "Search by role and city. Jane ranks every posting by how well you fit, and links you straight to the employer's real application page."],
+    ["▤", "Application tracker", "Every application in one place.", "Save jobs, mark them applied, and move them through interview and offer, so you always know where you stand and who to follow up with."],
   ];
 
   const compare = [
@@ -467,7 +470,7 @@ async function viewLanding() {
           h("div", { class: "hero-copy" },
             h("span", { class: "pill eyebrow" }, "Meet Jane, your job-search copilot"),
             h("h1", {}, "Know if you'll get the interview ", h("span", { class: "hl" }, "before"), " you apply."),
-            h("p", { class: "lead" }, "Jane checks every requirement in a job against your résumé, tells you straight whether to apply, and tailors your résumé for the job without making anything up."),
+            h("p", { class: "lead" }, "Paste any job. Jane shows your odds, closes your gaps, and tailors your résumé, without making anything up."),
             h("div", { class: "row" },
               signedIn
                 ? link("/app/fit-check", { class: "btn btn-primary btn-lg" }, "Check a job now")
@@ -479,18 +482,22 @@ async function viewLanding() {
           exampleResultCard(),
         ),
       ),
-      h("section", { class: "section" },
+      h("section", { class: "section", id: "features" },
         h("div", { class: "container" },
-          h("h2", { class: "section-title" }, "Jane does three things job boards don't"),
-          h("div", { class: "grid-3 steps-big" },
-            steps.map(([number, verb, question, body]) =>
-              h("div", { class: "card step-card" },
-                h("div", { class: "step-num", "aria-hidden": "true" }, number),
-                h("span", { class: "section-label" }, verb),
-                h("h3", {}, question),
+          h("h2", { class: "section-title" }, "Everything Jane does for you"),
+          h("p", { class: "section-sub" }, "From the first search to the offer, Jane does the busywork and tells you the truth."),
+          h("div", { class: "grid-3 features-grid" },
+            features.map(([icon, name, promise, body]) =>
+              h("div", { class: "card feature-card" },
+                h("div", { class: "row" },
+                  h("div", { class: "step-num", "aria-hidden": "true" }, icon),
+                  h("span", { class: "section-label" }, name)),
+                h("h3", {}, promise),
                 h("p", { class: "muted" }, body),
               )),
           ),
+          h("div", { class: "row center section-gap" },
+            link(signedIn ? "/app/jobs" : "/signup", { class: "btn btn-primary btn-lg" }, signedIn ? "Go to my account" : "Get all of it free for 3 days")),
         ),
       ),
       signedIn ? null : h("section", { class: "section section-alt", id: "fit-check" },
@@ -590,7 +597,7 @@ function planCards(plansInfo, { compact = false } = {}) {
     "Unlimited Fit Checks and job-match searches",
     "Gap Closer for every job",
     "Best-résumé pick for each application",
-    "Application tracker with Gmail sync",
+    plansInfo.gmailEnabled ? "Application tracker with Gmail sync" : "Application tracker, from saved to offer",
   ];
   const ticks = () => h("ul", { class: "ticks" }, features.map((f) => h("li", {}, f)));
 
@@ -2226,7 +2233,7 @@ async function viewActivate() {
       h("li", {}, "Every requirement checked against your real experience"),
       h("li", {}, "Gap Closer: what to add, what to learn, what to skip"),
       h("li", {}, "Direct links to the employer's own application page"),
-      h("li", {}, "Application tracker with Gmail sync"),
+      h("li", {}, plansInfo.gmailEnabled ? "Application tracker with Gmail sync" : "Application tracker, from saved to offer"),
     ),
     checkoutNote(),
     h("div", { class: "card inset" }, school),
