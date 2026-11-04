@@ -993,7 +993,7 @@ function appShell(active, content, usageSlot) {
     ["jobs", "/app/jobs", "⌕", "Find jobs"],
     ["applications", "/app/applications", "▤", "My applications"],
     ["resumes", "/app/resumes", "⇪", "My résumés"],
-    ["profile", "/app/profile", "☺", "My profile"],
+    ["profile", "/app/profile", { img: "/icon-user.svg" }, "My profile"],
     ["billing", "/app/billing", "$", "Plan & billing"],
   ];
 
@@ -1003,7 +1003,8 @@ function appShell(active, content, usageSlot) {
       h("nav", { "aria-label": "Account" },
         items.map(([key, href, icon, label]) =>
           link(href, { class: key === active ? "nav-link active" : "nav-link", "aria-current": key === active ? "page" : undefined },
-            h("span", { class: "nav-icon", "aria-hidden": "true" }, icon), label)),
+            h("span", { class: "nav-icon", "aria-hidden": "true" },
+              typeof icon === "string" ? icon : h("img", { src: icon.img, alt: "", width: 15, height: 15 })), label)),
       ),
       h("div", { class: "sidebar-foot" },
         usageSlot,

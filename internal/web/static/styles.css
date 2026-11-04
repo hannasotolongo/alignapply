@@ -842,3 +842,4 @@ input:focus, textarea:focus, select:focus {
   -webkit-text-fill-color: #fff;
   background: linear-gradient(transparent 62%, rgba(255, 255, 255, 0.22) 0);
 }
+.nav-icon img { display: block; margin: 0 auto; opacity: 0.85; }
