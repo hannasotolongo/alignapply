@@ -831,3 +831,14 @@ input:focus, textarea:focus, select:focus {
   text-underline-offset: 8px;
 }
 .hero-split .demo-card { text-align: left; }
+
+/* ---- Logo size and headline highlight ---- */
+.brand-logo { width: 42px; height: 42px; }
+.brand-name { font-size: 22px; }
+.brand-sub { font-size: 10.5px; }
+.app-shell .brand-logo, .sidebar .brand-logo { width: 38px; height: 38px; }
+.hero h1 .hl {
+  text-decoration: none;
+  -webkit-text-fill-color: #fff;
+  background: linear-gradient(transparent 62%, rgba(255, 255, 255, 0.22) 0);
+}

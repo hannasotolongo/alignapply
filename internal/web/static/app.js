@@ -369,7 +369,7 @@ async function render() {
 
 function brand() {
   return link("/", { class: "brand", "aria-label": BRAND },
-    h("img", { class: "brand-logo", src: "/logo-mark.svg", alt: "", width: 34, height: 34 }),
+    h("img", { class: "brand-logo", src: "/logo-mark.svg", alt: "", width: 42, height: 42 }),
     h("span", { class: "brand-text" }, h("span", { class: "brand-name" }, "Jane"), h("span", { class: "brand-sub" }, "Careers")));
 }
 
