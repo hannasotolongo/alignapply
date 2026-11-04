@@ -345,6 +345,27 @@ func (s *Server) routes() {
 		s.mux.HandleFunc("/api/v1/auth/logout", s.handleLogout)
 
 		s.mux.Handle(
+			"/api/v1/resumes",
+			s.sessionManager.Middleware(
+				http.HandlerFunc(s.handleResumes),
+			),
+		)
+
+		s.mux.Handle(
+			"/api/v1/resumes/",
+			s.sessionManager.Middleware(
+				http.HandlerFunc(s.handleResumeResource),
+			),
+		)
+
+		s.mux.Handle(
+			"/api/v1/preferences",
+			s.sessionManager.Middleware(
+				http.HandlerFunc(s.handlePreferences),
+			),
+		)
+
+		s.mux.Handle(
 			"/api/v1/applications/track",
 			s.sessionManager.Middleware(
 				http.HandlerFunc(s.handleTrackJob),

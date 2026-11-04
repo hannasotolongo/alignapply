@@ -128,6 +128,16 @@ func (s *Server) handleGmailCallback(
 		return
 	}
 
+	if s.web.Static != nil && s.web.BaseURL != "" {
+		http.Redirect(
+			w,
+			r,
+			s.web.BaseURL+"/app/applications?gmail=connected",
+			http.StatusFound,
+		)
+		return
+	}
+
 	writeJSON(
 		w,
 		http.StatusOK,

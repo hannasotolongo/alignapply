@@ -388,6 +388,67 @@ func TestWebSaaSIntegration(t *testing.T) {
 		}
 	})
 
+	t.Run("résumé library, profile draft, and preferences", func(t *testing.T) {
+		resumeText := "Jane Doe\nSUMMARY\nBackend engineer with 5 years of experience building Go services.\n" +
+			"EXPERIENCE\nSoftware Engineer, Acme Corp 2020-2025\nBuilt REST APIs in Go and PostgreSQL.\n" +
+			"EDUCATION\nB.S. Computer Science, University of Florida\nSKILLS\nGo, PostgreSQL, Docker"
+
+		if short := do(http.MethodPost, "/api/v1/resumes", map[string]any{"filename": "x.pdf", "resumeText": "too short"}, session, nil); short.Code != http.StatusBadRequest {
+			t.Fatalf("short résumé status = %d, want 400", short.Code)
+		}
+
+		created := do(http.MethodPost, "/api/v1/resumes", map[string]any{"filename": "jane.pdf", "resumeText": resumeText}, session, nil)
+		if created.Code != http.StatusCreated {
+			t.Fatalf("create résumé status = %d; body = %s", created.Code, created.Body)
+		}
+		var resume resumeResponse
+		_ = json.NewDecoder(created.Body).Decode(&resume)
+		if resume.ID == "" || !resume.IsPrimary || resume.ResumeText != "" {
+			t.Fatalf("created résumé = %+v (first résumé must be primary; text must not be echoed)", resume)
+		}
+
+		list := do(http.MethodGet, "/api/v1/resumes", nil, session, nil)
+		var resumes []resumeResponse
+		_ = json.NewDecoder(list.Body).Decode(&resumes)
+		if len(resumes) != 1 || resumes[0].ResumeText != "" {
+			t.Fatalf("list = %+v", resumes)
+		}
+
+		full := do(http.MethodGet, "/api/v1/resumes/"+resume.ID, nil, session, nil)
+		var fullResume resumeResponse
+		_ = json.NewDecoder(full.Body).Decode(&fullResume)
+		if !strings.Contains(fullResume.ResumeText, "PostgreSQL") {
+			t.Fatalf("full résumé text missing: %+v", fullResume)
+		}
+
+		draft := do(http.MethodGet, "/api/v1/resumes/"+resume.ID+"/profile-draft", nil, session, nil)
+		var draftBody profileDraftResponse
+		_ = json.NewDecoder(draft.Body).Decode(&draftBody)
+		if draft.Code != http.StatusOK || len(draftBody.Evidence) == 0 {
+			t.Fatalf("profile draft = %d %+v", draft.Code, draftBody)
+		}
+
+		// Another user's ID cannot read this résumé.
+		if missing := do(http.MethodGet, "/api/v1/resumes/00000000-0000-0000-0000-000000000000", nil, session, nil); missing.Code != http.StatusNotFound {
+			t.Fatalf("unknown résumé status = %d, want 404", missing.Code)
+		}
+
+		saved := do(http.MethodPut, "/api/v1/preferences", map[string]any{"minimumSalary": "90000", "remote": true, "onboardingComplete": true}, session, nil)
+		if saved.Code != http.StatusOK {
+			t.Fatalf("save preferences = %d %s", saved.Code, saved.Body)
+		}
+		got := do(http.MethodGet, "/api/v1/preferences", nil, session, nil)
+		var preferences preferencesPayload
+		_ = json.NewDecoder(got.Body).Decode(&preferences)
+		if !preferences.Remote || preferences.MinimumSalary != "90000" || !preferences.OnboardingComplete {
+			t.Fatalf("preferences = %+v", preferences)
+		}
+
+		if deleted := do(http.MethodDelete, "/api/v1/resumes/"+resume.ID, nil, session, nil); deleted.Code != http.StatusNoContent {
+			t.Fatalf("delete résumé = %d", deleted.Code)
+		}
+	})
+
 	t.Run("web app routes fall back to index and API 404s stay JSON", func(t *testing.T) {
 		page := do(http.MethodGet, "/app/jobs", nil, nil, nil)
 		if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "AlignApply") {

@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"io/fs"
 	"os"
 	"testing"
 	"time"
@@ -36,8 +37,9 @@ func TestMigrateFreshDatabaseIsIdempotent(t *testing.T) {
 	if err := db.Pool().QueryRow(ctx, `SELECT COUNT(*) FROM schema_migrations`).Scan(&count); err != nil {
 		t.Fatal(err)
 	}
-	if count != 6 {
-		t.Fatalf("schema_migrations rows = %d, want 6", count)
+	files, _ := fs.Glob(migrations.Files, "*.sql")
+	if count != len(files) {
+		t.Fatalf("schema_migrations rows = %d, want %d", count, len(files))
 	}
 
 	var hasSubscriptions bool

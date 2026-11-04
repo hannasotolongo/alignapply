@@ -1,4 +1,4 @@
-# AlignApply web SaaS: setup
+# CaseMade web SaaS: setup
 
 The Go server serves both the API and the web app (`internal/web/static`,
 embedded into the binary). One deploy, one origin, no CORS.
@@ -11,7 +11,7 @@ embedded into the binary). One deploy, one origin, no CORS.
 | Plans | **Free**: 3 job-match searches per rolling week, career profile, application tracker. **Pro**: unlimited searches (30/hour fair-use ceiling), resume recommendation, Gmail sync. |
 | Billing | Stripe Checkout (subscribe), Stripe Billing Portal (change plan, update card, cancel), signed + idempotent webhooks. Deleting an account cancels its subscription immediately. |
 | Enforcement | All checks are server-side. `/job-matches` now requires sign-in and is metered; `/resume-recommendation` and all Gmail endpoints require Pro (HTTP 402 `pro_required` otherwise). |
-| Web app | Landing + pricing, sign up / sign in, Find jobs, Applications board with timeline, Career profile editor, Plan & billing. |
+| Web app | Landing + pricing, sign up / sign in, 4-step onboarding (résumé → about you → preferences → ready), Find jobs with a résumé picker, job detail with full description, My jobs board (Saved / Applied / Interview / Offer / Closed) with timelines, résumé library (PDFs read in the browser with pdf.js; only text is stored), career profile with résumé prefill, Pro best-résumé recommendation, Pro Gmail sync, Plan & billing. |
 
 ## 1. Database migrations
 
@@ -27,7 +27,7 @@ to create the web service and database together.
 
 In the Stripe dashboard (start in **test mode**):
 
-1. **Product catalog → Add product** "AlignApply Pro" with two recurring prices:
+1. **Product catalog → Add product** "CaseMade Pro" with two recurring prices:
    - $2.99 every 1 month → copy its `price_…` ID
    - $14.99 every 6 months → copy its `price_…` ID
 2. **Settings → Billing → Customer portal**: turn on cancel, update payment
@@ -77,3 +77,18 @@ go test ./...
 PostgreSQL and a fake Stripe server: sign-up, cookie session, free quota,
 Pro gate, checkout, webhook signature and replay, cancellation, job tracking,
 and account deletion.
+
+## Gmail sync (Pro, optional)
+
+Gmail sync is hidden in the web app until Google OAuth is configured.
+
+1. Google Cloud Console → create an OAuth client (type **Web application**).
+2. Authorized redirect URI: `https://YOUR_DOMAIN/api/v1/email/gmail/callback`
+3. Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and
+   `GOOGLE_REDIRECT_URL` (the URI above) on the server.
+4. `gmail.readonly` is a **restricted** Google scope. Before the public can
+   use it, Google requires app verification and an annual third-party
+   security assessment. Until then it works only for up to 100 test users
+   you add on the OAuth consent screen.
+
+After connecting, Google sends the user back to **My jobs**.

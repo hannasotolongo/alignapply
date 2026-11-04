@@ -2,8 +2,10 @@ package api
 
 import (
 	"context"
+
 	"encoding/json"
 	"errors"
+	emailservice "github.com/hannasotolongo/casemade-backend/internal/email"
 	"io"
 	"log"
 	"net/http"
@@ -146,7 +148,7 @@ func (s *Server) requirePro(next http.Handler) http.Handler {
 
 		if !current.Pro {
 			writeJSON(w, http.StatusPaymentRequired, map[string]string{
-				"error": "this feature requires AlignApply Pro",
+				"error": "this feature requires CaseMade Pro",
 				"code":  "pro_required",
 			})
 			return
@@ -267,6 +269,7 @@ func (s *Server) handleBillingPlans(
 		"billingEnabled":        s.billingEnabled(),
 		"plans":                 plans,
 		"freeJobMatchesPerWeek": FreeJobMatchesPerWeek,
+		"gmailEnabled":          gmailConfigured(),
 	})
 }
 
@@ -646,4 +649,11 @@ func (s *Server) cancelBillingForDeletedAccount(
 	defer cancel()
 
 	return s.stripe.CancelSubscription(cancelCtx, subscription.StripeSubscriptionID)
+}
+
+// gmailConfigured reports whether Google OAuth is set up on this server, so
+// the web app can hide Gmail sync instead of sending users to an error.
+func gmailConfigured() bool {
+	_, err := emailservice.GmailOAuthConfig()
+	return err == nil
 }
