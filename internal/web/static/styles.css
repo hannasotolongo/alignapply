@@ -766,3 +766,33 @@ input:focus, textarea:focus, select:focus {
   .btn, .feature-card, .price-card, .step-card { transition: none; }
   .btn-primary:hover, .feature-card:hover, .price-card:hover, .step-card:hover { transform: none; }
 }
+
+/* ---- Ease of use ---- */
+.nav-link { display: flex; align-items: center; gap: 10px; }
+.nav-icon { width: 20px; text-align: center; opacity: 0.75; font-size: 14px; }
+.nav-link.active .nav-icon { opacity: 1; }
+
+.home-actions { gap: 16px; }
+.home-action { display: grid; gap: 10px; align-content: start; text-decoration: none; color: inherit; transition: transform 0.2s ease, border-color 0.2s ease; }
+.home-action:hover { transform: translateY(-3px); border-color: rgba(255, 255, 255, 0.25); }
+.home-action h3 { font-size: 20px; margin: 0; }
+.home-action p { margin: 0; }
+.home-cta { font-weight: 700; margin-top: 4px; }
+.checklist { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.checklist li { display: flex; align-items: center; gap: 12px; }
+.checklist li > span:nth-child(2) { flex: 1; }
+.checklist li.done > span:nth-child(2) { color: var(--text-3); text-decoration: line-through; }
+.check-mark { width: 22px; height: 22px; border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.3); display: grid; place-items: center; font-size: 12px; font-weight: 800; }
+.checklist li.done .check-mark { background: #fff; color: #050506; border-color: #fff; }
+.how-it-works { text-align: left; }
+.steps-inline { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 8px; color: var(--text-2); }
+
+@media (max-width: 860px) {
+  .sidebar { display: grid; grid-template-columns: 1fr auto; gap: 10px; }
+  .sidebar .sidebar-legal { display: none; }
+  .sidebar-foot { grid-column: 2; grid-row: 1; margin: 0; }
+  .sidebar nav { grid-column: 1 / -1; grid-row: 2; display: flex; overflow-x: auto; gap: 6px; padding-bottom: 2px;
+    -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent); mask-image: linear-gradient(90deg, #000 85%, transparent); }
+  .sidebar nav .nav-link { flex: 0 0 auto; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 999px; padding: 7px 12px; }
+  .nav-icon { display: none; }
+}

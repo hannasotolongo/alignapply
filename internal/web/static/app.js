@@ -329,7 +329,8 @@ const routes = {
   "/signup": () => viewAuth("signup"),
   "/forgot-password": viewForgotPassword,
   "/reset-password": viewResetPassword,
-  "/app": () => navigate("/app/jobs", { replace: true }),
+  "/app": () => appPage("home", viewHome),
+  "/app/home": () => navigate("/app", { replace: true }),
   "/app/welcome": viewOnboarding,
   "/app/activate": viewActivate,
   "/app/fit-check": () => appPage("fit", viewFitCheckApp),
@@ -378,7 +379,7 @@ function siteNav() {
       h("nav", { class: "row" },
         link("/pricing", { class: "btn btn-ghost btn-sm" }, "Pricing"),
         signedIn
-          ? link("/app/jobs", { class: "btn btn-primary btn-sm" }, "My account")
+          ? link("/app", { class: "btn btn-primary btn-sm" }, "My account")
           : [
               link("/login", { class: "btn btn-ghost btn-sm" }, "Sign in"),
               link("/signup", { class: "btn btn-primary btn-sm" }, "Get started"),
@@ -475,7 +476,7 @@ async function viewLanding() {
               signedIn
                 ? link("/app/fit-check", { class: "btn btn-primary btn-lg" }, "Check a job now")
                 : h("a", { class: "btn btn-primary btn-lg", href: "#fit-check" }, "Check a job free"),
-              link(signedIn ? "/app/jobs" : "/signup", { class: "btn btn-lg" }, signedIn ? "Go to my account" : "Start 3-day free trial"),
+              link(signedIn ? "/app" : "/signup", { class: "btn btn-lg" }, signedIn ? "Go to my account" : "Start 3-day free trial"),
             ),
             h("p", { class: "faint small hero-note" }, "Free Fit Check, no account needed · Cancel anytime"),
           ),
@@ -497,7 +498,7 @@ async function viewLanding() {
               )),
           ),
           h("div", { class: "row center section-gap" },
-            link(signedIn ? "/app/jobs" : "/signup", { class: "btn btn-primary btn-lg" }, signedIn ? "Go to my account" : "Get all of it free for 3 days")),
+            link(signedIn ? "/app" : "/signup", { class: "btn btn-primary btn-lg" }, signedIn ? "Go to my account" : "Get all of it free for 3 days")),
         ),
       ),
       signedIn ? null : h("section", { class: "section section-alt", id: "fit-check" },
@@ -697,7 +698,7 @@ function viewNotFound() {
 async function viewAuth(mode) {
   if (state.user === undefined) await loadUser();
   if (state.user) {
-    navigate("/app/jobs", { replace: true });
+    navigate("/app", { replace: true });
     return;
   }
 
@@ -727,7 +728,7 @@ async function viewAuth(mode) {
         await startCheckout(pendingPlan);
         return;
       }
-      navigate(isSignup ? "/app/activate" : "/app/jobs");
+      navigate(isSignup ? "/app/activate" : "/app");
     } catch (err) {
       const extra = [];
       if (err.code === "account_exists") {
@@ -951,8 +952,12 @@ async function viewOnboarding() {
 
 async function finishOnboarding(autoSearch) {
   try { await savePreferences({ onboardingComplete: true }); } catch (error) { console.error(error); }
-  if (autoSearch) sessionStorage.setItem("janecareers.autoSearch", "1");
-  navigate("/app/jobs");
+  if (autoSearch) {
+    sessionStorage.setItem("janecareers.autoSearch", "1");
+    navigate("/app/jobs");
+    return;
+  }
+  navigate("/app");
 }
 
 // Merge a résumé-derived draft into the editable profile draft.
@@ -1033,20 +1038,22 @@ async function appPage(active, view) {
 
 function appShell(active, content, usageSlot) {
   const items = [
-    ["jobs", "/app/jobs", "Find jobs"],
-    ["fit", "/app/fit-check", "Fit Check"],
-    ["applications", "/app/applications", "My jobs"],
-    ["resumes", "/app/resumes", "Résumés"],
-    ["profile", "/app/profile", "Career profile"],
-    ["billing", "/app/billing", "Plan & billing"],
+    ["home", "/app", "⌂", "Home"],
+    ["fit", "/app/fit-check", "%", "Check a job"],
+    ["jobs", "/app/jobs", "⌕", "Find jobs"],
+    ["applications", "/app/applications", "▤", "My applications"],
+    ["resumes", "/app/resumes", "⇪", "My résumés"],
+    ["profile", "/app/profile", "☺", "My profile"],
+    ["billing", "/app/billing", "$", "Plan & billing"],
   ];
 
   return h("div", { class: "shell" },
     h("aside", { class: "sidebar" },
       brand(),
       h("nav", { "aria-label": "Account" },
-        items.map(([key, href, label]) =>
-          link(href, { class: key === active ? "nav-link active" : "nav-link", "aria-current": key === active ? "page" : undefined }, label)),
+        items.map(([key, href, icon, label]) =>
+          link(href, { class: key === active ? "nav-link active" : "nav-link", "aria-current": key === active ? "page" : undefined },
+            h("span", { class: "nav-icon", "aria-hidden": "true" }, icon), label)),
       ),
       h("div", { class: "sidebar-foot" },
         usageSlot,
@@ -1364,14 +1371,16 @@ async function viewJobs() {
   }
 
   const last = state.lastSearch && state.lastSearch.request;
-  const targetRole = h("input", { type: "text", required: true, maxlength: 200, value: (last && last.targetRole) || profile.targetRole || "" });
-  const location = h("input", { type: "text", required: true, maxlength: 200, value: (last && last.location) || profile.location || "" });
+  const targetRole = h("input", { type: "text", required: true, maxlength: 200, placeholder: "e.g. Registered Nurse", value: (last && last.targetRole) || profile.targetRole || "" });
+  const location = h("input", { type: "text", required: true, maxlength: 200, placeholder: "e.g. Miami, FL", value: (last && last.location) || profile.location || "" });
   const minimumSalary = h("input", { type: "text", inputmode: "numeric", placeholder: "Optional", value: (last && last.minimumSalary) || preferences.minimumSalary || "" });
   const remote = h("input", { type: "checkbox" });
   const hybrid = h("input", { type: "checkbox" });
   const onsite = h("input", { type: "checkbox" });
   const source = last || preferences;
   remote.checked = !!source.remote; hybrid.checked = !!source.hybrid; onsite.checked = !!source.onsite;
+  // No work style chosen yet means "any": start with all three on.
+  if (!remote.checked && !hybrid.checked && !onsite.checked) remote.checked = hybrid.checked = onsite.checked = true;
 
   // Which evidence to search with: the career profile plus an optional résumé.
   const resumeSelect = h("select", { "aria-label": "Résumé to search with" },
@@ -1383,7 +1392,7 @@ async function viewJobs() {
   if (!hasProfile && !resumeSelect.value && resumes.length) resumeSelect.value = resumes[0].id;
 
   const results = h("div", { class: "stack" });
-  const submit = h("button", { class: "btn btn-primary", type: "submit" }, "Find matches");
+  const submit = h("button", { class: "btn btn-primary", type: "submit" }, "Find my matches");
 
   const runSearch = async () => {
     const resumeId = resumeSelect.value;
@@ -1397,12 +1406,24 @@ async function viewJobs() {
       onsite: onsite.checked,
     };
     if (!request.targetRole || !request.location) {
-      toast("Target role and location are required", true);
+      toast("Add the job title you want and a city.", true);
+      (request.targetRole ? location : targetRole).focus();
       return;
+    }
+    if (!request.remote && !request.hybrid && !request.onsite) {
+      remote.checked = hybrid.checked = onsite.checked = true;
+      request.remote = request.hybrid = request.onsite = true;
     }
 
     submit.disabled = true;
-    results.replaceChildren(h("div", { class: "card" }, spinnerRow("Searching employers and checking every requirement. This can take up to 20 seconds…")));
+    const progress = h("div", { class: "card" }, spinnerRow("Jane is searching employers…"));
+    results.replaceChildren(progress);
+    const steps = ["Jane is searching employers…", "Checking every requirement against your résumé…", "Ranking jobs by how well you fit…", "Almost done…"];
+    let stepIndex = 0;
+    const ticker = setInterval(() => {
+      stepIndex = Math.min(stepIndex + 1, steps.length - 1);
+      progress.replaceChildren(spinnerRow(steps[stepIndex]));
+    }, 6000);
 
     try {
       if (resumeId) request.resumeText = await resumeText(resumeId);
@@ -1416,6 +1437,7 @@ async function viewJobs() {
         ? paywall("Your matches are ready to check", "Start your free trial to see every job ranked by how well your experience fits, with what you meet, what's partial, and what's missing.")
         : h("div", { class: "form-error" }, error.message));
     } finally {
+      clearInterval(ticker);
       submit.disabled = false;
       await loadBilling();
       refreshUsage();
@@ -1424,9 +1446,9 @@ async function viewJobs() {
 
   const form = h("form", { class: "card stack", onsubmit: (event) => { event.preventDefault(); runSearch(); } },
     h("div", { class: "grid-3" },
-      h("label", { class: "field" }, "Target role", targetRole),
-      h("label", { class: "field" }, "Location", location),
-      h("label", { class: "field" }, "Minimum salary", minimumSalary),
+      h("label", { class: "field" }, "Job title you want", targetRole),
+      h("label", { class: "field" }, "City", location),
+      h("label", { class: "field" }, "Minimum yearly pay", minimumSalary),
     ),
     h("div", { class: "row-between" },
       h("div", { class: "row" },
@@ -1442,6 +1464,13 @@ async function viewJobs() {
   );
 
   if (state.lastSearch) renderMatches(results, state.lastSearch.matches);
+  else results.replaceChildren(h("div", { class: "card empty how-it-works" },
+    h("h3", {}, "How it works"),
+    h("ol", { class: "steps-inline" },
+      h("li", {}, "Type the job title you want and a city."),
+      h("li", {}, "Jane searches employers and checks every requirement against your résumé."),
+      h("li", {}, "You get jobs ranked best fit first. Open one to see your gaps, build your Application Kit, or save it to My applications.")),
+  ));
 
   const freeNotice = !isPro() && state.billing && state.billing.billingEnabled
     ? h("p", { class: "faint small" }, trialAvailable() ? "Start your 3-day free trial to see your matches. No charge if you cancel before it ends." : "Choose a plan to run searches.")
@@ -1453,7 +1482,7 @@ async function viewJobs() {
   }
 
   return h("div", { class: "stack" },
-    pageHead("Find jobs", "Ranked by how well your real experience covers each role's requirements."),
+    pageHead("Find jobs", "Jane finds open jobs and ranks them by how well you fit."),
     form,
     freeNotice,
     results,
@@ -2151,7 +2180,7 @@ function needsActivation() {
 function afterActivationPath() {
   if (readSavedFitCheck()) return "/app/fit-check";
   if (state.preferences && !state.preferences.onboardingComplete) return "/app/welcome";
-  return "/app/jobs";
+  return "/app";
 }
 
 async function viewActivate() {
@@ -2504,7 +2533,7 @@ function fitResult(data, input, { context, rerun }) {
 async function viewFitCheckApp() {
   await loadResumes().catch(() => null);
   return h("div", {},
-    pageHead("Fit Check", "Paste any job. Jane checks every requirement against your résumé and tells you straight whether to apply."),
+    pageHead("Check a job", "Found a job you like? Paste the posting and Jane tells you how well you match, what's missing, and whether to apply."),
     fitCheckTool("app"),
   );
 }
@@ -2737,6 +2766,60 @@ function applicationKitSection(getInput, title) {
     h("p", { class: "muted small" }, "A résumé summary, bullets and keywords rewritten for this job, plus interview prep for your gaps. Truth-locked: every line traces back to your real résumé, and nothing gets made up."),
     h("div", { class: "row" }, start));
   return h("div", { class: "stack-sm" }, intro, slot);
+}
+
+// ---------------------------------------------------------------------------
+// Home: what to do next
+// ---------------------------------------------------------------------------
+
+async function viewHome() {
+  const [profile, resumes, applications] = await Promise.all([
+    loadProfile().catch(() => ({})),
+    loadResumes().catch(() => []),
+    api("/api/v1/applications").catch(() => []),
+  ]);
+
+  const name = ((state.user && (state.user.displayName || state.user.display_name)) || "").trim().split(/\s+/)[0];
+  const count = (statuses) => (applications || []).filter((a) => statuses.includes(a.status)).length;
+  const saved = count(["saved"]);
+  const applied = count(["applied", "received", "recruiter_contact"]);
+  const interviewing = count(["interviewing"]);
+
+  const actions = [
+    ["%", "Check a job", "Found a job you like? Paste it and Jane tells you whether to apply.", "/app/fit-check", "Check a job"],
+    ["⌕", "Find jobs for me", "Tell Jane the role and city. She ranks open jobs by how well you fit.", "/app/jobs", "Find jobs"],
+    ["▤", "My applications", applications && applications.length
+      ? `${saved} saved · ${applied} applied · ${interviewing} interviewing`
+      : "Save jobs and track every application from saved to offer.", "/app/applications", "Open tracker"],
+  ];
+
+  const setup = [
+    [(resumes || []).length > 0, "Upload your résumé", "/app/resumes", "Upload"],
+    [!!(profile.targetRole && profile.location), "Set the job title and city you want", "/app/profile", "Set it"],
+    [(applications || []).length > 0, "Save your first job", "/app/jobs", "Find one"],
+  ];
+  const remaining = setup.filter(([done]) => !done).length;
+
+  return h("div", { class: "stack home" },
+    h("div", { class: "page-head" },
+      h("h1", {}, name ? `Hi ${name}. What do you want to do?` : "What do you want to do?"),
+      h("p", {}, "Pick one. Jane will walk you through it.")),
+    h("div", { class: "grid-3 home-actions" },
+      actions.map(([icon, title, body, href, cta]) =>
+        link(href, { class: "card home-action" },
+          h("div", { class: "step-num", "aria-hidden": "true" }, icon),
+          h("h3", {}, title),
+          h("p", { class: "muted" }, body),
+          h("span", { class: "home-cta" }, `${cta} →`)))),
+    remaining ? h("div", { class: "card stack-sm" },
+      h("h3", {}, `Finish setting up (${setup.length - remaining} of ${setup.length} done)`),
+      h("ul", { class: "checklist" }, setup.map(([done, label, href, cta]) =>
+        h("li", { class: done ? "done" : "" },
+          h("span", { class: "check-mark", "aria-hidden": "true" }, done ? "✓" : ""),
+          h("span", {}, label),
+          done ? null : link(href, { class: "btn btn-sm" }, cta))))) : null,
+    h("p", { class: "faint small" }, "Need help? Call customer service at ", h("a", { href: "tel:+16468212027" }, "646-821-2027"), "."),
+  );
 }
 
 // ---------------------------------------------------------------------------
