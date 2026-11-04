@@ -316,6 +316,17 @@ func matchesLocationPreference(
 		return true
 	}
 
+	// Metro areas: a search for "Miami" includes Fort Lauderdale and
+	// Bay Harbor Islands, and a posting titled "... - Miami / Ft Lauderdale"
+	// is local even when its location field names a suburb or venue.
+	if requestedMetros := metrosIn(requested); len(requestedMetros) > 0 {
+		for metro := range metrosIn(location + " " + normalizePreferenceText(job.Title)) {
+			if _, ok := requestedMetros[metro]; ok {
+				return true
+			}
+		}
+	}
+
 	requestTokens := preferenceTokenSet(requested)
 	locationTokens := preferenceTokenSet(location)
 
@@ -324,9 +335,21 @@ func matchesLocationPreference(
 		return true
 	}
 
+	// Sharing only a state ("Miami, FL" vs "Orlando, FL") is not local,
+	// unless the user asked for a whole state.
+	cityTokens := 0
+	for token := range requestTokens {
+		if _, isState := usStateTokens[token]; !isState {
+			cityTokens++
+		}
+	}
+
 	matched := 0
 
 	for token := range requestTokens {
+		if _, isState := usStateTokens[token]; isState && cityTokens > 0 {
+			continue
+		}
 		if _, exists := locationTokens[token]; exists {
 			matched++
 		}
@@ -427,21 +450,49 @@ func matchesMinimumSalaryPreference(
 		return true
 	}
 
+	// Compare yearly pay to the yearly floor: "$45/hour" is about $93,600 a
+	// year, not $45.
+	annual := func(value float64) float64 {
+		return annualizeSalary(value, job.SalaryPeriod)
+	}
+
 	// If the maximum known salary is below the user's minimum, the posting
 	// cannot satisfy the requested floor.
 	if job.SalaryMax != nil &&
-		*job.SalaryMax < minimum {
+		annual(*job.SalaryMax) < minimum {
 		return false
 	}
 
 	// When only a minimum is available, it must meet the requested floor.
 	if job.SalaryMax == nil &&
 		job.SalaryMin != nil &&
-		*job.SalaryMin < minimum {
+		annual(*job.SalaryMin) < minimum {
 		return false
 	}
 
 	return true
+}
+
+func annualizeSalary(value float64, period string) float64 {
+	switch normalizePreferenceText(period) {
+	case "hour", "hourly", "hr", "per hour":
+		return value * 2080
+	case "day", "daily", "per day":
+		return value * 260
+	case "week", "weekly", "per week":
+		return value * 52
+	case "biweekly", "bi weekly":
+		return value * 26
+	case "month", "monthly", "per month":
+		return value * 12
+	case "year", "yearly", "annual", "annually", "per year":
+		return value
+	}
+	// No period given: amounts this small are hourly rates.
+	if value > 0 && value < 300 {
+		return value * 2080
+	}
+	return value
 }
 
 func parseMinimumSalary(
@@ -580,8 +631,8 @@ func jobTitleMatchesTargetRole(
 	targetRole string,
 	jobTitle string,
 ) bool {
-	role := normalizePreferenceText(targetRole)
-	title := normalizePreferenceText(jobTitle)
+	role := expandTitleAliases(normalizePreferenceText(targetRole))
+	title := expandTitleAliases(normalizePreferenceText(jobTitle))
 
 	if role == "" {
 		return true
@@ -704,4 +755,45 @@ func preferenceTokenSet(
 	}
 
 	return result
+}
+
+// titleAliases expands abbreviations employers use in job titles so a search
+// for "Registered Nurse" finds "RN - Med Surg" (and the reverse).
+var titleAliases = map[string]string{
+	"rn":   "registered nurse",
+	"lpn":  "licensed practical nurse",
+	"lvn":  "licensed vocational nurse",
+	"cna":  "certified nursing assistant",
+	"np":   "nurse practitioner",
+	"aprn": "advanced practice registered nurse",
+	"crna": "certified registered nurse anesthetist",
+	"pa":   "physician assistant",
+	"pt":   "physical therapist",
+	"ot":   "occupational therapist",
+	"slp":  "speech language pathologist",
+	"rt":   "respiratory therapist",
+	"swe":  "software engineer",
+	"sde":  "software development engineer",
+	"sre":  "site reliability engineer",
+	"qa":   "quality assurance",
+	"ux":   "user experience",
+	"hr":   "human resources",
+	"sr":   "senior",
+	"jr":   "junior",
+	"mgr":  "manager",
+	"acct": "accountant",
+	"cpa":  "certified public accountant",
+}
+
+func expandTitleAliases(normalized string) string {
+	if normalized == "" {
+		return normalized
+	}
+	words := strings.Fields(normalized)
+	for i, word := range words {
+		if expansion, ok := titleAliases[word]; ok {
+			words[i] = expansion
+		}
+	}
+	return strings.Join(words, " ")
 }
