@@ -470,7 +470,7 @@ async function viewLanding() {
           h("div", { class: "hero-copy" },
             h("span", { class: "pill eyebrow" }, "Meet Jane, your job-search copilot"),
             h("h1", {}, "Know if you'll get the interview ", h("span", { class: "hl" }, "before"), " you apply."),
-            h("p", { class: "lead" }, "Paste any job description. Jane shows you how well you match, what you're missing, and how to tailor your résumé to stand out — without ever making up experience or skills."),
+            h("p", { class: "lead" }, "Know your match before you apply. Jane finds the jobs you fit, shows what's missing, tailors your strongest résumé, and gets you ready for the interview. Every application, tracked. No more applying blind."),
             h("div", { class: "row" },
               signedIn
                 ? link("/app/fit-check", { class: "btn btn-primary btn-lg" }, "Check a job now")

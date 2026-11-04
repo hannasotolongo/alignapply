@@ -582,3 +582,187 @@ input[type="file"]:focus-visible + .dropzone { outline: 2px solid rgba(255, 255,
 .feature-card { display: grid; gap: 10px; align-content: start; }
 .feature-card h3 { font-size: 20px; line-height: 1.25; margin: 0; }
 .feature-card p { margin: 0; }
+
+/* =========================================================================
+   Glass theme: same black & white, with frosted glass, light and depth.
+   ========================================================================= */
+:root {
+  --glass: rgba(255, 255, 255, 0.045);
+  --glass-strong: rgba(255, 255, 255, 0.075);
+  --glass-border: rgba(255, 255, 255, 0.11);
+  --glass-highlight: rgba(255, 255, 255, 0.16);
+  --glass-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  --surface: rgba(18, 19, 22, 0.72);
+  --elevated: rgba(255, 255, 255, 0.05);
+}
+
+body {
+  background-color: #050506;
+  background-image:
+    radial-gradient(900px 520px at 12% -8%, rgba(255, 255, 255, 0.10), transparent 60%),
+    radial-gradient(800px 600px at 105% 12%, rgba(255, 255, 255, 0.06), transparent 60%),
+    radial-gradient(700px 500px at 50% 110%, rgba(255, 255, 255, 0.05), transparent 60%),
+    linear-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px);
+  background-size: auto, auto, auto, 56px 56px, 56px 56px;
+  background-attachment: fixed;
+}
+
+/* Frosted surfaces */
+.card,
+.usage-card,
+.app-card,
+.gap-item,
+.dialog {
+  background: linear-gradient(180deg, var(--glass-strong), var(--glass));
+  border: 1px solid var(--glass-border);
+  box-shadow: inset 0 1px 0 var(--glass-highlight), var(--glass-shadow);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  backdrop-filter: blur(20px) saturate(140%);
+}
+.card.inset {
+  background: rgba(255, 255, 255, 0.035);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.dialog { background: rgba(14, 15, 18, 0.86); }
+.dialog::backdrop { background: rgba(0, 0, 0, 0.55); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+
+.site-nav {
+  background: rgba(5, 5, 6, 0.55);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  backdrop-filter: blur(22px) saturate(160%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.sidebar {
+  background: rgba(10, 10, 12, 0.6);
+  -webkit-backdrop-filter: blur(22px);
+  backdrop-filter: blur(22px);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+.section-alt {
+  background: rgba(255, 255, 255, 0.025);
+  border-color: rgba(255, 255, 255, 0.07);
+}
+
+/* Buttons */
+.btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  transition: background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease, border-color 0.18s ease;
+}
+.btn:hover { background: rgba(255, 255, 255, 0.11); border-color: rgba(255, 255, 255, 0.24); }
+.btn-primary {
+  background: linear-gradient(180deg, #ffffff, #e4e4e7);
+  color: #050506;
+  border-color: #fff;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.6), 0 10px 34px rgba(255, 255, 255, 0.16), inset 0 1px 0 #fff;
+}
+.btn-primary:hover { background: #fff; box-shadow: 0 0 0 1px #fff, 0 14px 44px rgba(255, 255, 255, 0.26); transform: translateY(-1px); }
+.btn-ghost { background: transparent; border-color: transparent; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.btn-ghost:hover { background: rgba(255, 255, 255, 0.06); }
+.btn-danger { background: rgba(248, 113, 113, 0.06); }
+
+/* Inputs */
+input[type="text"], input[type="email"], input[type="password"], input[type="number"], textarea, select {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+input:focus, textarea:focus, select:focus {
+  border-color: rgba(255, 255, 255, 0.45);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.08), inset 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+.dropzone {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+/* Pills and badges */
+.pill {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+.pill-pro { background: #fff; color: #050506; }
+.eyebrow {
+  box-shadow: 0 0 24px rgba(255, 255, 255, 0.08);
+  letter-spacing: 0.02em;
+}
+
+/* Brand mark and icon tiles glow */
+.brand-mark, .step-num, .feature-icon {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5), 0 6px 22px rgba(255, 255, 255, 0.22);
+}
+
+/* Headline: crisp white fading to silver */
+.hero h1, .section-title {
+  background: linear-gradient(180deg, #ffffff 30%, #a1a1aa 120%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.hero h1 .hl {
+  -webkit-text-fill-color: #fff;
+  background: linear-gradient(transparent 62%, rgba(255, 255, 255, 0.22) 0);
+}
+
+/* The sample result floats like a device screen */
+.demo-card {
+  position: relative;
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 40px 120px rgba(0, 0, 0, 0.6), 0 0 80px rgba(255, 255, 255, 0.06);
+}
+.demo-card::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(140deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.02) 40%, rgba(255, 255, 255, 0.25));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Cards lift on hover where they're informational */
+.feature-card, .price-card, .step-card {
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.feature-card:hover, .price-card:hover, .step-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 30px 70px rgba(0, 0, 0, 0.5);
+}
+.price-card.featured {
+  border-color: rgba(255, 255, 255, 0.35);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.12), 0 30px 80px rgba(255, 255, 255, 0.07);
+}
+
+/* Score ring inner disc matches glass */
+.score-ring span { background: rgba(10, 10, 12, 0.92); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08); }
+
+/* Navigation in the account area */
+.nav-link.active {
+  background: rgba(255, 255, 255, 0.09);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Compare table rows */
+.compare-row { border-top-color: rgba(255, 255, 255, 0.07); }
+
+.toast {
+  background: rgba(20, 20, 24, 0.82);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn, .feature-card, .price-card, .step-card { transition: none; }
+  .btn-primary:hover, .feature-card:hover, .price-card:hover, .step-card:hover { transform: none; }
+}
