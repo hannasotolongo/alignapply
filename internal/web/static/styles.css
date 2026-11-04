@@ -535,3 +535,46 @@ input[type="file"]:focus-visible + .dropzone { outline: 2px solid rgba(255, 255,
   .score-ring { width: 96px; height: 96px; }
   .score-ring span { width: 76px; height: 76px; font-size: 22px; }
 }
+
+/* ---- Application Kit ---- */
+.truth-badge { display: inline-block; font-size: 12px; font-weight: 700; color: var(--good); background: var(--good-bg); border-radius: 999px; padding: 4px 10px; width: fit-content; }
+.kit-intro { border-color: var(--border-strong); }
+.kit-block { padding-top: 14px; border-top: 1px solid var(--border); }
+.kit-headline { font-weight: 700; font-size: 17px; margin: 0; }
+.kit-bullets { margin: 0; padding-left: 18px; display: grid; gap: 10px; }
+.kit-bullets li > span { line-height: 1.5; }
+.kit-source summary { cursor: pointer; font-size: 12px; color: var(--text-3); margin-top: 2px; }
+.kit-source p { margin: 4px 0 0; }
+.kit-interview { margin: 0; padding-left: 18px; display: grid; gap: 10px; }
+.kit-interview p { margin: 4px 0 0; }
+
+/* ---- Landing v3 ---- */
+.btn-lg { min-height: 52px; padding: 0 24px; font-size: 16px; }
+.hero-split { text-align: left; padding: 72px 0 56px; }
+.hero-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); gap: 48px; align-items: center; }
+.hero-split h1 { font-size: clamp(36px, 5vw, 58px); }
+.hero-split p.lead { margin: 20px 0 0; max-width: 560px; }
+.hero-split .row { justify-content: flex-start; margin-top: 28px; }
+.hl { background: linear-gradient(transparent 62%, rgba(74, 222, 128, 0.35) 0); }
+.demo-card { border-color: var(--border-strong); box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45); }
+.demo-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: 14px; }
+.demo-good { color: var(--good); }
+.demo-mid { color: var(--mid); }
+.demo-low { color: var(--low); }
+.demo-kit { border-top: 1px solid var(--border); padding-top: 12px; display: grid; gap: 6px; }
+.demo-kit p { margin: 0; }
+.steps-big { gap: 16px; }
+.step-card { display: grid; gap: 10px; align-content: start; }
+.step-card h3 { font-size: 22px; margin: 0; }
+.step-num { width: 40px; height: 40px; border-radius: 12px; background: #fff; color: #08090b; display: grid; place-items: center; font-weight: 800; font-size: 18px; }
+.section-alt { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.section-title.left { text-align: left; }
+.truth-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px; align-items: center; }
+.truth-grid p { margin: 0; }
+
+@media (max-width: 860px) {
+  .hero-grid, .truth-grid { grid-template-columns: minmax(0, 1fr); gap: 32px; }
+  .hero-split { text-align: center; padding: 48px 0 40px; }
+  .hero-split p.lead { margin-left: auto; margin-right: auto; }
+  .hero-split .row { justify-content: center; }
+}

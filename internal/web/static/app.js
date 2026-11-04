@@ -378,7 +378,7 @@ function siteNav() {
       h("nav", { class: "row" },
         link("/pricing", { class: "btn btn-ghost btn-sm" }, "Pricing"),
         signedIn
-          ? link("/app/jobs", { class: "btn btn-primary btn-sm" }, "Open app")
+          ? link("/app/jobs", { class: "btn btn-primary btn-sm" }, "My account")
           : [
               link("/login", { class: "btn btn-ghost btn-sm" }, "Sign in"),
               link("/signup", { class: "btn btn-primary btn-sm" }, "Get started"),
@@ -400,9 +400,34 @@ function legalLinks(className) {
 function siteFooter() {
   return h("footer", { class: "site-footer" },
     h("div", { class: "container row-between" },
-      h("span", {}, `© ${new Date().getFullYear()} ${BRAND} · Payments secured by Stripe`),
+      h("span", {}, `© ${new Date().getFullYear()} ${BRAND} · Payments secured by Stripe · Customer service: `, h("a", { href: "tel:+16468212027" }, "646-821-2027")),
       legalLinks("footer-links"),
     ),
+  );
+}
+
+// exampleResultCard is a clearly labeled sample of what Jane returns.
+function exampleResultCard() {
+  const ring = h("div", { class: "score-ring mid" }, h("span", {}, "78%"));
+  ring.style.setProperty("--pct", "78");
+  return h("div", { class: "card demo-card stack" },
+    h("div", { class: "row-between" },
+      h("span", { class: "faint small" }, "Example · ICU Registered Nurse"),
+      h("span", { class: "pill" }, "Sample result")),
+    h("div", { class: "fit-summary" }, ring,
+      h("div", { class: "stack-sm" },
+        h("span", { class: "pill pill-mid" }, "Moderate Match"),
+        h("h3", { class: "verdict" }, "Worth applying if you close one gap first."),
+        h("p", { class: "faint small" }, "6 met · 1 partial · 1 missing"))),
+    h("ul", { class: "demo-list" },
+      h("li", { class: "demo-good" }, "✓ Active RN license, BLS & ACLS"),
+      h("li", { class: "demo-good" }, "✓ 2+ years acute care"),
+      h("li", { class: "demo-mid" }, "↗ Quick win: CCRN certification"),
+      h("li", { class: "demo-low" }, "✕ Real gap: Cerner EHR (you've used Epic)")),
+    h("div", { class: "demo-kit" },
+      h("span", { class: "truth-badge" }, "✓ Truth-locked Application Kit"),
+      h("p", { class: "small" }, "“Managed care for 6 patients per shift on a 32-bed med-surg unit”"),
+      h("p", { class: "faint small" }, "From your résumé: “Provided care for 6 patients per shift on a 32-bed med-surg unit”")),
   );
 }
 
@@ -411,73 +436,97 @@ async function viewLanding() {
   const plansInfo = await loadPlans();
   const signedIn = !!state.user;
 
-  const differences = [
-    ["✓", "Honest, not hopeful", "Job boards show you everything. Jane tells you when to skip a job, so your applications go where you can actually win."],
-    ["≡", "Every requirement, checked", "Each posting is broken into its real requirements, and every one is checked against your experience. No keyword guessing, and no assuming a license or degree you don't have."],
-    ["↗", "Gap Closer", "For every gap, Jane tells you whether you probably have it (add it), it's a quick certification away, or it's a real gap worth knowing about."],
-    ["→", "Straight to the employer", "Apply on the employer's own site, then track every application from saved to offer. Connect Gmail and updates fill themselves in."],
+  const steps = [
+    ["1", "Check", "Should I apply?", "Paste any job. Jane checks every requirement against your résumé and gives you a straight answer: apply, close a gap first, or skip it."],
+    ["2", "Close", "What am I missing?", "Gap Closer sorts every gap: things you probably have but didn't list, quick certifications, and real gaps worth knowing about."],
+    ["3", "Apply", "Make my résumé fit.", "Jane tailors your résumé to the job and preps you for the interview, then sends you to the employer's real application page."],
   ];
 
   const compare = [
-    ["Shows you every job", "Shows you the jobs you can win"],
-    ["A vague match score", "Every requirement checked against your evidence"],
-    ["Silent about what you're missing", "Tells you exactly how to close each gap"],
+    ["Shows you every job", "Tells you which jobs you can actually get"],
+    ["A vague match score", "Every requirement checked against your résumé"],
+    ["Silent about what you're missing", "A plan for every gap"],
+    ["AI résumé writers that invent skills and numbers", "Truth-locked: every line traced to your real résumé"],
     ["“Easy apply” into a black hole", "Links to the employer's real application page"],
-    ["A spreadsheet to track it all", "A built-in tracker with Gmail sync"],
   ];
 
   const faqs = [
-    ["Why do I need a card for the free trial?", "It keeps the trial to one per person and means your access doesn't stop in the middle of a search. You won't be charged during the 3 days, and you can cancel from Plan & billing in two clicks."],
+    ["What does Jane actually do?", "She reads a job posting the way a recruiter does, checks each requirement against your résumé, tells you whether to apply, shows you how to close the gaps, and tailors your résumé for that job. Then she tracks the application for you."],
+    ["What does “truth-locked” mean?", "When Jane tailors your résumé, every bullet has to come from a line you actually wrote, and she can't add numbers, skills or credentials you don't have. If she can't trace a line back to your résumé, she throws it out. Recruiters can tell when a résumé was padded, and Jane won't do that to you."],
+    ["Why do I need a card for the free trial?", "It keeps the trial to one per person. You won't be charged during the 3 days, and you can cancel any time from Plan & billing on the website."],
     ["Is my résumé private?", "Your PDF is read right in your browser. Only the text is stored, it's never shared with employers, and you can delete it, or your whole account, at any time."],
-    ["What does “Jane would skip this one” mean?", "It means you're missing must-have requirements, like a license or years of experience the employer is firm about. Jane would rather tell you up front than let you spend an evening on an application that won't get read."],
-    ["Does Jane work for nurses and healthcare jobs?", "Yes. Jane knows an RN license from a BLS certification, and she never counts a credential you don't hold. Healthcare postings are some of the most requirement-heavy, which is exactly where she helps most."],
-    ["Can my school or program get access?", "Yes. A school license gives Pro to every student who confirms an email at your school's domain, with no codes or seat counting."],
+    ["Does Jane work for nurses and healthcare jobs?", "Yes. Jane knows an RN license from a BLS certification, matches “RN” to “Registered Nurse”, and never counts a credential you don't hold."],
+    ["How do I reach a person?", "Call customer service at 646-821-2027."],
   ];
 
   mount(h("div", {},
     siteNav(),
     h("main", {},
-      h("section", { class: "hero" },
-        h("div", { class: "container" },
-          h("span", { class: "pill eyebrow" }, "Meet Jane, your honest job-search partner"),
-          h("h1", {}, "Know if you'll get the", h("br"), "interview before you apply."),
-          h("p", { class: "lead" }, "Paste any job. Jane checks every requirement against your résumé, tells you straight whether to apply, and shows you how to close the gaps."),
-          h("div", { class: "row" },
-            signedIn
-              ? link("/app/fit-check", { class: "btn btn-primary" }, "Run a Fit Check")
-              : h("a", { class: "btn btn-primary", href: "#fit-check" }, "Try a free Fit Check"),
-            link(signedIn ? "/app/jobs" : "/signup", { class: "btn" }, signedIn ? `Open ${BRAND}` : "Start 3-day free trial"),
+      h("section", { class: "hero hero-split" },
+        h("div", { class: "container hero-grid" },
+          h("div", { class: "hero-copy" },
+            h("span", { class: "pill eyebrow" }, "Meet Jane, your job-search copilot"),
+            h("h1", {}, "Know if you'll get the interview ", h("span", { class: "hl" }, "before"), " you apply."),
+            h("p", { class: "lead" }, "Jane checks every requirement in a job against your résumé, tells you straight whether to apply, and tailors your résumé for the job without making anything up."),
+            h("div", { class: "row" },
+              signedIn
+                ? link("/app/fit-check", { class: "btn btn-primary btn-lg" }, "Check a job now")
+                : h("a", { class: "btn btn-primary btn-lg", href: "#fit-check" }, "Check a job free"),
+              link(signedIn ? "/app/jobs" : "/signup", { class: "btn btn-lg" }, signedIn ? "Go to my account" : "Start 3-day free trial"),
+            ),
+            h("p", { class: "faint small hero-note" }, "Free Fit Check, no account needed · Cancel anytime"),
           ),
-          h("p", { class: "faint small hero-note" }, "Free Fit Check · No account needed"),
-        ),
-      ),
-      signedIn ? null : h("section", { class: "section", id: "fit-check" },
-        h("div", { class: "container narrow stack" },
-          h("div", { class: "stack-sm center" },
-            h("h2", { class: "section-title" }, "Try it on a real job"),
-            h("p", { class: "section-sub" }, "Your résumé is read in your browser. You'll get a score and a straight answer. The full gap breakdown comes with your trial."),
-          ),
-          fitCheckTool("public"),
+          exampleResultCard(),
         ),
       ),
       h("section", { class: "section" },
         h("div", { class: "container" },
-          h("h2", { class: "section-title" }, "Not another job board"),
-          h("p", { class: "section-sub" }, "Jane is built to get you interviews, not to keep you scrolling."),
-          h("div", { class: "grid-2 differences" },
-            differences.map(([icon, title, body]) =>
-              h("div", { class: "card feature" },
-                h("div", { class: "feature-icon", "aria-hidden": "true" }, icon),
-                h("h3", {}, title),
+          h("h2", { class: "section-title" }, "Jane does three things job boards don't"),
+          h("div", { class: "grid-3 steps-big" },
+            steps.map(([number, verb, question, body]) =>
+              h("div", { class: "card step-card" },
+                h("div", { class: "step-num", "aria-hidden": "true" }, number),
+                h("span", { class: "section-label" }, verb),
+                h("h3", {}, question),
                 h("p", { class: "muted" }, body),
               )),
           ),
         ),
       ),
+      signedIn ? null : h("section", { class: "section section-alt", id: "fit-check" },
+        h("div", { class: "container narrow stack" },
+          h("div", { class: "stack-sm center" },
+            h("span", { class: "pill eyebrow" }, "Free Fit Check"),
+            h("h2", { class: "section-title" }, "Try Jane on a real job, right now"),
+            h("p", { class: "section-sub" }, "Upload your résumé and paste a job posting. You'll get your score and Jane's verdict free. The gap plan and tailored résumé come with your trial."),
+          ),
+          fitCheckTool("public"),
+        ),
+      ),
+      h("section", { class: "section" },
+        h("div", { class: "container truth-grid" },
+          h("div", { class: "stack-sm" },
+            h("span", { class: "truth-badge" }, "✓ Truth-locked"),
+            h("h2", { class: "section-title left" }, "The résumé AI that can't lie for you."),
+            h("p", { class: "muted" }, "Most AI résumé tools pad your résumé with skills and numbers you never had, and recruiters can tell. Jane tailors your résumé to each job using only what you actually wrote. Every bullet is traced back to a line on your résumé, and anything she can't trace gets thrown out."),
+            h("p", { class: "muted" }, "You walk into the interview able to back up every word."),
+          ),
+          h("div", { class: "card inset stack-sm" },
+            h("span", { class: "section-label" }, "How a tailored line works"),
+            h("p", { class: "faint small" }, "Your résumé says:"),
+            h("p", {}, "“Educated patients and families on discharge plans”"),
+            h("p", { class: "faint small" }, "Jane writes for a job asking for patient education:"),
+            h("p", { class: "text-good" }, "✓ “Delivered patient and family education on discharge plans”"),
+            h("p", { class: "faint small" }, "Jane will never write:"),
+            h("p", { class: "text-error" }, "✕ “Cut readmissions 20% through discharge teaching”, a number you never wrote"),
+          ),
+        ),
+      ),
       h("section", { class: "section" },
         h("div", { class: "container narrow" },
+          h("h2", { class: "section-title" }, "Why not just use a job board?"),
           h("div", { class: "card compare" },
-            h("div", { class: "compare-row compare-head" }, h("span", {}, "Typical job sites"), h("span", {}, BRAND)),
+            h("div", { class: "compare-row compare-head" }, h("span", {}, "Job boards & AI résumé tools"), h("span", {}, BRAND)),
             compare.map(([them, us]) => h("div", { class: "compare-row" },
               h("span", { class: "faint" }, them), h("span", {}, h("span", { class: "text-good", "aria-hidden": "true" }, "✓ "), us))),
           ),
@@ -493,9 +542,9 @@ async function viewLanding() {
       h("section", { class: "section cta-band" },
         h("div", { class: "container center stack-sm" },
           h("h2", { class: "section-title" }, "Stop applying blind."),
-          h("p", { class: "section-sub" }, "Let Jane show you where you fit, and what to do about the rest."),
+          h("p", { class: "section-sub" }, "Let Jane show you where you fit, and help you land it."),
           h("div", { class: "row center" },
-            link(signedIn ? "/app/fit-check" : "/signup", { class: "btn btn-primary" }, signedIn ? "Run a Fit Check" : "Start 3-day free trial")),
+            link(signedIn ? "/app/fit-check" : "/signup", { class: "btn btn-primary btn-lg" }, signedIn ? "Check a job now" : "Start 3-day free trial")),
         ),
       ),
     ),
@@ -982,7 +1031,7 @@ function appShell(active, content, usageSlot) {
   return h("div", { class: "shell" },
     h("aside", { class: "sidebar" },
       brand(),
-      h("nav", { "aria-label": "App" },
+      h("nav", { "aria-label": "Account" },
         items.map(([key, href, label]) =>
           link(href, { class: key === active ? "nav-link active" : "nav-link", "aria-current": key === active ? "page" : undefined }, label)),
       ),
@@ -1530,6 +1579,18 @@ function openJobDetail(match) {
       reqList("supported", "You meet", match.supportedRequirements),
     ),
     gapCloser(gapsFromMatch(match)),
+    match.description ? applicationKitSection(async () => {
+      const resumes = state.resumes || await loadResumes();
+      const chosen = (state.lastSearch && state.lastSearch.resumeId) || ((resumes.find((r) => r.isPrimary) || resumes[0] || {}).id);
+      if (!chosen) throw new Error("Upload a résumé first, then Jane can tailor it.");
+      return {
+        resumeText: await resumeText(chosen),
+        jobDescription: (match.description || "").slice(0, 30000),
+        jobTitle: match.title,
+        company: match.company,
+        gaps: gapsFromMatch(match).map((g) => g.requirement),
+      };
+    }, `${match.title}${match.company ? ` at ${match.company}` : ""}`) : null,
     recommendationCard(match, recommendationSlot),
     required.length || preferred.length ? h("div", { class: "stack-sm" },
       h("h3", {}, "Posting requirements"),
@@ -2397,6 +2458,15 @@ function fitResult(data, input, { context, rerun }) {
       onAdded: rerun ? () => { toast("Added to your profile. Re-checking…"); rerun(); } : null,
     }));
     if (context === "app") {
+      parts.push(applicationKitSection(async () => ({
+        resumeText: input.resumeText,
+        jobDescription: input.jobDescription,
+        jobTitle: input.jobTitle,
+        company: input.company,
+        gaps: (data.gaps || []).map((g) => g.requirement),
+      }), input.jobTitle));
+    }
+    if (context === "app") {
       parts.push(h("div", { class: "row" },
         link("/app/jobs", { class: "btn btn-sm" }, "Find more jobs like this"),
         input.jobTitle ? h("button", { class: "btn btn-sm", onclick: async (event) => {
@@ -2565,6 +2635,95 @@ async function viewFitCheckPublic() {
     ),
     siteFooter(),
   ));
+}
+
+// ---------------------------------------------------------------------------
+// Application Kit: a truth-locked tailored résumé for one job
+// ---------------------------------------------------------------------------
+
+function kitPlainText(kit, title) {
+  const lines = [];
+  if (title) lines.push(`Application Kit: ${title}`, "");
+  if (kit.headline) lines.push(kit.headline, "");
+  if (kit.summary) lines.push(kit.summary, "");
+  if (kit.bullets.length) lines.push(...kit.bullets.map((b) => `• ${b.text}`), "");
+  if (kit.keywords.length) lines.push(`Keywords: ${kit.keywords.join(", ")}`, "");
+  if (kit.interview.length) {
+    lines.push("Interview prep:");
+    kit.interview.forEach((q, i) => lines.push(`${i + 1}. ${q.question}`, `   ${q.approach}`));
+  }
+  return lines.join("\n").trim();
+}
+
+async function copyText(text, label) {
+  try {
+    await navigator.clipboard.writeText(text);
+    toast(`${label || "Copied"} to your clipboard`);
+  } catch {
+    toast("Couldn't copy. Select the text and copy it instead.", true);
+  }
+}
+
+function renderKit(kit, title) {
+  const copyBtn = (text, label) => h("button", { class: "btn btn-ghost btn-sm", type: "button", onclick: () => copyText(text, label) }, "Copy");
+  const parts = [
+    h("div", { class: "row-between" },
+      h("div", { class: "stack-sm" },
+        h("h3", {}, "Your Application Kit"),
+        h("span", { class: "truth-badge" }, "✓ Truth-locked: every line comes from your résumé")),
+      h("button", { class: "btn btn-primary btn-sm", type: "button", onclick: () => copyText(kitPlainText(kit, title), "Kit copied") }, "Copy everything")),
+  ];
+  if (kit.headline || kit.summary) {
+    parts.push(h("div", { class: "kit-block stack-sm" },
+      h("div", { class: "row-between" }, h("span", { class: "section-label" }, "Headline & summary"), copyBtn([kit.headline, kit.summary].filter(Boolean).join("\n\n"), "Summary copied")),
+      kit.headline ? h("p", { class: "kit-headline" }, kit.headline) : null,
+      kit.summary ? h("p", {}, kit.summary) : null));
+  }
+  if (kit.bullets.length) {
+    parts.push(h("div", { class: "kit-block stack-sm" },
+      h("div", { class: "row-between" }, h("span", { class: "section-label" }, "Tailored bullets, most relevant first"), copyBtn(kit.bullets.map((b) => `• ${b.text}`).join("\n"), "Bullets copied")),
+      h("ul", { class: "kit-bullets" }, kit.bullets.map((b) => h("li", {},
+        h("span", {}, b.text),
+        h("details", { class: "kit-source" }, h("summary", {}, "From your résumé"), h("p", { class: "faint small" }, `“${b.source}”`)))))));
+  }
+  if (kit.droppedLines) {
+    parts.push(h("p", { class: "faint small" }, `Jane removed ${kit.droppedLines} line${kit.droppedLines === 1 ? "" : "s"} she couldn't trace to your résumé. She'd rather leave something out than make it up.`));
+  }
+  if (kit.keywords.length) {
+    parts.push(h("div", { class: "kit-block stack-sm" },
+      h("span", { class: "section-label" }, "Use these words from the posting"),
+      h("div", { class: "row" }, kit.keywords.map((k) => h("span", { class: "pill" }, k)))));
+  }
+  if (kit.interview.length) {
+    parts.push(h("div", { class: "kit-block stack-sm" },
+      h("span", { class: "section-label" }, "Interview prep"),
+      h("ol", { class: "kit-interview" }, kit.interview.map((q) => h("li", {}, h("strong", {}, q.question), h("p", { class: "muted small" }, q.approach))))));
+  }
+  return h("div", { class: "card inset stack kit" }, parts);
+}
+
+// applicationKitSection returns a card with a "Build my Application Kit"
+// button. getInput resolves { resumeText, jobDescription, jobTitle, company, gaps }.
+function applicationKitSection(getInput, title) {
+  const slot = h("div", {});
+  const start = h("button", { class: "btn btn-primary", type: "button", onclick: async () => {
+    start.disabled = true;
+    slot.replaceChildren(h("div", { class: "card inset" }, spinnerRow("Jane is tailoring your résumé to this job, using only what's true…")));
+    try {
+      const input = await getInput();
+      const kit = await api("/api/v1/application-kit", { method: "POST", body: input });
+      slot.replaceChildren(renderKit(kit, title));
+      intro.remove();
+    } catch (error) {
+      start.disabled = false;
+      slot.replaceChildren(h("div", { class: "form-error" }, error.code === "pro_required" ? "Start your free trial to build Application Kits." : error.message));
+    }
+  } }, "Build my Application Kit");
+  const intro = h("div", { class: "card inset kit-intro stack-sm" },
+    h("h3", {}, "Ready to apply? Let Jane tailor your résumé"),
+    h("p", { class: "muted small" }, "A résumé summary, bullets and keywords rewritten for this job, plus interview prep for your gaps. Truth-locked: every line traces back to your real résumé, and nothing gets made up."),
+    h("div", { class: "row" }, start));
+  return h("div", { class: "stack-sm" }, intro, slot);
 }
 
 // ---------------------------------------------------------------------------

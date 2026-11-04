@@ -40,12 +40,12 @@ var legalShell = template.Must(template.New("legal").Parse(`<!doctype html>
   <a class="brand" href="/"><span class="brand-mark">J</span>Jane Careers</a>
   <nav class="row">
     <a class="btn btn-ghost btn-sm" href="/pricing">Pricing</a>
-    <a class="btn btn-primary btn-sm" href="/app/jobs">Open app</a>
+    <a class="btn btn-primary btn-sm" href="/app/jobs">My account</a>
   </nav>
 </div></header>
 <main class="legal container">{{.Body}}</main>
 <footer class="site-footer"><div class="container row-between">
-  <span>© Jane Careers</span>
+  <span>© Jane Careers · Customer service: <a href="tel:+16468212027">646-821-2027</a></span>
   <nav class="footer-links">
     <a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/refunds">Refunds</a><a href="/contact">Contact</a>
   </nav>
@@ -72,7 +72,8 @@ func (s *Server) handleLegalPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body := strings.ReplaceAll(string(content), "{{SUPPORT_EMAIL}}", supportEmailHTML(s.web.SupportEmail))
+	body := strings.ReplaceAll(string(content), "{{SUPPORT_EMAIL_LINE}}", supportEmailLineHTML(s.web.SupportEmail))
+	body = strings.ReplaceAll(body, "{{SUPPORT_EMAIL}}", supportEmailHTML(s.web.SupportEmail))
 
 	var out bytes.Buffer
 	if err := legalShell.Execute(&out, struct {
@@ -94,11 +95,29 @@ func (s *Server) handleLegalPage(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(out.Bytes())
 }
 
+// SupportPhone is the customer service line shown across the site.
+const (
+	SupportPhone    = "646-821-2027"
+	SupportPhoneTel = "+16468212027"
+)
+
 func supportEmailHTML(email string) string {
 	email = strings.TrimSpace(email)
+	phone := `customer service at <a href="tel:` + SupportPhoneTel + `"><strong>` + SupportPhone + `</strong></a>`
 	if email == "" || !strings.Contains(email, "@") {
-		return `<strong>our support team</strong> (contact email coming soon)`
+		return phone
 	}
 	escaped := html.EscapeString(email)
-	return `<a href="mailto:` + escaped + `"><strong>` + escaped + `</strong></a>`
+	return phone + ` or <a href="mailto:` + escaped + `"><strong>` + escaped + `</strong></a>`
+}
+
+// supportEmailLineHTML is an optional "Or email us" line; empty without an email.
+func supportEmailLineHTML(email string) string {
+	email = strings.TrimSpace(email)
+	if email == "" || !strings.Contains(email, "@") {
+		return ""
+	}
+	escaped := html.EscapeString(email)
+	return `  <p>Or email <a href="mailto:` + escaped + `"><strong>` + escaped + `</strong></a></p>
+`
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/hannasotolongo/casemade-backend/internal/tailor"
 	"io/fs"
 	"log"
 	"net/http"
@@ -44,6 +45,9 @@ type Server struct {
 	web           WebConfig
 	authLimiter   *attemptLimiter
 
+	applicationKit *tailor.Client
+	kitLimiter     *attemptLimiter
+
 	fitCheckAnonLimiter *attemptLimiter
 	fitCheckUserLimiter *attemptLimiter
 }
@@ -70,6 +74,9 @@ type Repositories struct {
 
 type Dependencies struct {
 	Repositories
+
+	// ApplicationKit builds truth-locked tailored résumés (optional).
+	ApplicationKit *tailor.Client
 
 	AppleVerifier  *auth.AppleVerifier
 	AppleClient    *auth.AppleClient
@@ -114,6 +121,7 @@ func NewServer(
 
 		authLimiter: newAttemptLimiter(10, 15*time.Minute),
 
+		kitLimiter:          newAttemptLimiter(20, time.Hour),
 		fitCheckAnonLimiter: newAttemptLimiter(fitCheckAnonymousPerDay, 24*time.Hour),
 		fitCheckUserLimiter: newAttemptLimiter(ProJobMatchesPerHour, time.Hour),
 	}
@@ -155,6 +163,7 @@ func NewServer(
 		server.mailer = deps.Mailer
 		server.stripe = deps.Stripe
 		server.billingConfig = deps.BillingConfig
+		server.applicationKit = deps.ApplicationKit
 		server.web = deps.Web
 		server.web.BaseURL = strings.TrimRight(
 			strings.TrimSpace(server.web.BaseURL),
@@ -366,6 +375,7 @@ func (s *Server) routes() {
 
 		// Web (email + password) authentication.
 		s.mux.HandleFunc("/api/v1/fit-check", s.handleFitCheck)
+		s.mux.Handle("/api/v1/application-kit", s.sessionManager.Middleware(s.requirePro(http.HandlerFunc(s.handleApplicationKit))))
 		s.mux.HandleFunc("/api/v1/auth/signup", s.handlePasswordSignUp)
 		s.mux.HandleFunc("/api/v1/auth/login", s.handlePasswordLogin)
 		s.mux.HandleFunc("/api/v1/auth/logout", s.handleLogout)

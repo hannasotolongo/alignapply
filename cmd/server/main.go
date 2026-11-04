@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/hannasotolongo/casemade-backend/internal/tailor"
 	"log"
 	"net/http"
 	"os"
@@ -419,6 +420,7 @@ func main() {
 			Stripe:         stripeClient,
 			Mailer:         mailClient,
 			BillingConfig:  billingConfig,
+			ApplicationKit: tailor.New(openAIAPIKey),
 			Web: api.WebConfig{
 				BaseURL:      appBaseURL,
 				CookieSecure: strings.HasPrefix(appBaseURL, "https://"),
