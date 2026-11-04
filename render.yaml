@@ -1,0 +1,39 @@
+# Render Blueprint for the AlignApply web SaaS.
+# Render dashboard → New → Blueprint → pick this repo/branch.
+# Secrets marked `sync: false` are entered by you in the dashboard.
+services:
+  - type: web
+    name: alignapply
+    runtime: go
+    plan: starter
+    region: virginia
+    buildCommand: go build -trimpath -ldflags="-s -w" -o bin/server ./cmd/server
+    startCommand: ./bin/server
+    healthCheckPath: /healthz
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: alignapply-db
+          property: connectionString
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: TRUST_PROXY_HEADERS
+        value: "true"
+      - key: APP_BASE_URL
+        sync: false # e.g. https://alignapply.onrender.com or your custom domain
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_PRICE_PRO_MONTHLY
+        sync: false
+      - key: STRIPE_PRICE_PRO_SIX_MONTH
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+
+databases:
+  - name: alignapply-db
+    databaseName: alignapply
+    plan: basic-256mb
+    region: virginia

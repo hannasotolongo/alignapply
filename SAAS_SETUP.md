@@ -13,11 +13,15 @@ embedded into the binary). One deploy, one origin, no CORS.
 | Enforcement | All checks are server-side. `/job-matches` now requires sign-in and is metered; `/resume-recommendation` and all Gmail endpoints require Pro (HTTP 402 `pro_required` otherwise). |
 | Web app | Landing + pricing, sign up / sign in, Find jobs, Applications board with timeline, Career profile editor, Plan & billing. |
 
-## 1. Run the migration
+## 1. Database migrations
 
-```bash
-psql "$DATABASE_URL" -f migrations/006_web_saas.sql
-```
+Automatic. On startup the server applies any migration in `migrations/` that
+isn't recorded in `schema_migrations`. A database set up by hand before this
+existed is detected and recorded rather than re-run. A Postgres advisory lock
+keeps parallel instances from migrating at the same time.
+
+New service? Render → **New → Blueprint** with this repo uses `render.yaml`
+to create the web service and database together.
 
 ## 2. Create the Stripe products
 

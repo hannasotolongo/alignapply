@@ -15,6 +15,7 @@ import (
 	"github.com/hannasotolongo/casemade-backend/internal/matching"
 	"github.com/hannasotolongo/casemade-backend/internal/repository"
 	"github.com/hannasotolongo/casemade-backend/internal/web"
+	"github.com/hannasotolongo/casemade-backend/migrations"
 )
 
 const (
@@ -100,6 +101,12 @@ func main() {
 	defer db.Close()
 
 	log.Println("PostgreSQL connection established")
+
+	if err := db.Migrate(ctx, migrations.Files); err != nil {
+		log.Fatalf("database migration failed: %v", err)
+	}
+
+	log.Println("Database migrations up to date")
 
 	// ---------------------------------------------------------
 	// Persistence repositories
