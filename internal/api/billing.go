@@ -820,7 +820,8 @@ func (s *Server) grantPassFromCheckout(
 	eventID, customerID, userID, paymentStatus string,
 	metadata map[string]string,
 ) error {
-	if paymentStatus != "paid" {
+	// "no_payment_required" is a $0 checkout, such as a 100%-off promo code.
+	if paymentStatus != "paid" && paymentStatus != "no_payment_required" {
 		// Delayed payment methods report success in a later event.
 		return nil
 	}
