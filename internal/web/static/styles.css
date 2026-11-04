@@ -796,3 +796,8 @@ input:focus, textarea:focus, select:focus {
   .sidebar nav .nav-link { flex: 0 0 auto; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 999px; padding: 7px 12px; }
   .nav-icon { display: none; }
 }
+.home-tracker { gap: 10px; }
+.tracker-stat { flex: 1 1 100px; display: grid; gap: 2px; padding: 12px 14px; border-radius: 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); text-decoration: none; color: inherit; }
+.tracker-stat strong { font-size: 22px; font-weight: 800; }
+.tracker-stat span { font-size: 12px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.05em; }
+.tracker-stat:hover { border-color: rgba(255,255,255,0.25); }

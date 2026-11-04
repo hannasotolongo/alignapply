@@ -1178,47 +1178,39 @@ func buildFitExplanation(
 	requiredMissing int,
 	criticalRequiredNotSupported int,
 ) string {
-	if supported == 0 &&
-		partial == 0 {
-
-		return fmt.Sprintf(
-			"%s. The profile does not clearly demonstrate the qualifications extracted from this posting.",
-			level,
-		)
+	plural := func(n int, one, many string) string {
+		if n == 1 {
+			return one
+		}
+		return many
 	}
 
-	if criticalRequiredNotSupported > 0 {
-		return fmt.Sprintf(
-			"%s. The profile supports %d requirement(s), partially supports %d, and does not clearly demonstrate %d. %d required high-impact qualification(s) are not fully demonstrated.",
-			level,
-			supported,
-			partial,
-			missing,
-			criticalRequiredNotSupported,
-		)
+	if supported == 0 && partial == 0 {
+		return "Jane didn't find this job's requirements on your résumé. It's probably not the right fit."
 	}
 
-	if requiredCount > 0 {
-		return fmt.Sprintf(
-			"%s. Of %d required qualification(s), the profile clearly supports %d, partially supports %d, and does not clearly demonstrate %d. Across all extracted qualifications, %d are supported, %d are partial, and %d are not clearly demonstrated.",
-			level,
-			requiredCount,
-			requiredSupported,
-			requiredPartial,
-			requiredMissing,
-			supported,
-			partial,
-			missing,
-		)
+	switch level {
+	case "Strong Applicant":
+		if missing == 0 && partial == 0 {
+			return "You meet everything this job asks for. Apply."
+		}
+		return fmt.Sprintf("You meet the must-haves. %d nice-to-have %s worth a look before you apply.",
+			partial+missing, plural(partial+missing, "item is", "items are"))
+	case "Moderate Match":
+		if requiredCount > 0 {
+			return fmt.Sprintf("You meet %d of %d must-haves. Close the gap and this could be a good shot.",
+				requiredSupported, requiredCount)
+		}
+		return fmt.Sprintf("You meet %d of %d requirements. Worth applying if you can show the rest.",
+			supported, supported+partial+missing)
+	default:
+		if criticalRequiredNotSupported > 0 {
+			return fmt.Sprintf("You're missing %d %s, like a license, degree, or required years. Treat this one as a long shot.",
+				criticalRequiredNotSupported, plural(criticalRequiredNotSupported, "must-have", "must-haves"))
+		}
+		return fmt.Sprintf("You meet %d of %d requirements. This one's a stretch.",
+			supported, supported+partial+missing)
 	}
-
-	return fmt.Sprintf(
-		"%s. The profile clearly supports %d qualification(s), partially supports %d, and does not clearly demonstrate %d.",
-		level,
-		supported,
-		partial,
-		missing,
-	)
 }
 
 func normalize(text string) string {

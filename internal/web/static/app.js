@@ -438,11 +438,11 @@ async function viewLanding() {
   const signedIn = !!state.user;
 
   const features = [
-    ["%", "Fit Check", "Know your odds before you apply.", "Paste any job. Jane checks every requirement against your résumé and tells you straight: apply, close a gap first, or skip it."],
+    ["%", "Automatic match scores", "Know your odds before you apply.", "Jane scores every job she finds against your résumé, automatically, and tells you straight: apply, close a gap first, or skip it."],
     ["↗", "Gap Closer", "Close the gaps that cost you interviews.", "Every missing requirement, sorted: things you have but didn't list, quick certifications, and real gaps worth knowing about."],
     ["✓", "Truth-locked Application Kit", "A résumé tailored to every job. Every word true.", "Jane rewrites your summary and bullets for the job, adds the right keywords, and preps you for the interview, using only what's on your résumé."],
     ["⇄", "Best-résumé pick", "Got more than one résumé? Jane picks the winner.", "Upload every version you have. For each job, Jane scores them all and tells you which one to send."],
-    ["⌕", "Smart job search", "Jobs that fit you, best match first.", "Search by role and city. Jane ranks every posting by how well you fit, and links you straight to the employer's real application page."],
+    ["⌕", "Jobs found for you", "Your best matches, waiting when you sign in.", "Tell Jane the job title and city once. She finds open jobs, ranks them best fit first, and links you straight to the employer's real application page."],
     ["▤", "Application tracker", "Every application in one place.", "Save jobs, mark them applied, and move them through interview and offer, so you always know where you stand and who to follow up with."],
   ];
 
@@ -473,12 +473,10 @@ async function viewLanding() {
             h("h1", {}, "Know if you'll get the interview ", h("span", { class: "hl" }, "before"), " you apply."),
             h("p", { class: "lead" }, "Know your match before you apply. Jane finds the jobs you fit, shows what's missing, tailors your strongest résumé, and gets you ready for the interview. Every application, tracked. No more applying blind."),
             h("div", { class: "row" },
-              signedIn
-                ? link("/app/fit-check", { class: "btn btn-primary btn-lg" }, "Check a job now")
-                : h("a", { class: "btn btn-primary btn-lg", href: "#fit-check" }, "Check a job free"),
-              link(signedIn ? "/app" : "/signup", { class: "btn btn-lg" }, signedIn ? "Go to my account" : "Start 3-day free trial"),
+              link(signedIn ? "/app" : "/signup", { class: "btn btn-primary btn-lg" }, signedIn ? "See my matches" : "See my matches free"),
+              signedIn ? null : h("a", { class: "btn btn-lg", href: "#fit-check" }, "Try it on one job"),
             ),
-            h("p", { class: "faint small hero-note" }, "Free Fit Check, no account needed · Cancel anytime"),
+            h("p", { class: "faint small hero-note" }, "3 days free · Cancel anytime · Jane does the searching for you"),
           ),
           exampleResultCard(),
         ),
@@ -504,8 +502,8 @@ async function viewLanding() {
       signedIn ? null : h("section", { class: "section section-alt", id: "fit-check" },
         h("div", { class: "container narrow stack" },
           h("div", { class: "stack-sm center" },
-            h("span", { class: "pill eyebrow" }, "Free Fit Check"),
-            h("h2", { class: "section-title" }, "Try Jane on a real job, right now"),
+            h("span", { class: "pill eyebrow" }, "Free demo"),
+            h("h2", { class: "section-title" }, "Want to see it first? Try one job free"),
             h("p", { class: "section-sub" }, "Upload your résumé and paste a job posting. You'll get your score and Jane's verdict free. The gap plan and tailored résumé come with your trial."),
           ),
           fitCheckTool("public"),
@@ -552,7 +550,7 @@ async function viewLanding() {
           h("h2", { class: "section-title" }, "Stop applying blind."),
           h("p", { class: "section-sub" }, "Let Jane show you where you fit, and help you land it."),
           h("div", { class: "row center" },
-            link(signedIn ? "/app/fit-check" : "/signup", { class: "btn btn-primary btn-lg" }, signedIn ? "Check a job now" : "Start 3-day free trial")),
+            link(signedIn ? "/app" : "/signup", { class: "btn btn-primary btn-lg" }, signedIn ? "See my matches" : "See my matches free")),
         ),
       ),
     ),
@@ -952,11 +950,7 @@ async function viewOnboarding() {
 
 async function finishOnboarding(autoSearch) {
   try { await savePreferences({ onboardingComplete: true }); } catch (error) { console.error(error); }
-  if (autoSearch) {
-    sessionStorage.setItem("janecareers.autoSearch", "1");
-    navigate("/app/jobs");
-    return;
-  }
+  state.lastSearch = null;
   navigate("/app");
 }
 
@@ -1038,8 +1032,7 @@ async function appPage(active, view) {
 
 function appShell(active, content, usageSlot) {
   const items = [
-    ["home", "/app", "⌂", "Home"],
-    ["fit", "/app/fit-check", "%", "Check a job"],
+    ["home", "/app", "⌂", "My matches"],
     ["jobs", "/app/jobs", "⌕", "Find jobs"],
     ["applications", "/app/applications", "▤", "My applications"],
     ["resumes", "/app/resumes", "⇪", "My résumés"],
@@ -1483,6 +1476,7 @@ async function viewJobs() {
 
   return h("div", { class: "stack" },
     pageHead("Find jobs", "Jane finds open jobs and ranks them by how well you fit."),
+    h("p", { class: "faint small" }, "Have one specific job in mind? ", link("/app/fit-check", {}, "Check it here"), "."),
     form,
     freeNotice,
     results,
@@ -2769,8 +2763,37 @@ function applicationKitSection(getInput, title) {
 }
 
 // ---------------------------------------------------------------------------
-// Home: what to do next
+// Home: Jane finds and scores jobs automatically
 // ---------------------------------------------------------------------------
+
+// searchMatches runs a job search with the user's profile and default
+// résumé and remembers it for this session.
+async function searchMatches({ targetRole, location }) {
+  const [profile, preferences, resumes] = await Promise.all([loadProfile(), loadPreferences(), loadResumes()]);
+  const primary = (resumes || []).find((r) => r.isPrimary) || (resumes || [])[0];
+  const anyStyle = !preferences.remote && !preferences.hybrid && !preferences.onsite;
+  const request = {
+    careerProfile: profileToSearchProfile(profile),
+    targetRole, location,
+    minimumSalary: preferences.minimumSalary || "",
+    remote: anyStyle || !!preferences.remote,
+    hybrid: anyStyle || !!preferences.hybrid,
+    onsite: anyStyle || !!preferences.onsite,
+  };
+  if (primary) request.resumeText = await resumeText(primary.id);
+  const matches = await api("/api/v1/job-matches", { method: "POST", body: request });
+  const { careerProfile, resumeText: _omit, ...shown } = request;
+  state.lastSearch = { request: shown, matches: matches || [], resumeId: primary ? primary.id : "" };
+  return state.lastSearch;
+}
+
+async function saveSearchTarget(targetRole, location) {
+  const profile = await loadProfile(true);
+  await saveProfileDraft({
+    headline: profile.headline, summary: profile.summary, targetRole, location,
+    evidence: (profile.evidence || []).map((e) => ({ category: e.category, text: e.text })),
+  });
+}
 
 async function viewHome() {
   const [profile, resumes, applications] = await Promise.all([
@@ -2781,44 +2804,95 @@ async function viewHome() {
 
   const name = ((state.user && (state.user.displayName || state.user.display_name)) || "").trim().split(/\s+/)[0];
   const count = (statuses) => (applications || []).filter((a) => statuses.includes(a.status)).length;
-  const saved = count(["saved"]);
-  const applied = count(["applied", "received", "recruiter_contact"]);
-  const interviewing = count(["interviewing"]);
+  const tracker = h("div", { class: "home-tracker row" },
+    link("/app/applications", { class: "tracker-stat" }, h("strong", {}, String(count(["saved"]))), h("span", {}, "Saved")),
+    link("/app/applications", { class: "tracker-stat" }, h("strong", {}, String(count(["applied", "received", "recruiter_contact"]))), h("span", {}, "Applied")),
+    link("/app/applications", { class: "tracker-stat" }, h("strong", {}, String(count(["interviewing"]))), h("span", {}, "Interviewing")),
+    link("/app/applications", { class: "tracker-stat" }, h("strong", {}, String(count(["offer", "hired"]))), h("span", {}, "Offers")),
+  );
 
-  const actions = [
-    ["%", "Check a job", "Found a job you like? Paste it and Jane tells you whether to apply.", "/app/fit-check", "Check a job"],
-    ["⌕", "Find jobs for me", "Tell Jane the role and city. She ranks open jobs by how well you fit.", "/app/jobs", "Find jobs"],
-    ["▤", "My applications", applications && applications.length
-      ? `${saved} saved · ${applied} applied · ${interviewing} interviewing`
-      : "Save jobs and track every application from saved to offer.", "/app/applications", "Open tracker"],
-  ];
+  const head = h("div", { class: "page-head" },
+    h("h1", {}, name ? `Hi ${name}, here are your matches` : "Your matches"),
+    h("p", {}, "Jane searches open jobs and scores every one against your résumé, automatically."));
 
-  const setup = [
-    [(resumes || []).length > 0, "Upload your résumé", "/app/resumes", "Upload"],
-    [!!(profile.targetRole && profile.location), "Set the job title and city you want", "/app/profile", "Set it"],
-    [(applications || []).length > 0, "Save your first job", "/app/jobs", "Find one"],
-  ];
-  const remaining = setup.filter(([done]) => !done).length;
+  // No résumé yet: that's the only thing Jane needs first.
+  if (!(resumes || []).length && !((profile.evidence || []).length)) {
+    return h("div", { class: "stack home" }, head,
+      h("div", { class: "card stack" },
+        h("h3", {}, "Add your résumé and Jane will start finding jobs"),
+        resumeDropzone(() => navigate("/app", { replace: true })),
+      ));
+  }
+
+  const results = h("div", { class: "stack" });
+  const last = state.lastSearch && state.lastSearch.request;
+  const targetRole = (last && last.targetRole) || profile.targetRole || "";
+  const city = (last && last.location) || profile.location || "";
+
+  const showMatches = (search) => {
+    const matches = (search.matches || []).slice(0, 5);
+    const label = `${search.request.targetRole} · ${search.request.location}`;
+    results.replaceChildren(
+      h("div", { class: "row-between" },
+        h("span", { class: "muted" }, matches.length ? `Top ${matches.length} for ${label}` : `No matches yet for ${label}`),
+        h("div", { class: "row" },
+          h("button", { class: "btn btn-ghost btn-sm", onclick: () => askTarget(search.request.targetRole, search.request.location) }, "Change"),
+          (search.matches || []).length > 5 ? link("/app/jobs", { class: "btn btn-sm" }, `See all ${search.matches.length}`) : null)),
+      matches.length
+        ? h("div", { class: "stack" }, matches.map(jobCard))
+        : h("div", { class: "card empty" },
+            h("h3", {}, "Nothing close enough yet"),
+            h("p", {}, "Try a broader job title or a bigger nearby city. Jane only shows jobs she could actually score."),
+            h("button", { class: "btn", onclick: () => askTarget(search.request.targetRole, search.request.location) }, "Change search")),
+    );
+  };
+
+  const run = async (role, where) => {
+    results.replaceChildren(h("div", { class: "card" }, spinnerRow(`Jane is finding ${role} jobs in ${where} and scoring each one…`)));
+    try {
+      showMatches(await searchMatches({ targetRole: role, location: where }));
+    } catch (error) {
+      results.replaceChildren(error.code === "pro_required"
+        ? paywall("Your matches are ready", "Start your free trial to see every job ranked by how well you fit.")
+        : h("div", { class: "form-error" }, error.message));
+    }
+  };
+
+  // The only question Jane asks: what job, and where.
+  const askTarget = (role = "", where = "") => {
+    const roleInput = h("input", { type: "text", maxlength: 200, placeholder: "e.g. Registered Nurse", value: role });
+    const cityInput = h("input", { type: "text", maxlength: 200, placeholder: "e.g. Miami, FL", value: where });
+    const go = h("button", { class: "btn btn-primary", type: "submit" }, "Find my matches");
+    results.replaceChildren(h("form", { class: "card stack", onsubmit: async (event) => {
+      event.preventDefault();
+      const r = roleInput.value.trim(); const c = cityInput.value.trim();
+      if (!r || !c) { toast("Add a job title and a city.", true); return; }
+      go.disabled = true;
+      saveSearchTarget(r, c).catch(() => {});
+      await run(r, c);
+    } },
+      h("h3", {}, "What job are you looking for?"),
+      h("div", { class: "grid-2" },
+        h("label", { class: "field" }, "Job title", roleInput),
+        h("label", { class: "field" }, "City", cityInput)),
+      h("div", { class: "row" }, go),
+    ));
+    roleInput.focus();
+  };
+
+  if (state.lastSearch) showMatches(state.lastSearch);
+  else if (targetRole && city) setTimeout(() => run(targetRole, city), 0);
+  else setTimeout(() => askTarget(targetRole, city), 0);
 
   return h("div", { class: "stack home" },
-    h("div", { class: "page-head" },
-      h("h1", {}, name ? `Hi ${name}. What do you want to do?` : "What do you want to do?"),
-      h("p", {}, "Pick one. Jane will walk you through it.")),
-    h("div", { class: "grid-3 home-actions" },
-      actions.map(([icon, title, body, href, cta]) =>
-        link(href, { class: "card home-action" },
-          h("div", { class: "step-num", "aria-hidden": "true" }, icon),
-          h("h3", {}, title),
-          h("p", { class: "muted" }, body),
-          h("span", { class: "home-cta" }, `${cta} →`)))),
-    remaining ? h("div", { class: "card stack-sm" },
-      h("h3", {}, `Finish setting up (${setup.length - remaining} of ${setup.length} done)`),
-      h("ul", { class: "checklist" }, setup.map(([done, label, href, cta]) =>
-        h("li", { class: done ? "done" : "" },
-          h("span", { class: "check-mark", "aria-hidden": "true" }, done ? "✓" : ""),
-          h("span", {}, label),
-          done ? null : link(href, { class: "btn btn-sm" }, cta))))) : null,
-    h("p", { class: "faint small" }, "Need help? Call customer service at ", h("a", { href: "tel:+16468212027" }, "646-821-2027"), "."),
+    head,
+    results,
+    h("div", { class: "card stack-sm" },
+      h("div", { class: "row-between" }, h("h3", {}, "My applications"), link("/app/applications", { class: "btn btn-ghost btn-sm" }, "Open tracker →")),
+      tracker),
+    h("p", { class: "faint small" },
+      "Have one specific job in mind? ", link("/app/fit-check", {}, "Check it here"),
+      ". Need help? Call ", h("a", { href: "tel:+16468212027" }, "646-821-2027"), "."),
   );
 }
 
