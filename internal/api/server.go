@@ -1529,7 +1529,9 @@ func writeJSON(
 func usaJobsBackup() jobs.Provider {
 	provider := jobs.NewUSAJobsProvider()
 	if provider == nil {
+		log.Printf("USAJobs backup source not configured (set USAJOBS_API_KEY and USAJOBS_EMAIL)")
 		return nil
 	}
+	log.Printf("USAJobs backup source configured")
 	return jobs.NewCachedProvider(provider, 6*time.Hour)
 }
