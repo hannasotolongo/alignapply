@@ -8,7 +8,9 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -111,22 +113,7 @@ func NewServer(
 	dependencies ...Dependencies,
 ) *Server {
 	server := &Server{
-		mux: http.NewServeMux(),
-		jobProvider: jobs.NewMultiProvider(
-			// The main feed is cached for 6 hours so repeat searches don't use up
-			// its allowance. Free backup sources fill in when it returns too few
-			// jobs or fails.
-			jobs.NewFallbackProvider(
-				jobs.NewCachedProvider(jobs.NewJobOpportunitiesProvider(), 6*time.Hour),
-				15,
-				jobs.NewGreenhouseProvider(jobs.GreenhouseBoards()),
-				jobs.NewCachedProvider(jobs.NewRemotiveProvider(), 6*time.Hour),
-				usaJobsBackup(),
-			),
-			jobs.NewLeverProvider(
-				jobs.DefaultATSEmployers(),
-			),
-		),
+		mux:      http.NewServeMux(),
 		pipeline: jobs.NewPipeline(),
 
 		authLimiter: newAttemptLimiter(20, 15*time.Minute),
@@ -135,6 +122,8 @@ func NewServer(
 		fitCheckAnonLimiter: newAttemptLimiter(fitCheckAnonymousPerDay, 24*time.Hour),
 		fitCheckUserLimiter: newAttemptLimiter(ProJobMatchesPerHour, time.Hour),
 	}
+
+	server.jobProvider = newJobProvider(server)
 
 	if len(dependencies) > 0 {
 		deps := dependencies[0]
@@ -1234,7 +1223,7 @@ func (s *Server) handleJobMatches(
 		go func() {
 			defer wg.Done()
 			for index := range work {
-				matches[index] = matching.MatchFast(request, processedJobs[index])
+				matches[index] = previewOrScore(request, processedJobs[index])
 			}
 		}()
 	}
@@ -1382,13 +1371,15 @@ func sortJobMatches(
 				left.MatchLevel !=
 					"Insufficient Evidence" &&
 					left.MatchLevel !=
-						"Needs Review"
+						"Needs Review" &&
+					left.MatchLevel != previewMatchLevel
 
 			rightScorable :=
 				right.MatchLevel !=
 					"Insufficient Evidence" &&
 					right.MatchLevel !=
-						"Needs Review"
+						"Needs Review" &&
+					right.MatchLevel != previewMatchLevel
 
 			if leftScorable !=
 				rightScorable {
@@ -1512,6 +1503,88 @@ func writeJSON(
 			err,
 		)
 	}
+}
+
+// previewMatchLevel marks jobs from sources that only share a short preview
+// of the description (Jooble). Jane lists them without a score
+// rather than guessing a fit from a few sentences.
+const previewMatchLevel = "Preview"
+
+func previewOrScore(request jobs.SearchRequest, job jobs.Job) jobs.JobMatch {
+	match := matching.MatchFast(request, job)
+	if !jobs.IsPreviewSource(job.Source) {
+		return match
+	}
+	match.MatchLevel = previewMatchLevel
+	match.MatchPercentage = 0
+	match.Explanation = "Jane can only see a preview of this posting. Open it to read the full description, then paste it into Fit Check and Jane will score your fit."
+	match.SupportedRequirements = nil
+	match.PartialRequirements = nil
+	match.MissingRequirements = nil
+	return match
+}
+
+// newJobProvider assembles Jane's job sources: the main feed (cached 6
+// hours so repeat searches don't use up its allowance), free backups when
+// it returns too few jobs or fails, Jooble only when those still come up
+// short, and Lever company boards alongside.
+func newJobProvider(server *Server) *jobs.MultiProvider {
+	return jobs.NewMultiProvider(
+		jobs.NewFallbackProvider(
+			jobs.NewCachedProvider(jobs.NewJobOpportunitiesProvider(), 6*time.Hour),
+			15,
+			jobs.NewGreenhouseProvider(jobs.GreenhouseBoards()),
+			jobs.NewCachedProvider(jobs.NewRemotiveProvider(), 6*time.Hour),
+			usaJobsBackup(),
+		).WithLastResort(joobleSource(server)),
+		jobs.NewLeverProvider(
+			jobs.DefaultATSEmployers(),
+		),
+	)
+}
+
+// joobleSource is Jooble when JOOBLE_API_KEY is set. Results are cached for
+// 24 hours, and calls are capped at JOOBLE_REQUEST_LIMIT (default 450) per
+// JOOBLE_LIMIT_PERIOD ("month" by default, or "day"), counted in the
+// database so restarts don't reset the count.
+func joobleSource(server *Server) jobs.Provider {
+	provider := jobs.NewJoobleProvider()
+	if provider == nil {
+		log.Printf("Jooble job source not configured (set JOOBLE_API_KEY)")
+		return nil
+	}
+	limit := 450
+	if value, err := strconv.Atoi(strings.TrimSpace(os.Getenv("JOOBLE_REQUEST_LIMIT"))); err == nil && value > 0 {
+		limit = value
+	}
+	window, period := 30*24*time.Hour, "30 days"
+	if strings.EqualFold(strings.TrimSpace(os.Getenv("JOOBLE_LIMIT_PERIOD")), "day") {
+		window, period = 24*time.Hour, "day"
+	}
+	log.Printf("Jooble job source configured (up to %d requests per %s)", limit, period)
+	budget := &externalCallBudget{server: server, source: jobs.SourceJooble, limit: limit, window: window, memory: jobs.NewMemoryBudget(limit, window)}
+	return jobs.NewCachedProvider(provider.WithBudget(budget), 24*time.Hour)
+}
+
+// externalCallBudget counts calls in the database when there is one, and in
+// memory otherwise.
+type externalCallBudget struct {
+	server *Server
+	source string
+	limit  int
+	window time.Duration
+	memory *jobs.MemoryBudget
+}
+
+func (b *externalCallBudget) Reserve(ctx context.Context) (bool, error) {
+	if b.server.billingRepo == nil {
+		return b.memory.Reserve(ctx)
+	}
+	allowed, err := b.server.billingRepo.ReserveAPICall(ctx, b.source, b.limit, time.Now().Add(-b.window))
+	if err == nil && !allowed {
+		log.Printf("[job-backups] %s request allowance used up (%d per window); skipping it until calls age out", b.source, b.limit)
+	}
+	return allowed, err
 }
 
 // usaJobsBackup is the USAJobs source when its free key is configured.

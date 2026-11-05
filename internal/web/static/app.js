@@ -1586,7 +1586,29 @@ async function viewJobs() {
   );
 }
 
+// Jobs from Jooble come with only a short preview of the posting,
+// so Jane lists them without a score (see previewMatchLevel on the server).
+function isPreview(match) {
+  return match.matchLevel === "Preview";
+}
+
+// sourceCredit credits the aggregator whose jobs are shown.
+function sourceCredit(matches) {
+  const sources = new Set((matches || []).map((m) => m.source));
+  const credits = [
+    sources.has("jooble") ? ["Jooble", "https://jooble.org"] : null,
+  ].filter(Boolean);
+  if (!credits.length) return null;
+  const parts = ["Some jobs by "];
+  credits.forEach(([name, href], index) => {
+    if (index) parts.push(" and ");
+    parts.push(h("a", { href, target: "_blank", rel: "noopener noreferrer" }, name));
+  });
+  return h("p", { class: "faint small" }, ...parts, ".");
+}
+
 function fitClass(match) {
+  if (isPreview(match)) return "preview";
   const level = (match.matchLevel || "").toLowerCase();
   if (level.includes("best") || level.includes("strong")) return "good";
   if (level.includes("good") || level.includes("moderate")) return "mid";
@@ -1605,6 +1627,7 @@ function renderMatches(container, matches) {
   container.replaceChildren(
     h("p", { class: "muted" }, `${matches.length} role${matches.length === 1 ? "" : "s"}, best fit first`),
     ...matches.map(jobCard),
+    sourceCredit(matches),
   );
 }
 
@@ -1668,6 +1691,7 @@ function trackButton(match, extraClass) {
 
 function jobCard(match) {
   const cls = fitClass(match);
+  const preview = isPreview(match);
   const applyURL = safeUrl(match.applyURL || match.sourceURL || "");
   const meta = [match.location, match.workArrangement, match.employmentType, salaryText(match)].filter(Boolean);
 
@@ -1680,17 +1704,18 @@ function jobCard(match) {
         ),
         meta.length ? h("div", { class: "row" }, meta.map((m) => h("span", { class: "pill" }, m))) : null,
       ),
-      h("div", { class: `score ${cls}`, title: match.matchLevel }, `${match.matchPercentage}%`),
+      h("div", { class: `score ${cls}`, title: preview ? "Preview only" : match.matchLevel }, preview ? "—" : `${match.matchPercentage}%`),
     ),
     h("div", { class: "row" },
-      h("span", { class: `pill pill-${cls}` }, match.matchLevel || "Fit"),
-      h("span", { class: "faint small" },
+      h("span", { class: `pill pill-${cls}` }, preview ? "Preview only" : (match.matchLevel || "Fit")),
+      preview ? null : h("span", { class: "faint small" },
         `${(match.supportedRequirements || []).length} met · ${(match.partialRequirements || []).length} partial · ${(match.missingRequirements || []).length} missing`),
     ),
     match.explanation ? h("p", { class: "muted" }, match.explanation) : null,
     h("div", { class: "row" },
       h("button", { class: "btn btn-sm", onclick: () => openJobDetail(match) }, "Job details"),
-      applyURL ? h("a", { class: "btn btn-primary btn-sm", href: applyURL, target: "_blank", rel: "noopener noreferrer" }, "Apply ↗") : null,
+      applyURL ? h("a", { class: "btn btn-primary btn-sm", href: applyURL, target: "_blank", rel: "noopener noreferrer" }, preview ? "Open posting ↗" : "Apply ↗") : null,
+      preview ? link("/app/fit-check", { class: "btn btn-sm" }, "Check my fit") : null,
       trackButton(match),
     ),
   );
@@ -1702,14 +1727,16 @@ function openJobDetail(match) {
   const required = (match.requirements || []).filter((r) => r.importance === "required").map((r) => r.text);
   const preferred = (match.requirements || []).filter((r) => r.importance === "preferred").map((r) => r.text);
   const recommendationSlot = h("div", {});
+  const preview = isPreview(match);
 
   openDialog(match.title,
     h("div", { class: "row-between" },
       h("div", {}, h("div", { class: "muted" }, match.company), h("div", { class: "faint small" }, [match.location, salaryText(match)].filter(Boolean).join(" · "))),
-      h("div", { class: `score ${cls}` }, `${match.matchPercentage}%`),
+      h("div", { class: `score ${cls}` }, preview ? "—" : `${match.matchPercentage}%`),
     ),
     h("div", { class: "row" },
-      applyURL ? h("a", { class: "btn btn-primary btn-sm", href: applyURL, target: "_blank", rel: "noopener noreferrer" }, "Apply ↗") : null,
+      applyURL ? h("a", { class: "btn btn-primary btn-sm", href: applyURL, target: "_blank", rel: "noopener noreferrer" }, preview ? "Open posting ↗" : "Apply ↗") : null,
+      preview ? h("button", { class: "btn btn-sm", onclick: (event) => { event.currentTarget.closest("dialog")?.close(); navigate("/app/fit-check"); } }, "Check my fit") : null,
       trackButton(match),
     ),
     h("div", { class: "card inset stack" },
@@ -1717,8 +1744,8 @@ function openJobDetail(match) {
       match.explanation ? h("p", { class: "muted" }, match.explanation) : null,
       reqList("supported", "You meet", match.supportedRequirements),
     ),
-    gapCloser(gapsFromMatch(match)),
-    match.description ? applicationKitSection(async () => {
+    preview ? null : gapCloser(gapsFromMatch(match)),
+    match.description && !preview ? applicationKitSection(async () => {
       const resumes = state.resumes || await loadResumes();
       const chosen = (state.lastSearch && state.lastSearch.resumeId) || ((resumes.find((r) => r.isPrimary) || resumes[0] || {}).id);
       if (!chosen) throw new Error("Upload a résumé first, then Jane can tailor it.");
@@ -1730,13 +1757,13 @@ function openJobDetail(match) {
         gaps: gapsFromMatch(match).map((g) => g.requirement),
       };
     }, `${match.title}${match.company ? ` at ${match.company}` : ""}`) : null,
-    recommendationCard(match, recommendationSlot),
-    required.length || preferred.length ? h("div", { class: "stack-sm" },
+    preview ? null : recommendationCard(match, recommendationSlot),
+    !preview && (required.length || preferred.length) ? h("div", { class: "stack-sm" },
       h("h3", {}, "Posting requirements"),
       required.length ? h("div", {}, h("span", { class: "section-label" }, "Required"), h("ul", { class: "plain-list" }, required.map((t) => h("li", {}, t)))) : null,
       preferred.length ? h("div", {}, h("span", { class: "section-label" }, "Preferred"), h("ul", { class: "plain-list" }, preferred.map((t) => h("li", {}, t)))) : null,
     ) : null,
-    match.description ? h("div", { class: "stack-sm" }, h("h3", {}, "Job description"), h("div", { class: "description" }, match.description)) : null,
+    match.description ? h("div", { class: "stack-sm" }, h("h3", {}, preview ? "Preview of the posting" : "Job description"), h("div", { class: "description" }, match.description)) : null,
   );
 }
 
@@ -2947,7 +2974,7 @@ async function viewHome() {
           h("button", { class: "btn btn-ghost btn-sm", onclick: () => askTarget(search.request.targetRole, search.request.location) }, "Change"),
           (search.matches || []).length > 5 ? link("/app/jobs", { class: "btn btn-sm" }, `See all ${search.matches.length}`) : null)),
       matches.length
-        ? h("div", { class: "stack" }, matches.map(jobCard))
+        ? h("div", { class: "stack" }, matches.map(jobCard), sourceCredit(matches))
         : h("div", { class: "card empty" },
             h("h3", {}, "Nothing close enough yet"),
             h("p", {}, "Try a broader job title or a bigger nearby city. Jane only shows jobs she could actually score."),

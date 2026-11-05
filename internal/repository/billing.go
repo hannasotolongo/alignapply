@@ -240,6 +240,31 @@ func (r *BillingRepository) RecordUsage(
 	return nil
 }
 
+// ReserveAPICall records one call to an outside API (such as Jooble) if
+// fewer than limit calls were made since the given time. It returns false
+// when the allowance is used up, in which case no call should be made.
+func (r *BillingRepository) ReserveAPICall(
+	ctx context.Context,
+	source string,
+	limit int,
+	since time.Time,
+) (bool, error) {
+	tag, err := r.pool.Exec(
+		ctx,
+		`INSERT INTO external_api_calls (source)
+		 SELECT $1
+		 WHERE (SELECT COUNT(*) FROM external_api_calls
+		        WHERE source = $1 AND created_at >= $3) < $2`,
+		source,
+		limit,
+		since,
+	)
+	if err != nil {
+		return false, fmt.Errorf("repository: reserve api call: %w", err)
+	}
+	return tag.RowsAffected() == 1, nil
+}
+
 func (r *BillingRepository) CountUsageSince(
 	ctx context.Context,
 	userID string,

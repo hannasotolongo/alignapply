@@ -977,3 +977,7 @@ input:focus, textarea:focus, select:focus {
 .delivery-tile.low { border-color: rgba(248, 113, 113, 0.3); }
 .practice-q .step-num { width: 28px; height: 28px; font-size: 13px; flex: 0 0 auto; }
 @media (max-width: 560px) { .delivery-grid { grid-template-columns: 1fr; } }
+
+/* Jobs from preview-only sources (Jooble): listed without a score. */
+.score.preview { color: var(--text-2); font-weight: 600; }
+.pill-preview { background: var(--elevated); color: var(--text-2); border-color: var(--border-strong); }

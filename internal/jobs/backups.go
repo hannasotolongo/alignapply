@@ -455,8 +455,22 @@ func (p *USAJobsProvider) Search(ctx context.Context, request SearchRequest) ([]
 type FallbackProvider struct {
 	primary Provider
 	backups []Provider
-	minimum int
-	timeout time.Duration
+	// lastResort sources have tight request allowances, so they're asked
+	// only when the main feed and free backups together come up short.
+	lastResort []Provider
+	minimum    int
+	timeout    time.Duration
+}
+
+// WithLastResort adds sources asked only when everything else returned
+// fewer than the minimum number of jobs.
+func (f *FallbackProvider) WithLastResort(providers ...Provider) *FallbackProvider {
+	for _, provider := range providers {
+		if provider != nil {
+			f.lastResort = append(f.lastResort, provider)
+		}
+	}
+	return f
 }
 
 func NewFallbackProvider(primary Provider, minimum int, backups ...Provider) *FallbackProvider {
@@ -483,23 +497,30 @@ func (f *FallbackProvider) Search(ctx context.Context, request SearchRequest) ([
 	var (
 		mu  sync.Mutex
 		all = append([]Job(nil), primaryJobs...)
-		wg  sync.WaitGroup
 	)
-	for _, backup := range f.backups {
-		wg.Add(1)
-		go func(backup Provider) {
-			defer wg.Done()
-			jobs, err := backup.Search(backupCtx, request)
-			log.Printf("[job-backups] %s returned %d jobs (err=%v)", backup.Name(), len(jobs), err)
-			if err != nil {
-				return
-			}
-			mu.Lock()
-			all = append(all, jobs...)
-			mu.Unlock()
-		}(backup)
+	searchAll := func(providers []Provider) {
+		var wg sync.WaitGroup
+		for _, backup := range providers {
+			wg.Add(1)
+			go func(backup Provider) {
+				defer wg.Done()
+				jobs, err := backup.Search(backupCtx, request)
+				log.Printf("[job-backups] %s returned %d jobs (err=%v)", backup.Name(), len(jobs), err)
+				if err != nil {
+					return
+				}
+				mu.Lock()
+				all = append(all, jobs...)
+				mu.Unlock()
+			}(backup)
+		}
+		wg.Wait()
 	}
-	wg.Wait()
+	searchAll(f.backups)
+	if len(all) < f.minimum && len(f.lastResort) > 0 {
+		log.Printf("[job-backups] %d jobs so far; asking %d last-resort sources", len(all), len(f.lastResort))
+		searchAll(f.lastResort)
+	}
 
 	if len(all) == 0 && primaryErr != nil {
 		return nil, primaryErr
