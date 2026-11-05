@@ -409,6 +409,73 @@ function siteFooter() {
   );
 }
 
+// askJaneDemo is an animated "Ask Jane" conversation beside the headline:
+// a search types itself, Jane answers with scored matches, then offers to
+// tailor the résumé. Sample data, labeled Example. Loops while visible.
+function askJaneDemo() {
+  const query = "ICU nurse jobs near Miami";
+  const typed = h("span", { class: "ask-typed" });
+  const caret = h("span", { class: "ask-caret", "aria-hidden": "true" });
+  const bar = h("div", { class: "ask-bar" },
+    h("span", { class: "ask-icon", "aria-hidden": "true" }, "⌕"), typed, caret,
+    h("span", { class: "ask-send", "aria-hidden": "true" }, "↑"));
+  const thread = h("div", { class: "ask-thread" });
+  const pane = h("div", { class: "card demo-card hero-pane ask-pane" },
+    h("div", { class: "row-between" },
+      h("div", { class: "ask-who" },
+        h("img", { src: "/logo-mark.svg", alt: "", width: 26, height: 26 }),
+        h("div", { class: "stack-sm demo-head" }, h("strong", {}, "Ask Jane"), h("span", { class: "faint small" }, "Your job-search copilot"))),
+      h("span", { class: "pill hero-example-inline" }, "Example")),
+    bar, thread);
+
+  const jobs = [["Baptist Health · ICU RN", "Miami", 86, "good"], ["Jackson Health · Cardiac RN", "Miami", 81, "good"], ["Mount Sinai · ED Charge RN", "Miami Beach", 68, "mid"]];
+  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  const alive = () => pane.isConnected;
+
+  const janeBubble = (...children) => h("div", { class: "ask-msg jane" }, ...children);
+  const matchRow = ([title, where, pct, cls]) => {
+    const ring = h("div", { class: `score-ring mini ${cls}` }, h("span", {}, `${pct}%`));
+    ring.style.setProperty("--pct", String(pct));
+    return h("div", { class: "ask-job" }, h("div", { class: "stack-sm demo-match-text" }, h("strong", {}, title), h("span", { class: "faint small" }, where)), ring);
+  };
+
+  const finalState = () => {
+    typed.textContent = query;
+    thread.replaceChildren(
+      janeBubble(h("span", {}, "I found 12 jobs. Here are your best fits:")),
+      h("div", { class: "ask-jobs" }, jobs.map(matchRow)),
+      janeBubble(h("span", {}, "Baptist Health is your strongest match at 86%. Want your résumé tailored for it?"),
+        h("span", { class: "ask-cta" }, "Tailor my résumé →")));
+  };
+
+  const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduceMotion) { finalState(); return h("div", { class: "hero-visual" }, pane); }
+
+  const run = async () => {
+    while (alive()) {
+      typed.textContent = ""; thread.replaceChildren(); bar.classList.remove("sent");
+      await wait(700);
+      for (const ch of query) { if (!alive()) return; typed.textContent += ch; await wait(55 + Math.random() * 45); }
+      await wait(350); bar.classList.add("sent");
+      const thinking = janeBubble(h("span", { class: "ask-dots" }, h("i"), h("i"), h("i")), h("span", { class: "faint small" }, "Checking every requirement against your résumé"));
+      thread.append(thinking);
+      await wait(1600); if (!alive()) return;
+      thinking.replaceChildren(h("span", {}, "I found 12 jobs. Here are your best fits:"));
+      const list = h("div", { class: "ask-jobs" });
+      thread.append(list);
+      for (const job of jobs) { await wait(380); if (!alive()) return; const row = matchRow(job); row.classList.add("pop"); list.append(row); }
+      await wait(700); if (!alive()) return;
+      const offer = janeBubble(h("span", {}, "Baptist Health is your strongest match at 86%. Want your résumé tailored for it?"),
+        h("span", { class: "ask-cta pulse" }, "Tailor my résumé →"));
+      offer.classList.add("pop");
+      thread.append(offer);
+      await wait(5200);
+    }
+  };
+  setTimeout(run, 0);
+  return h("div", { class: "hero-visual" }, pane);
+}
+
 // exampleResultCard is the glass slideshow beside the headline: one panel
 // each for match rate, tailored résumé, and interview prep, with clearly
 // labeled sample data.
@@ -549,7 +616,7 @@ async function viewLanding() {
             ),
             h("p", { class: "faint small hero-note" }, "Cancel anytime · 7-day money-back guarantee · Jane does the searching for you"),
           ),
-          exampleResultCard(),
+          askJaneDemo(),
         ),
       ),
       h("section", { class: "section", id: "features" },
