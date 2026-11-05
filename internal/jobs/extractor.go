@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 type extractionSection struct {
@@ -38,6 +39,12 @@ var (
 
 	yearsRE = regexp.MustCompile(
 		`(?i)\b(?:\d+\s+plus|\d+\+?|\d+\s*[-–—]\s*\d+)\s*(?:years?|yrs?)\b`,
+	)
+
+	// yearsAtStartRE asks only "does a years expression start right here?",
+	// without scanning the rest of the posting.
+	yearsAtStartRE = regexp.MustCompile(
+		`(?i)^(?:\b(?:\d+\s+plus|\d+\+?|\d+\s*[-–—]\s*\d+)\s*(?:years?|yrs?)\b)`,
 	)
 
 	experienceRE = regexp.MustCompile(
@@ -690,12 +697,14 @@ func extractSectionSpans(text string) []sectionSpan {
 
 func findAllSectionHeadings(text string) []headingMatch {
 	matches := make([]headingMatch, 0)
+	lower := strings.ToLower(text)
 
 	for _, definition := range acceptedHeadings {
 		matches = append(
 			matches,
 			findHeadingMatches(
 				text,
+				lower,
 				definition.Name,
 				definition.Section,
 			)...,
@@ -713,6 +722,7 @@ func findAllSectionHeadings(text string) []headingMatch {
 			matches,
 			findHeadingMatches(
 				text,
+				lower,
 				heading,
 				rejectedSection,
 			)...,
@@ -724,10 +734,10 @@ func findAllSectionHeadings(text string) []headingMatch {
 
 func findHeadingMatches(
 	text string,
+	lower string, // strings.ToLower(text), computed once by the caller
 	name string,
 	section extractionSection,
 ) []headingMatch {
-	lower := strings.ToLower(text)
 	needle := strings.ToLower(name)
 
 	result := make([]headingMatch, 0)
@@ -1282,10 +1292,17 @@ func addCategoryTransitionBoundaries(
 			continue
 		}
 
-		before := strings.TrimSpace(text[:start])
 		after := strings.TrimSpace(text[start:])
 
-		if before == "" || after == "" {
+		// A category transition should begin like a real new clause
+		// (checked first because it is cheap and rules out most words).
+		if first, _ := utf8.DecodeRuneInString(after); after == "" || !unicode.IsUpper(first) {
+			continue
+		}
+
+		before := strings.TrimSpace(text[:start])
+
+		if before == "" {
 			continue
 		}
 
@@ -1433,7 +1450,7 @@ func startsInsideNumericRange(
 		return false
 	}
 
-	// Inspect the characters immediately before the numeric expression.
+	// Look at the characters immediately before the numeric expression.
 	// Providers commonly emit all of these:
 	//
 	//   0 - 2 years
@@ -1441,48 +1458,36 @@ func startsInsideNumericRange(
 	//   0–2 years
 	//   0—2 years
 	//
-	// The second number must never become a separate requirement.
-	before := strings.TrimSpace(text[:start])
+	// The second number must never become a separate requirement. Only the
+	// last few characters matter, so walk backwards instead of converting
+	// the whole preceding text.
+	before := text[:start]
+	i := len(before)
 
-	if before == "" {
+	prev := func() (rune, bool) {
+		if i <= 0 {
+			return 0, false
+		}
+		r, size := utf8.DecodeLastRuneInString(before[:i])
+		i -= size
+		return r, true
+	}
+
+	r, ok := prev()
+	for ok && unicode.IsSpace(r) {
+		r, ok = prev()
+	}
+	if !ok || (r != '-' && r != '–' && r != '—') {
 		return false
 	}
 
-	runes := []rune(before)
-
-	i := len(runes) - 1
-	for i >= 0 && unicode.IsSpace(runes[i]) {
-		i--
-	}
-
-	if i < 0 {
-		return false
-	}
-
-	if runes[i] != '-' &&
-		runes[i] != '–' &&
-		runes[i] != '—' {
-		return false
-	}
-
-	i--
-
-	for i >= 0 && unicode.IsSpace(runes[i]) {
-		i--
-	}
-
-	if i < 0 || !unicode.IsDigit(runes[i]) {
-		return false
-	}
-
-	for i >= 0 && unicode.IsDigit(runes[i]) {
-		i--
+	r, ok = prev()
+	for ok && unicode.IsSpace(r) {
+		r, ok = prev()
 	}
 
 	// A digit immediately before the range separator is sufficient.
-	// Earlier text is irrelevant; it may contain modifiers such as
-	// "minimum" or other qualification prose.
-	return true
+	return ok && unicode.IsDigit(r)
 }
 
 func addSentenceBoundaries(
@@ -1531,7 +1536,7 @@ func addRequirementGrammarBoundaries(
 
 		remaining := text[start:]
 
-		if match := yearsRE.FindStringIndex(remaining); match != nil && match[0] == 0 && leadingYearsModifier(text[:start]) {
+		if yearsAtStartRE.MatchString(remaining) && leadingYearsModifier(text[:start]) {
 			continue
 		}
 
@@ -1934,7 +1939,23 @@ func looksLikeCredentialStart(text string) bool {
 		return false
 	}
 }
+
+// requirementStartWindow is how much of the following text
+// isLikelyRequirementStart needs: every check it makes looks at the first
+// few words, so lowercasing the whole rest of a long posting for each word
+// was wasted work.
+const requirementStartWindow = 512
+
 func isLikelyRequirementStart(text string) bool {
+	text = strings.TrimLeftFunc(text, unicode.IsSpace)
+	if len(text) > requirementStartWindow {
+		cut := requirementStartWindow
+		for cut > 0 && !utf8.RuneStart(text[cut]) {
+			cut--
+		}
+		text = text[:cut]
+	}
+
 	lower := strings.ToLower(
 		strings.TrimSpace(text),
 	)
@@ -2003,12 +2024,8 @@ func isLikelyRequirementStart(text string) bool {
 		}
 	}
 
-	if yearsRE.MatchString(lower) {
-		match := yearsRE.FindStringIndex(lower)
-
-		if match != nil && match[0] == 0 {
-			return true
-		}
+	if yearsAtStartRE.MatchString(lower) {
+		return true
 	}
 
 	return false
