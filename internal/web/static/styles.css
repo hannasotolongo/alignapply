@@ -1041,12 +1041,6 @@ input:focus, textarea:focus, select:focus {
 .school-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
 .school-row h3 { margin: 0; }
 .school-row p { margin: 4px 0 0; }
-.plan-compare { width: 100%; border-collapse: collapse; font-size: 14px; }
-.plan-compare th, .plan-compare td { padding: 10px 8px; border-bottom: 1px solid var(--border); text-align: center; }
-.plan-compare th:first-child, .plan-compare td:first-child { text-align: left; color: var(--text-2); }
-.plan-compare tr:last-child td { border-bottom: 0; }
-.plan-compare .yes { color: var(--good); font-weight: 700; }
-.plan-compare .no { color: var(--text-3); }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .paywall .pill { justify-self: start; width: max-content; }
 
@@ -1066,4 +1060,31 @@ input:focus, textarea:focus, select:focus {
   .cover-pane { padding: 36px 20px 30px; border-radius: 28px; }
   .cover-blob-1 { width: 320px; height: 320px; left: -20%; }
   .cover-blob-2 { width: 300px; height: 300px; right: -20%; }
+}
+
+/* My applications: stage tiles that filter, then one row per job. */
+.stage-tiles { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
+.stage-tile { display: grid; gap: 2px; text-align: left; padding: 14px 16px; border-radius: 18px; cursor: pointer; color: var(--text-2);
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)); border: 1px solid rgba(255, 255, 255, 0.1);
+  font: inherit; transition: border-color 0.15s, background 0.15s; }
+.stage-tile b { font-size: 26px; letter-spacing: -0.02em; color: var(--text); }
+.stage-tile span { font-size: 13px; }
+.stage-tile:hover { border-color: rgba(255, 255, 255, 0.22); }
+.stage-tile.on { background: #fff; border-color: #fff; color: #3f3f46; }
+.stage-tile.on b { color: #08090b; }
+.app-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px 24px; align-items: center; padding: 18px 20px; }
+.app-row-main { display: grid; gap: 4px; min-width: 0; }
+.app-row-title { gap: 10px; flex-wrap: wrap; }
+.app-row-title .title { font-weight: 700; font-size: 17px; }
+.app-row-side { display: grid; gap: 10px; justify-items: end; }
+.app-status { display: flex; align-items: center; gap: 8px; }
+.app-status select { min-height: 34px; padding: 4px 30px 4px 10px; font-size: 13px; border-radius: 10px; width: auto; }
+.app-row-actions { justify-content: flex-end; }
+.app-row-timeline { grid-column: 1 / -1; border-top: 1px solid var(--border); padding-top: 10px; }
+.app-row-timeline .timeline { margin-top: 10px; }
+@media (max-width: 900px) { .stage-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 640px) {
+  .app-row { grid-template-columns: 1fr; }
+  .app-row-side { justify-items: start; }
+  .app-row-actions { justify-content: flex-start; }
 }

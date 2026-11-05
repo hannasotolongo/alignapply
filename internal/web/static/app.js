@@ -383,7 +383,6 @@ function siteNav() {
     h("div", { class: "container" },
       brand(),
       h("nav", { class: "row" },
-        h("a", { class: "btn btn-ghost btn-sm nav-section", href: "/#features" }, "What Jane does"),
         link("/pricing", { class: "btn btn-ghost btn-sm" }, "Pricing"),
         signedIn
           ? link("/app", { class: "btn btn-primary btn-sm" }, "My account")
@@ -510,7 +509,7 @@ function everythingJaneDoes() {
         h("div", { class: "jd-tile" },
           h("span", { class: "jd-kicker" }, "Apply"),
           h("h3", {}, "Your best résumé for every job"),
-          h("p", {}, "Upload all your résumés. Jane picks the one that fits each job best, then tailors it to stand out, using only what's true."),
+          h("p", {}, "Upload all your résumés. Jane picks the one that fits each job best, then tailors it to stand out using your experience."),
           resumeBar("Marketing · 74%", 74),
           resumeBar("Digital marketing · 88% ★", 88, true),
           resumeBar("General · 61%", 61),
@@ -676,21 +675,6 @@ function planCards(plansInfo, { compact = false, include = ["interview", "monthl
   return cards;
 }
 
-// planComparison shows what Interview Prep includes next to Pro.
-function planComparison() {
-  const row = (label, interview) => h("tr", {}, h("td", {}, label),
-    h("td", { class: interview ? "yes" : "no" }, interview ? "✓" : "–"), h("td", { class: "yes" }, "✓"));
-  return h("div", { class: "card plan-compare-card" },
-    h("table", { class: "plan-compare" },
-      h("thead", {}, h("tr", {}, h("th", {}, h("span", { class: "sr-only" }, "Feature")), h("th", {}, "Interview Prep"), h("th", {}, "Pro / Sprint"))),
-      h("tbody", {},
-        row("Interview practice with spoken feedback", true),
-        row("Job search with match scores", false),
-        row("Fit Check and Gap Closer", false),
-        row("Best-résumé pick and tailored résumé", false),
-        row("Application tracker", false))));
-}
-
 function pricingSection(plansInfo) {
   const cards = planCards(plansInfo, { include: ["interview", "monthly", "sprint", "school"] });
   const school = cards.pop();
@@ -699,7 +683,6 @@ function pricingSection(plansInfo) {
       h("h2", { class: "section-title" }, "Pick what you need"),
       h("p", { class: "section-sub" }, "Cancel anytime, with a 7-day money-back guarantee."),
       h("div", { class: "grid-3" }, cards),
-      h("div", { class: "section-gap" }, planComparison()),
       h("div", { class: "section-gap" }, school),
       h("div", { class: "section-gap" }, checkoutNote()),
     ),
@@ -1868,6 +1851,14 @@ const COLUMNS = [
   ["Closed", ["rejected", "withdrawn"]],
 ];
 
+// stageOf maps a status to its column on the tracker.
+function stageOf(status) {
+  const column = COLUMNS.find(([, statuses]) => statuses.includes(status));
+  return column ? column[0] : "Saved";
+}
+
+const STAGE_TONE = { Saved: "", Applied: "mid", Interview: "good", Offer: "good", Closed: "low" };
+
 async function viewApplications() {
   const params = new URLSearchParams(location.search);
   if (params.get("gmail") === "connected") {
@@ -1876,19 +1867,39 @@ async function viewApplications() {
   }
 
   const [applications, plansInfo] = await Promise.all([api("/api/v1/applications"), loadPlans()]);
-  const board = h("div", { class: "board" });
+  // "Active" shows everything that isn't closed; a stage tile narrows it.
+  let filter = "Active";
+  const tiles = h("div", { class: "stage-tiles", role: "tablist", "aria-label": "Filter by stage" });
+  const list = h("div", { class: "stack-sm" });
+
+  const inFilter = (application) => {
+    const stage = stageOf(application.status);
+    return filter === "Active" ? stage !== "Closed" : stage === filter;
+  };
 
   const draw = () => {
-    board.replaceChildren(...COLUMNS.map(([title, statuses]) => {
-      const items = applications.filter((a) => statuses.includes(a.status));
-      return h("section", { class: "column", "aria-label": title },
-        h("div", { class: "column-head" }, h("span", {}, title), h("span", {}, items.length)),
-        items.map((application) => applicationCard(application, (updated) => {
+    const counts = Object.fromEntries(COLUMNS.map(([title]) => [title, 0]));
+    applications.forEach((a) => { counts[stageOf(a.status)] += 1; });
+    const active = applications.length - counts.Closed;
+
+    tiles.replaceChildren(...[["Active", active], ...COLUMNS.map(([title]) => [title, counts[title]])].map(([title, count]) =>
+      h("button", {
+        class: title === filter ? "stage-tile on" : "stage-tile",
+        role: "tab",
+        "aria-selected": title === filter ? "true" : "false",
+        onclick: () => { filter = title; draw(); },
+      }, h("b", {}, String(count)), h("span", {}, title))));
+
+    const shown = applications
+      .filter(inFilter)
+      .sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
+    list.replaceChildren(...(shown.length
+      ? shown.map((application) => applicationCard(application, (updated) => {
           Object.assign(application, updated);
           draw();
-        })),
-      );
-    }));
+        }))
+      : [h("div", { class: "card empty" },
+          h("p", { class: "muted" }, filter === "Active" ? "No active applications." : `Nothing in ${filter} yet.`))]));
   };
   draw();
 
@@ -1899,7 +1910,7 @@ async function viewApplications() {
   };
 
   const body = applications.length
-    ? board
+    ? h("div", { class: "stack" }, tiles, list)
     : h("div", { class: "card empty" },
         h("h3", {}, "Nothing tracked yet"),
         h("p", {}, "Hit “Save” on any job match to add it here."),
@@ -1907,7 +1918,8 @@ async function viewApplications() {
       );
 
   return h("div", { class: "stack" },
-    pageHead("My jobs", "Every status change is saved to the job's timeline."),
+    pageHead("My applications", "Track every job from saved to offer. Each change is saved to the job's timeline.",
+      link("/app/jobs", { class: "btn btn-sm" }, "Find jobs")),
     gmailCard(plansInfo, reload),
     body,
   );
@@ -2020,16 +2032,27 @@ function applicationCard(application, onUpdate) {
     }
   } }, h("summary", { class: "small" }, "Timeline"), timeline);
 
-  const applyURL = safeUrl(job.applyURL || "");
+  const applyURL = safeUrl(job.applyURL || job.sourceURL || "");
+  const stage = stageOf(application.status);
+  const when = application.appliedAt
+    ? `Applied ${formatDate(application.appliedAt)}`
+    : `Saved ${formatDate(application.createdAt)}`;
 
-  return h("div", { class: "app-card" },
-    h("div", {},
-      h("div", { class: "title" }, job.title || "Untitled role"),
+  return h("article", { class: "card app-row" },
+    h("div", { class: "app-row-main" },
+      h("div", { class: "row app-row-title" },
+        h("span", { class: "title" }, job.title || "Untitled job"),
+        h("span", { class: `pill pill-${STAGE_TONE[stage] || "plain"}` }, STATUS_LABELS[application.status] || stage)),
       h("div", { class: "muted small" }, [job.company, job.location].filter(Boolean).join(" · ")),
+      h("div", { class: "faint small" }, when),
     ),
-    select,
-    applyURL ? h("a", { class: "small muted", href: applyURL, target: "_blank", rel: "noopener noreferrer" }, "Open posting ↗") : null,
-    details,
+    h("div", { class: "app-row-side" },
+      h("label", { class: "app-status" }, h("span", { class: "faint small" }, "Status"), select),
+      h("div", { class: "row app-row-actions" },
+        applyURL ? h("a", { class: "btn btn-sm", href: applyURL, target: "_blank", rel: "noopener noreferrer" }, "Open posting ↗") : null,
+        application.jobId ? link(`/app/interview?job=${encodeURIComponent(application.jobId)}`, { class: "btn btn-sm" }, "Practice interview") : null),
+    ),
+    h("div", { class: "app-row-timeline" }, details),
   );
 }
 
@@ -3251,6 +3274,9 @@ async function viewInterviewPractice() {
     saved.map((a) => h("option", { value: a.jobId }, `${a.job.title} · ${a.job.company}`)),
     h("option", { value: "" }, "Paste a job posting instead…"));
   if (!saved.length) jobSelect.value = "";
+  // "Practice interview" on My applications opens this page with the job picked.
+  const wantedJob = new URLSearchParams(location.search).get("job");
+  if (wantedJob && saved.some((a) => a.jobId === wantedJob)) jobSelect.value = wantedJob;
 
   const pasteTitle = h("input", { type: "text", maxlength: 200, placeholder: "e.g. Marketing Manager", "aria-label": "Job title" });
   const pasteCompany = h("input", { type: "text", maxlength: 200, placeholder: "e.g. Brightline Foods", "aria-label": "Company" });
