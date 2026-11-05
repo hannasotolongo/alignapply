@@ -31,7 +31,7 @@ func evaluateHardConstraint(
 
 	case jobs.RequirementEducation:
 		return evaluateExplicitCredential(
-			profile.Education,
+			withRawLines(profile.Education, profile, true),
 			requirement.Text,
 		), true
 
@@ -42,7 +42,7 @@ func evaluateHardConstraint(
 			extractRequiredYears(requirement.Text); hasYears {
 
 			return evaluateExperienceYears(
-				profile.Experience,
+				withRawLines(profile.Experience, profile, false),
 				requirement.Text,
 				careerYears(profile, time.Now()),
 			), true

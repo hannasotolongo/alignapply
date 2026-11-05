@@ -118,3 +118,48 @@ func careerYears(profile candidate.Profile, now time.Time) int {
 	total += cur.end - cur.start + 1
 	return total / 12
 }
+
+// rawResumeLines returns résumé lines the profile extractor tends to drop:
+// job-title lines carrying dates ("Marketing Manager, Brightline Foods,
+// 2019 – 2025") for work, or degree lines ("B.S. Marketing, University of
+// Florida") for school. Without them a requirement like "5+ years of
+// marketing experience" or "Bachelor's in marketing" loses the very words
+// that prove it.
+func rawResumeLines(profile candidate.Profile, education bool) []candidate.Evidence {
+	var lines []candidate.Evidence
+	for _, line := range strings.Split(profile.RawResumeText, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || len(line) > 200 {
+			continue
+		}
+		isEducation := educationLine.MatchString(line)
+		if education {
+			if isEducation {
+				lines = append(lines, candidate.Evidence{Text: line, Source: "resume"})
+			}
+			continue
+		}
+		if !isEducation && dateRangePattern.MatchString(line) {
+			lines = append(lines, candidate.Evidence{Text: line, Source: "resume"})
+		}
+	}
+	return lines
+}
+
+func withRawLines(evidence []candidate.Evidence, profile candidate.Profile, education bool) []candidate.Evidence {
+	extra := rawResumeLines(profile, education)
+	if len(extra) == 0 {
+		return evidence
+	}
+	seen := make(map[string]bool, len(evidence))
+	for _, item := range evidence {
+		seen[normalize(item.Text)] = true
+	}
+	out := append([]candidate.Evidence(nil), evidence...)
+	for _, item := range extra {
+		if !seen[normalize(item.Text)] {
+			out = append(out, item)
+		}
+	}
+	return out
+}
