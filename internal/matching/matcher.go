@@ -594,11 +594,12 @@ func verifyEvidenceDeterministically(
 		return missingEvidence()
 	}
 
-	if matched == len(requirementTokens) {
-		return supportedEvidence()
-	}
+	coverage := float64(matched) / float64(len(requirementTokens))
 
-	if matched*2 >= len(requirementTokens) {
+	switch {
+	case matched == len(requirementTokens) || (len(requirementTokens) >= 3 && coverage >= 0.75):
+		return supportedEvidence()
+	case coverage >= 0.4:
 		return partialEvidence()
 	}
 
@@ -851,8 +852,15 @@ func tokenDemonstrated(
 	requirementToken string,
 	evidenceTokens []string,
 ) bool {
+	requirementConcept := conceptOf(requirementToken)
 	for _, evidenceToken := range evidenceTokens {
 		if requirementToken == evidenceToken {
+			return true
+		}
+
+		// Same word family or close synonym ("managed" / "leading",
+		// "clients" / "customers").
+		if requirementConcept == conceptOf(evidenceToken) {
 			return true
 		}
 

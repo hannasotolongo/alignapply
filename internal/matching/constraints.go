@@ -278,6 +278,8 @@ var credentialFiller = map[string]struct{}{
 	"licenses": {}, "licensure": {}, "card": {}, "state": {}, "upon": {}, "hire": {}, "within": {}, "days": {},
 	"months": {}, "obtain": {}, "maintain": {}, "eligible": {}, "eligibility": {}, "compact": {}, "multistate": {},
 	"multi": {}, "american": {}, "heart": {}, "association": {}, "aha": {}, "red": {}, "cross": {}, "both": {},
+	"degree": {}, "degrees": {}, "field": {}, "fields": {}, "area": {}, "discipline": {}, "equivalent": {}, "accredited": {},
+	"college": {}, "university": {}, "school": {}, "program": {}, "major": {}, "concentration": {}, "similar": {},
 }
 
 func credentialTokens(text string) []string {
