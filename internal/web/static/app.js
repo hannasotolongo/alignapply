@@ -409,34 +409,66 @@ function siteFooter() {
   );
 }
 
-// exampleResultCard previews Jane's matches screen with clearly labeled
-// sample data.
+// exampleResultCard is the glass preview beside the headline, with clearly
+// labeled sample data.
 function exampleResultCard() {
-  const rows = [
-    ["ICU Registered Nurse", "Baptist Health · Miami, FL", 92, "good", "Apply. You meet every must-have."],
-    ["RN, Cardiac Step-Down", "Jackson Health · Miami, FL", 88, "good", "Strong fit. One nice-to-have to add."],
-    ["Charge Nurse, Emergency", "Mount Sinai · Miami Beach", 71, "mid", "Close one gap first: 3+ years ED."],
-  ];
-  return h("div", { class: "card demo-card stack-sm" },
-    h("div", { class: "row-between" },
-      h("div", { class: "stack-sm demo-head" },
-        h("span", { class: "demo-title" }, "Your matches today"),
-        h("span", { class: "faint small" }, "Registered Nurse · Miami, FL")),
-      h("span", { class: "pill" }, "Example")),
-    rows.map(([title, meta, pct, cls, note]) => {
-      const ring = h("div", { class: `score-ring mini ${cls}` }, h("span", {}, `${pct}%`));
-      ring.style.setProperty("--pct", String(pct));
-      return h("div", { class: "demo-match" },
-        h("div", { class: "stack-sm demo-match-text" },
-          h("strong", {}, title),
-          h("span", { class: "faint small" }, meta),
-          h("span", { class: `small demo-note demo-${cls}` }, note)),
-        ring);
-    }),
-    h("div", { class: "demo-foot" },
-      h("span", { class: "truth-badge" }, "✓ Truth-locked résumé ready for each"),
-      h("span", { class: "faint small" }, "Scored against your résumé, automatically")),
+  const ring = h("div", { class: "score-ring hero-ring" }, h("span", {}, h("b", {}, "86%"), h("small", {}, "match")));
+  ring.style.setProperty("--pct", "86");
+  return h("div", { class: "hero-visual" },
+    h("div", { class: "card demo-card hero-pane" },
+      h("div", { class: "row-between hero-pane-top" },
+        h("div", { class: "stack-sm demo-head" },
+          h("span", { class: "hero-kicker" }, "Top match today"),
+          h("span", { class: "demo-title" }, "ICU Registered Nurse"),
+          h("span", { class: "faint small" }, "Baptist Health · Miami, FL")),
+        ring),
+      h("div", { class: "chip-slot" }, cyclingChip("chip-middle", [
+      "3 likely questions ready",
+      "“Tell me about a patient who declined quickly”",
+      "Jane: “Strong start. Add how the patient did.”",
+    ], 1000, "Interview")),
+      h("div", { class: "hero-list" },
+        h("span", { class: "demo-good" }, "✓ Meets all 4 must-haves"),
+        h("span", { class: "demo-mid" }, "↗ 1 quick win: CCRN certification"),
+        h("span", { class: "demo-low" }, "✕ 1 gap: Cerner EHR")),
+      h("strong", { class: "hero-verdict" }, "Jane says: Apply."),
+      h("div", { class: "hero-update" },
+        h("span", {}, "✦ 4 new matches"), h("span", {}, "✦ Best résumé ready"), h("span", {}, "✦ 1 interviewing")),
+      h("span", { class: "pill hero-example" }, "Example")),
+    cyclingChip("chip-top", [
+      "86% · Apply",
+      "92% · Cardiac Step-Down RN",
+      "71% · prep one gap first",
+    ], 0, "Match"),
+    cyclingChip("chip-bottom", [
+      "Tailored for this job",
+      "Bullets rewritten in the job's own words",
+      "Built only from your real experience",
+    ], 2000, "Résumé"),
   );
+}
+
+// cyclingChip is a floating glass chip that rotates through Jane's features.
+// It stops on its own once the page is navigated away from.
+function cyclingChip(position, messages, delay, tag) {
+  const text = h("span", { class: "chip-text" }, messages[0]);
+  const chip = h("div", { class: `hero-chip ${position}`, "aria-hidden": "true" },
+    tag ? h("span", { class: "chip-tag" }, tag) : null, text);
+  const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduceMotion || messages.length < 2) return chip;
+  let index = 0;
+  setTimeout(() => {
+    const timer = setInterval(() => {
+      if (!chip.isConnected) { clearInterval(timer); return; }
+      chip.classList.add("chip-out");
+      setTimeout(() => {
+        index = (index + 1) % messages.length;
+        text.textContent = messages[index];
+        chip.classList.remove("chip-out");
+      }, 350);
+    }, 3200);
+  }, delay);
+  return chip;
 }
 
 async function viewLanding() {
