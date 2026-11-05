@@ -112,7 +112,8 @@ func NewServer(
 	server := &Server{
 		mux: http.NewServeMux(),
 		jobProvider: jobs.NewMultiProvider(
-			jobs.NewJobOpportunitiesProvider(),
+			// Cached for 6 hours so repeat searches don't use up the feed's allowance.
+			jobs.NewCachedProvider(jobs.NewJobOpportunitiesProvider(), 6*time.Hour),
 			jobs.NewLeverProvider(
 				jobs.DefaultATSEmployers(),
 			),

@@ -179,9 +179,11 @@ func (p *JobOpportunitiesProvider) Search(
 		}
 
 		log.Printf(
-			"[jobopportunities] HTTP search=%s status=%d",
+			"[jobopportunities] HTTP search=%s status=%d remaining=%q limit=%q",
 			search.name,
 			response.StatusCode,
+			firstHeader(response.Header, "X-RateLimit-Remaining", "X-Ratelimit-Remaining", "RateLimit-Remaining", "X-Credits-Remaining"),
+			firstHeader(response.Header, "X-RateLimit-Limit", "X-Ratelimit-Limit", "RateLimit-Limit", "X-Credits-Limit"),
 		)
 
 		if response.StatusCode < 200 || response.StatusCode >= 300 {
@@ -523,4 +525,13 @@ func normalizeWorkArrangement(value string) string {
 	default:
 		return ""
 	}
+}
+
+func firstHeader(header http.Header, names ...string) string {
+	for _, name := range names {
+		if value := strings.TrimSpace(header.Get(name)); value != "" {
+			return value
+		}
+	}
+	return ""
 }
