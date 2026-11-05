@@ -517,13 +517,25 @@ func (f *FallbackProvider) Search(ctx context.Context, request SearchRequest) ([
 		wg.Wait()
 	}
 	searchAll(f.backups)
-	if len(all) < f.minimum && len(f.lastResort) > 0 {
-		log.Printf("[job-backups] %d jobs so far; asking %d last-resort sources", len(all), len(f.lastResort))
-		searchAll(f.lastResort)
+	if len(f.lastResort) > 0 {
+		// Count only jobs that survive the location, title and other
+		// filters: remote and federal backups return plenty of jobs that
+		// don't match the search and would otherwise hide a thin result.
+		if usable := usableJobCount(request, all); usable < f.minimum {
+			log.Printf("[job-backups] %d matching jobs so far (of %d); asking %d last-resort sources", usable, len(all), len(f.lastResort))
+			searchAll(f.lastResort)
+		}
 	}
 
 	if len(all) == 0 && primaryErr != nil {
 		return nil, primaryErr
 	}
 	return all, nil
+}
+
+// usableJobCount is how many of these jobs would be shown for the request.
+// Requirement reading is cached by posting, so the real pipeline run that
+// follows doesn't repeat this work.
+func usableJobCount(request SearchRequest, jobs []Job) int {
+	return len(NewPipeline().Process(request, jobs))
 }

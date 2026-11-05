@@ -103,12 +103,42 @@ func (f fixedProvider) Search(context.Context, SearchRequest) ([]Job, error) {
 	return out, nil
 }
 
+func TestLastResortCountsOnlyMatchingJobs(t *testing.T) {
+	var calls, joobleCalls int
+	// 20 jobs come back, but none are the role searched for.
+	offTopic := searchableProvider{"remotive", 20, "Backend Engineer", &calls}
+	jooble := searchableProvider{"jooble", 2, "Teacher", &joobleCalls}
+	NewFallbackProvider(fixedProvider{"main", 0, &calls}, 15, offTopic).WithLastResort(jooble).
+		Search(context.Background(), SearchRequest{TargetRole: "Teacher", Location: "Seattle, WA", Remote: true, Hybrid: true, Onsite: true})
+	if joobleCalls != 1 {
+		t.Fatal("Jooble should be asked when the other jobs don't match the search")
+	}
+}
+
+type searchableProvider struct {
+	name  string
+	count int
+	title string
+	calls *int
+}
+
+func (f searchableProvider) Name() string { return f.name }
+func (f searchableProvider) Search(context.Context, SearchRequest) ([]Job, error) {
+	*f.calls++
+	out := make([]Job, f.count)
+	for i := range out {
+		id := f.name + "-" + string(rune('a'+i))
+		out[i] = Job{ID: id, Title: f.title, Company: "Co " + id, Location: "Seattle, WA", CountryCode: "US", IsActive: true, ApplyURL: "https://example.com/" + id}
+	}
+	return out, nil
+}
+
 func TestLastResortOnlyWhenThin(t *testing.T) {
 	var primaryCalls, backupCalls, joobleCalls int
 	jooble := fixedProvider{"jooble", 5, &joobleCalls}
 
-	plenty := NewFallbackProvider(fixedProvider{"main", 0, &primaryCalls}, 15, fixedProvider{"greenhouse", 20, &backupCalls}).WithLastResort(jooble)
-	plenty.Search(context.Background(), SearchRequest{TargetRole: "Analyst"})
+	plenty := NewFallbackProvider(fixedProvider{"main", 0, &primaryCalls}, 15, searchableProvider{"greenhouse", 20, "Data Analyst", &backupCalls}).WithLastResort(jooble)
+	plenty.Search(context.Background(), SearchRequest{TargetRole: "Data Analyst", Location: "Seattle, WA", Remote: true, Hybrid: true, Onsite: true})
 	if joobleCalls != 0 {
 		t.Fatal("Jooble should not be asked when free sources found enough jobs")
 	}
