@@ -23,7 +23,24 @@ const (
 type LeverProvider struct {
 	client    *http.Client
 	employers []ATSEmployer
+
+	// Each employer's job board changes slowly, so pages are remembered for
+	// a few hours instead of being downloaded again on every search.
+	pageMu sync.Mutex
+	pages  map[string]leverCachedPage
 }
+
+type leverCachedPage struct {
+	postings []leverPosting
+	fetched  time.Time
+}
+
+const (
+	leverPageTTL = 6 * time.Hour
+	// A slow employer board shouldn't hold up the whole search; boards that
+	// miss this budget are skipped this time and retried on the next search.
+	leverSearchBudget = 6 * time.Second
+)
 
 func NewLeverProvider(
 	employers []ATSEmployer,
@@ -96,6 +113,9 @@ func (p *LeverProvider) Search(
 	if p == nil || len(p.employers) == 0 {
 		return []Job{}, nil
 	}
+
+	ctx, cancel := context.WithTimeout(ctx, leverSearchBudget)
+	defer cancel()
 
 	type employerResult struct {
 		jobs []Job
@@ -246,6 +266,33 @@ func (p *LeverProvider) fetchPage(
 		return []leverPosting{}, nil
 	}
 
+	cacheKey := site + "|" + strconv.Itoa(skip)
+	p.pageMu.Lock()
+	cached, ok := p.pages[cacheKey]
+	p.pageMu.Unlock()
+	if ok && time.Since(cached.fetched) < leverPageTTL {
+		return cached.postings, nil
+	}
+
+	postings, err := p.downloadPage(ctx, site, skip)
+	if err != nil {
+		return nil, err
+	}
+
+	p.pageMu.Lock()
+	if p.pages == nil {
+		p.pages = make(map[string]leverCachedPage)
+	}
+	p.pages[cacheKey] = leverCachedPage{postings: postings, fetched: time.Now()}
+	p.pageMu.Unlock()
+	return postings, nil
+}
+
+func (p *LeverProvider) downloadPage(
+	ctx context.Context,
+	site string,
+	skip int,
+) ([]leverPosting, error) {
 	endpoint, err := url.Parse(
 		leverBaseURL + "/" + url.PathEscape(site),
 	)
