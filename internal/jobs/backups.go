@@ -485,12 +485,21 @@ func NewFallbackProvider(primary Provider, minimum int, backups ...Provider) *Fa
 
 func (f *FallbackProvider) Name() string { return f.primary.Name() }
 
+// NoFeed stands in for a main job feed when there isn't one: every search
+// goes straight to the free sources.
+type NoFeed struct{}
+
+func (NoFeed) Name() string                                         { return "none" }
+func (NoFeed) Search(context.Context, SearchRequest) ([]Job, error) { return nil, nil }
+
 func (f *FallbackProvider) Search(ctx context.Context, request SearchRequest) ([]Job, error) {
 	primaryJobs, primaryErr := f.primary.Search(ctx, request)
 	if primaryErr == nil && len(primaryJobs) >= f.minimum {
 		return primaryJobs, nil
 	}
-	log.Printf("[job-backups] main feed returned %d jobs (err=%v); querying %d backup sources", len(primaryJobs), primaryErr, len(f.backups))
+	if _, none := f.primary.(NoFeed); !none {
+		log.Printf("[job-backups] main feed returned %d jobs (err=%v); querying %d backup sources", len(primaryJobs), primaryErr, len(f.backups))
+	}
 
 	backupCtx, cancel := context.WithTimeout(ctx, f.timeout)
 	defer cancel()

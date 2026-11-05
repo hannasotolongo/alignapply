@@ -1522,14 +1522,14 @@ func previewOrScore(request jobs.SearchRequest, job jobs.Job) jobs.JobMatch {
 	return match
 }
 
-// newJobProvider assembles Jane's job sources: the main feed (cached 6
-// hours so repeat searches don't use up its allowance), free backups when
-// it returns too few jobs or fails, Jooble only when those still come up
-// short, and Lever company boards alongside.
+// newJobProvider assembles Jane's job sources, all free: company job boards
+// and other free sources, Jooble only when those come up short, and Lever
+// company boards alongside. (The paid Job Opportunities feed is no longer
+// used.)
 func newJobProvider(server *Server) *jobs.MultiProvider {
 	return jobs.NewMultiProvider(
 		jobs.NewFallbackProvider(
-			jobs.NewCachedProvider(jobs.NewJobOpportunitiesProvider(), 6*time.Hour),
+			jobs.NoFeed{},
 			15,
 			jobs.NewGreenhouseProvider(jobs.GreenhouseBoards()),
 			jobs.NewCachedProvider(jobs.NewRemotiveProvider(), 6*time.Hour),
