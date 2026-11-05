@@ -1088,3 +1088,7 @@ input:focus, textarea:focus, select:focus {
   .app-row-side { justify-items: start; }
   .app-row-actions { justify-content: flex-start; }
 }
+
+/* Plan buttons line up along the bottom of every price card. */
+.price-card { display: flex; flex-direction: column; gap: 18px; }
+.price-card > .btn-block:last-child { margin-top: auto; }
