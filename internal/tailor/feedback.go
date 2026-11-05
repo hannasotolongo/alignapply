@@ -93,7 +93,7 @@ func (c *Client) structured(ctx context.Context, prompt, name, schema string) (s
 		return "", err
 	}
 	if response.StatusCode != http.StatusOK {
-		snippet := string(body)
+		snippet := strings.Join(strings.Fields(string(body)), " ")
 		if len(snippet) > 300 {
 			snippet = snippet[:300]
 		}

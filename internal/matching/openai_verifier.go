@@ -208,7 +208,7 @@ func (v *OpenAIEvidenceVerifier) verifyWithModel(
 		return missingEvidence(), fmt.Errorf(
 			"openai verifier returned HTTP %d: %s",
 			resp.StatusCode,
-			strings.TrimSpace(string(body)),
+			oneLineError(body),
 		)
 	}
 

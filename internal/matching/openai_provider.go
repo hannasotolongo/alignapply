@@ -247,7 +247,7 @@ func (p *OpenAISemanticProvider) fetchEmbeddings(
 		return nil, fmt.Errorf(
 			"openai embeddings returned HTTP %d: %s",
 			resp.StatusCode,
-			strings.TrimSpace(string(body)),
+			oneLineError(body),
 		)
 	}
 

@@ -156,7 +156,7 @@ func (c *Client) Build(ctx context.Context, request Request) (Kit, error) {
 		return Kit{}, err
 	}
 	if response.StatusCode != http.StatusOK {
-		snippet := string(body)
+		snippet := strings.Join(strings.Fields(string(body)), " ")
 		if len(snippet) > 300 {
 			snippet = snippet[:300]
 		}
