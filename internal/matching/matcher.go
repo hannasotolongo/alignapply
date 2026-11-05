@@ -186,7 +186,7 @@ func Match(
 			defer wg.Done()
 
 			for index := range work {
-				requirement := job.Requirements[index]
+				requirement := normalizeRequirementCategory(job.Requirements[index])
 
 				text := strings.TrimSpace(
 					requirement.Text,
@@ -214,8 +214,8 @@ func Match(
 							requirement,
 						)
 
-				// Only actual candidate qualifications affect fit.
-				if !isQualificationRequirement(requirement) {
+				// Only actual, verifiable qualifications affect fit.
+				if !isQualificationRequirement(requirement) || isSoftSkillRequirement(requirement) {
 					continue
 				}
 
@@ -248,6 +248,8 @@ func Match(
 
 	totalWeight := 0.0
 	earnedWeight := 0.0
+	requiredWeight, requiredEarned := 0.0, 0.0
+	preferredWeight, preferredEarned := 0.0, 0.0
 
 	requiredCount := 0
 	requiredSupported := 0
@@ -269,6 +271,14 @@ func Match(
 		earnedWeight +=
 			evaluation.weight *
 				evaluation.evidence.Score
+
+		if evaluation.required {
+			requiredWeight += evaluation.weight
+			requiredEarned += evaluation.weight * evaluation.evidence.Score
+		} else {
+			preferredWeight += evaluation.weight
+			preferredEarned += evaluation.weight * evaluation.evidence.Score
+		}
 
 		if evaluation.required {
 			requiredCount++
@@ -332,11 +342,16 @@ func Match(
 		return result
 	}
 
-	percentage := int(
-		math.Round(
-			(earnedWeight / totalWeight) * 100,
-		),
-	)
+	// Must-haves drive the score. Nice-to-haves can add up to 15 points but
+	// can't sink a candidate who meets everything the job requires.
+	ratio := earnedWeight / totalWeight
+	switch {
+	case requiredWeight > 0 && preferredWeight > 0:
+		ratio = 0.85*(requiredEarned/requiredWeight) + 0.15*(preferredEarned/preferredWeight)
+	case requiredWeight > 0:
+		ratio = requiredEarned / requiredWeight
+	}
+	percentage := int(math.Round(ratio * 100))
 
 	if percentage < 0 {
 		percentage = 0
@@ -951,7 +966,7 @@ func supportedEvidence() evidenceResult {
 func partialEvidence() evidenceResult {
 	return evidenceResult{
 		Level: evidencePartial,
-		Score: 0.5,
+		Score: 0.6,
 	}
 }
 
