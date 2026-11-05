@@ -13,6 +13,7 @@ import (
 	"github.com/hannasotolongo/casemade-backend/internal/auth"
 	"github.com/hannasotolongo/casemade-backend/internal/billing"
 	"github.com/hannasotolongo/casemade-backend/internal/database"
+	"github.com/hannasotolongo/casemade-backend/internal/jobs"
 	"github.com/hannasotolongo/casemade-backend/internal/mailer"
 	"github.com/hannasotolongo/casemade-backend/internal/matching"
 	"github.com/hannasotolongo/casemade-backend/internal/repository"
@@ -322,6 +323,18 @@ func main() {
 		log.Fatalf("create billing repository: %v", err)
 	}
 
+	crawledJobsRepository, err :=
+		repository.NewCrawledJobsRepository(db.Pool())
+	if err != nil {
+		log.Fatalf("create crawled jobs repository: %v", err)
+	}
+	// Jane's own job crawler keeps saved jobs current in the background.
+	// JANE_CRAWLER=off turns it off (for example on a local machine).
+	if !strings.EqualFold(strings.TrimSpace(os.Getenv("JANE_CRAWLER")), "off") {
+		go jobs.NewCrawler(crawledJobsRepository, jobs.CrawlSeedBoards()).Run(ctx)
+		log.Printf("Job crawler started")
+	}
+
 	billingConfig := api.BillingConfig{
 		WebhookSecret: strings.TrimSpace(os.Getenv("STRIPE_WEBHOOK_SECRET")),
 		Plans: []api.Plan{
@@ -427,6 +440,7 @@ func main() {
 				EmailConnections: emailConnectionsRepository,
 				Billing:          billingRepository,
 				Accounts:         accountsRepository,
+				CrawledJobs:      crawledJobsRepository,
 			},
 			AppleVerifier:  appleVerifier,
 			AppleClient:    appleClient,

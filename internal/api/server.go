@@ -42,6 +42,7 @@ type Server struct {
 
 	billingRepo   *repository.BillingRepository
 	accountsRepo  *repository.AccountsRepository
+	crawledJobs   *repository.CrawledJobsRepository
 	mailer        *mailer.Client
 	stripe        *billing.Client
 	billingConfig BillingConfig
@@ -72,6 +73,8 @@ type Repositories struct {
 	EmailConnections *repository.EmailConnectionsRepository
 	Billing          *repository.BillingRepository
 	Accounts         *repository.AccountsRepository
+	// CrawledJobs holds the jobs Jane's own crawler has saved (optional).
+	CrawledJobs *repository.CrawledJobsRepository
 }
 
 type Dependencies struct {
@@ -157,6 +160,7 @@ func NewServer(
 			deps.Repositories.Billing
 
 		server.accountsRepo = deps.Repositories.Accounts
+		server.crawledJobs = deps.Repositories.CrawledJobs
 		server.mailer = deps.Mailer
 		server.stripe = deps.Stripe
 		server.billingConfig = deps.BillingConfig
@@ -1251,6 +1255,12 @@ func (s *Server) handleJobMatches(
 
 	sortJobMatches(matches)
 
+	// Jane's crawler can find hundreds of jobs for a common role; the best
+	// fits come first, so the list stops at a readable length.
+	if len(matches) > maxJobMatchesReturned {
+		matches = matches[:maxJobMatchesReturned]
+	}
+
 	log.Printf(
 		"[job-matches] sorting COMPLETE duration=%s",
 		time.Since(sortStarted),
@@ -1508,6 +1518,9 @@ func writeJSON(
 // rather than guessing a fit from a few sentences.
 const previewMatchLevel = "Preview"
 
+// maxJobMatchesReturned caps one search's results.
+const maxJobMatchesReturned = 60
+
 func previewOrScore(request jobs.SearchRequest, job jobs.Job) jobs.JobMatch {
 	match := matching.MatchFast(request, job)
 	if !jobs.IsPreviewSource(job.Source) {
@@ -1531,6 +1544,13 @@ func newJobProvider(server *Server) *jobs.MultiProvider {
 		jobs.NewFallbackProvider(
 			jobs.NoFeed{},
 			15,
+			// Jobs Jane's own crawler has saved from employers' job boards.
+			jobs.NewStoredJobsProvider(func() jobs.BoardStore {
+				if server.crawledJobs == nil {
+					return nil
+				}
+				return server.crawledJobs
+			}),
 			jobs.NewGreenhouseProvider(jobs.GreenhouseBoards()),
 			jobs.NewCachedProvider(jobs.NewRemotiveProvider(), 6*time.Hour),
 			usaJobsBackup(),

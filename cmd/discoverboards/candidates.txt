@@ -1,0 +1,366 @@
+# Employer names to look for. One per line; "name | slug1,slug2" overrides guessed board ids.
+# Retail and consumer
+Target
+CVS Health | cvshealth
+Walgreens
+Kroger
+Albertsons | albertsons
+Home Depot | homedepot
+Lowe's | lowes
+Best Buy | bestbuy
+Macy's | macys
+Kohl's | kohls
+Nordstrom
+TJX Companies | tjx
+Ross Stores | rossstores
+Gap Inc | gap,gapinc
+Dick's Sporting Goods | dickssportinggoods
+Ulta Beauty | ulta
+Sephora
+Petco
+PetSmart
+Dollar General | dollargeneral
+Dollar Tree | dollartree
+Burlington
+Williams-Sonoma | williamssonoma,wsgc
+Bath & Body Works | bbw,bathandbodyworks
+Victoria's Secret | victoriassecret
+American Eagle | ae,americaneagle
+Abercrombie & Fitch | anf,abercrombie
+Levi Strauss | levistrauss,levi
+Nike
+Adidas
+Under Armour | underarmour
+Lululemon
+Starbucks
+Chipotle
+McDonald's | mcdonalds
+Yum Brands | yum
+Darden | darden
+Panera Bread | panera
+Domino's | dominos
+Marriott
+Hilton
+Hyatt
+Wyndham | wyndham
+Disney | disney
+Walmart
+Costco
+Wayfair
+Chewy
+Etsy
+eBay | ebay
+Amazon
+Procter & Gamble | pg
+PepsiCo | pepsico
+Coca-Cola | coke,cocacola
+Kraft Heinz | kraftheinz
+General Mills | generalmills
+Kellogg | kellogg,kellanova
+Mondelez | mondelez
+Unilever
+Colgate-Palmolive | colgate
+Estee Lauder | estee,elcompanies
+L'Oreal | loreal
+# Healthcare
+Kaiser Permanente | kaiserpermanente,kp
+HCA Healthcare | hca,hcahealthcare
+CommonSpirit Health | commonspirit
+Ascension | ascension
+Providence | providence
+Trinity Health | trinityhealth
+Advocate Health | advocate,advocatehealth
+AdventHealth | adventhealth
+Baylor Scott & White | bswhealth
+Cleveland Clinic | clevelandclinic,ccf
+Mayo Clinic | mayoclinic
+Johns Hopkins | jhu,jhhs
+Mass General Brigham | massgeneralbrigham,mgb
+NYU Langone | nyulangone
+Northwell Health | northwell
+Mount Sinai | mountsinai
+Intermountain Health | intermountain
+Sutter Health | sutterhealth
+UPMC | upmc
+Atrium Health | atriumhealth
+Novant Health | novanthealth
+Banner Health | bannerhealth
+Corewell Health | corewellhealth
+Henry Ford Health | henryford
+Ochsner Health | ochsner
+Baptist Health | baptisthealth,bhsf
+Memorial Hermann | memorialhermann
+Houston Methodist | houstonmethodist
+Cedars-Sinai | cedars,cedarssinai
+Stanford Health Care | stanfordhealthcare
+UCHealth | uchealth
+Geisinger
+Penn Medicine | upenn,pennmedicine
+Duke Health | duke
+Emory Healthcare | emory
+Vanderbilt University Medical Center | vumc
+Children's Hospital of Philadelphia | chop
+Boston Children's Hospital | bostonchildrens
+Labcorp | labcorp
+Quest Diagnostics | questdiagnostics
+UnitedHealth Group | uhg,unitedhealthgroup
+Elevance Health | elevancehealth
+Cigna | cigna
+Humana
+Centene
+Molina Healthcare | molina,molinahealthcare
+CVS Aetna | aetna
+DaVita | davita
+Fresenius | fmcna
+Walgreens Boots Alliance | wba
+McKesson
+Cardinal Health | cardinalhealth
+Pfizer
+Johnson & Johnson | jj,jnj
+Merck | msd,merck
+AbbVie
+Bristol Myers Squibb | bms
+Eli Lilly | lilly
+Amgen
+Gilead
+Medtronic
+Abbott
+Stryker
+Boston Scientific | bostonscientific
+GE HealthCare | gehc
+Philips
+Baxter
+Becton Dickinson | bd
+# Universities
+Harvard University | harvard
+Stanford University | stanford
+University of California | ucop,universityofcalifornia
+UCLA | ucla
+UC San Diego | ucsd
+UC Berkeley | berkeley
+University of Michigan | umich
+University of Washington | uw
+University of Texas at Austin | utaustin
+Texas A&M | tamus
+Ohio State University | osu
+Penn State | psu
+University of Florida | ufl
+Florida State University | fsu
+University of Miami | miami
+New York University | nyu
+Columbia University | cu,columbia
+Cornell University | cornell
+Yale University | yale
+Princeton University | princeton
+MIT | mit
+Northwestern University | northwestern
+University of Chicago | uchicago
+University of Pennsylvania | upenn
+Duke University | duke
+Georgia Tech | gatech
+Emory University | emory
+Arizona State University | asu
+University of Arizona | arizona
+University of Colorado | cu
+University of Minnesota | umn
+University of Wisconsin | wisc
+Purdue University | purdue
+Indiana University | iu
+Rutgers University | rutgers
+Boston University | bu
+University of Southern California | usc
+Vanderbilt University | vanderbilt
+Johns Hopkins University | jhu
+# Finance and insurance
+JPMorgan Chase | jpmc,jpmorganchase
+Bank of America | bankofamerica,bofa
+Wells Fargo | wf,wellsfargo
+Citi | citi
+Capital One | capitalone
+U.S. Bank | usbank
+PNC | pnc
+Truist | truist
+Goldman Sachs | goldmansachs,gs
+Morgan Stanley | morganstanley,ms
+Charles Schwab | schwab
+Fidelity | fmr,fidelity
+Vanguard
+American Express | aexp,amex
+Visa | visa
+Mastercard
+Discover | discover
+Ally | ally
+State Farm | statefarm
+Allstate
+Progressive
+Nationwide
+Liberty Mutual | libertymutual,lmig
+Travelers
+USAA
+MetLife
+Prudential | prudential
+New York Life | newyorklife
+Northwestern Mutual | northwesternmutual,nm
+Aflac
+# Logistics, industrial, energy, telecom
+UPS | ups
+FedEx | fedex
+Delta Air Lines | delta
+United Airlines | united,ual
+American Airlines | aa,americanairlines
+Southwest Airlines | swa,southwest
+Union Pacific | up,unionpacific
+CSX
+Boeing
+Lockheed Martin | lmco,lockheedmartin
+Northrop Grumman | ngc,northropgrumman
+RTX | rtx
+General Dynamics | gd,generaldynamics
+Honeywell
+3M | 3m
+Caterpillar | cat,caterpillar
+Deere | deere,johndeere
+General Electric | ge
+Siemens
+Ford | ford
+General Motors | gm,generalmotors
+Tesla
+Toyota
+Exxon Mobil | exxonmobil
+Chevron
+Duke Energy | dukeenergy
+Southern Company | southernco
+NextEra Energy | nexteraenergy,nee
+Verizon
+AT&T | att
+T-Mobile | tmobile
+Comcast | comcast
+Charter Communications | charter,spectrum
+# Services, consulting, staffing, government contractors
+Deloitte
+Accenture
+PwC | pwc
+EY | ey
+KPMG
+Booz Allen | bah,boozallen
+Leidos
+SAIC | saic
+CACI
+ManpowerGroup | manpowergroup,manpower
+Robert Half | roberthalf
+Adecco
+Aramark
+Sodexo
+Compass Group | compassgroup,compass
+Cintas
+ADP | adp
+Paychex
+Waste Management | wm
+Republic Services | republicservices
+# Tech
+Salesforce
+Adobe
+Intel
+Nvidia
+Cisco
+Oracle
+IBM
+Microsoft
+Google
+Meta
+Apple
+Netflix
+Workday
+ServiceNow
+Intuit
+PayPal
+Block | block,square
+Uber
+Lyft
+Airbnb
+DoorDash
+Instacart
+Spotify
+Snap
+Pinterest
+Reddit
+Dropbox
+Zoom
+Slack
+Atlassian
+HubSpot
+Shopify
+Twilio
+Datadog
+Snowflake
+Databricks
+MongoDB
+Elastic
+Cloudflare
+Okta
+CrowdStrike
+Palo Alto Networks | paloaltonetworks
+Zscaler
+GitLab
+Figma
+Notion
+Asana
+Airtable
+Canva
+Ramp
+Brex
+Mercury
+Plaid
+Chime
+SoFi
+Robinhood
+Coinbase
+Affirm
+Klarna
+Toast
+Gusto
+Rippling
+Deel
+Grammarly
+Duolingo
+Peloton
+Roblox
+Discord
+OpenAI
+Anthropic
+Scale AI | scaleai
+Anduril
+SpaceX
+Rivian
+Lucid | lucidmotors
+Flexport
+Samsara
+Verkada
+Vercel
+Supabase
+Linear
+Retool
+Webflow
+Miro
+Calendly
+Squarespace
+Wix
+Zillow
+Redfin
+Compass
+Opendoor
+Lemonade
+Oscar Health | oscar
+Hims & Hers | hims
+Ro | ro
+Noom
+Headspace
+Calm
+Spring Health | springhealth
+Lyra Health | lyrahealth
+Cerebral
+Thirty Madison | thirtymadison
+Carbon Health | carbonhealth
+Tempus
+Benchling
+Komodo Health | komodohealth
