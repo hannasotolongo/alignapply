@@ -78,3 +78,19 @@ func TestEnforceFeedbackReplacesInventedNumbers(t *testing.T) {
 		t.Fatalf("blank strengths should be dropped: %v", feedback.Strengths)
 	}
 }
+
+func TestQuestionsCallsOpenAI(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		payload, _ := json.Marshal(PracticeQuestions{Questions: []InterviewQuestion{{Question: "Tell me about a launch you led.", Approach: "Use the Q3 campaign."}}})
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"output": []any{map[string]any{"content": []any{map[string]any{"type": "output_text", "text": string(payload)}}}},
+		})
+	}))
+	defer server.Close()
+	client := New("test-key")
+	client.BaseURL = server.URL
+	questions, err := client.Questions(context.Background(), "résumé", "job", "Marketing Manager")
+	if err != nil || len(questions) != 1 || questions[0].Question == "" {
+		t.Fatalf("unexpected %v %+v", err, questions)
+	}
+}

@@ -334,6 +334,7 @@ const routes = {
   "/app/welcome": viewOnboarding,
   "/app/activate": viewActivate,
   "/app/fit-check": () => appPage("fit", viewFitCheckApp),
+  "/app/interview": () => appPage("interview", viewInterviewPractice),
   "/app/jobs": () => appPage("jobs", viewJobs),
   "/app/resumes": () => appPage("resumes", viewResumes),
   "/app/profile": () => appPage("profile", viewProfile),
@@ -1135,6 +1136,7 @@ function appShell(active, content, usageSlot) {
     ["home", "/app", "⌂", "My matches"],
     ["jobs", "/app/jobs", "⌕", "Find jobs"],
     ["applications", "/app/applications", "▤", "My applications"],
+    ["interview", "/app/interview", { img: "/icon-mic.svg" }, "Interview practice"],
     ["resumes", "/app/resumes", "⇪", "My résumés"],
     ["profile", "/app/profile", { img: "/icon-user.svg" }, "My profile"],
     ["billing", "/app/billing", "$", "Plan & billing"],
@@ -3002,16 +3004,84 @@ async function viewHome() {
   );
 }
 
-// practiceBox lets the user type an answer to one interview question and get
-// Jane's coaching on it.
-function practiceBox(question, input) {
+// ---------------------------------------------------------------------------
+// Spoken interview practice
+// ---------------------------------------------------------------------------
+
+const SpeechRecognitionImpl = window.SpeechRecognition || window.webkitSpeechRecognition;
+const FILLER_PATTERNS = [["um", /\b(um+|umm+)\b/g], ["uh", /\b(uh+|erm)\b/g], ["you know", /\byou know\b/g], ["kind of", /\bkind of\b/g], ["sort of", /\bsort of\b/g], ["basically", /\bbasically\b/g], ["actually", /\bactually\b/g], ["literally", /\bliterally\b/g], ["I mean", /\bi mean\b/g]];
+
+function formatClock(seconds) {
+  const s = Math.max(0, Math.round(seconds));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
+// deliveryStats scores how an answer was spoken: length, pace and fillers.
+function deliveryStats(text, seconds) {
+  const lower = text.toLowerCase();
+  const words = (lower.match(/[a-z0-9']+/g) || []).length;
+  const fillers = [];
+  for (const [label, pattern] of FILLER_PATTERNS) {
+    const count = (lower.match(pattern) || []).length;
+    if (count) fillers.push([label, count]);
+  }
+  const fillerCount = fillers.reduce((sum, [, n]) => sum + n, 0);
+  const minutes = Math.max(seconds / 60, 0.1);
+  const wpm = Math.round(words / minutes);
+  const length = seconds < 30 ? ["low", "Too short", "Aim for 1 to 2 minutes. Add the result and what you learned."]
+    : seconds > 150 ? ["mid", "A bit long", "Tighten it to about 2 minutes. Lead with the point."]
+    : ["good", "Good length", "Right in the 1 to 2 minute sweet spot."];
+  const pace = wpm > 175 ? ["mid", "Fast", "Slow down a little and pause between points."]
+    : wpm < 105 ? ["mid", "Slow", "Pick up the pace a bit so it sounds confident."]
+    : ["good", "Good pace", "Easy to follow."];
+  const perMinute = fillerCount / minutes;
+  const filler = perMinute > 4 ? ["low", "Lots of filler", "Pause silently instead of saying “um” or “you know”."]
+    : perMinute > 2 ? ["mid", "Some filler", "A few fillers. Try a short pause instead."]
+    : ["good", "Clean", "Barely any filler words."];
+  return { words, wpm, seconds, fillers, fillerCount, length, pace, filler };
+}
+
+function deliveryCard(stats) {
+  const tile = (title, value, [cls, label, tip]) => h("div", { class: `delivery-tile ${cls}` },
+    h("span", { class: "hero-kicker" }, title), h("b", {}, value), h("span", { class: `small demo-${cls}` }, label), h("span", { class: "faint small" }, tip));
+  return h("div", { class: "delivery stack-sm" },
+    h("span", { class: "section-label" }, "Your delivery"),
+    h("div", { class: "delivery-grid" },
+      tile("Length", formatClock(stats.seconds), stats.length),
+      tile("Pace", `${stats.wpm} wpm`, stats.pace),
+      tile("Filler words", String(stats.fillerCount), stats.filler)),
+    stats.fillers.length ? h("p", { class: "faint small" }, "Heard: ", stats.fillers.map(([label, n]) => `“${label}” ×${n}`).join(", ")) : null);
+}
+
+function renderAnswerFeedback(feedback) {
+  return h("div", { class: "practice-feedback stack-sm" },
+    feedback.strengths.length ? h("div", {}, h("span", { class: "section-label" }, "What works"),
+      h("ul", { class: "reqs supported" }, feedback.strengths.map((item) => h("li", {}, item)))) : null,
+    feedback.improvements.length ? h("div", {}, h("span", { class: "section-label" }, "How to improve it"),
+      h("ul", { class: "reqs partial" }, feedback.improvements.map((item) => h("li", {}, item)))) : null,
+    feedback.strongerAnswer ? h("div", { class: "stack-sm" },
+      h("div", { class: "row-between" }, h("span", { class: "section-label" }, "A stronger version"),
+        h("button", { class: "btn btn-ghost btn-sm", type: "button", onclick: () => copyText(feedback.strongerAnswer, "Answer copied") }, "Copy")),
+      h("p", { class: "stronger-answer" }, feedback.strongerAnswer),
+      h("p", { class: "faint small" }, "Built only from your answer and résumé. Fill in anything in [brackets] with your real details.")) : null);
+}
+
+// practiceBox lets the user answer one interview question out loud (or by
+// typing) and get Jane's coaching on delivery and content.
+function practiceBox(question, input, { open = false } = {}) {
+  const deliverySlot = h("div", {});
   const slot = h("div", { class: "practice-result" });
-  const answer = h("textarea", { rows: 4, maxlength: 6000, placeholder: "Type your answer the way you'd say it in the interview." });
-  const submit = h("button", { class: "btn btn-sm", type: "button", onclick: async () => {
+  const answer = h("textarea", { rows: 4, maxlength: 6000, placeholder: "Answer out loud with the mic, or type your answer the way you'd say it." });
+  const clock = h("span", { class: "rec-clock" }, "0:00");
+  const level = h("span", { class: "rec-level" }, h("i"));
+  const recBar = h("div", { class: "rec-bar hidden" }, h("span", { class: "rec-dot" }), h("span", {}, "Listening"), clock, level);
+
+  let lastSpoken = null;
+
+  const getFeedback = async () => {
     const text = answer.value.trim();
     if (text.length < 40) {
-      slot.replaceChildren(h("p", { class: "text-error small" }, "Write a few sentences so Jane has something to coach."));
-      answer.focus();
+      slot.replaceChildren(h("p", { class: "text-error small" }, "Say or write a few sentences so Jane has something to coach."));
       return;
     }
     submit.disabled = true;
@@ -3021,26 +3091,178 @@ function practiceBox(question, input) {
         method: "POST",
         body: { question, answer: text, resumeText: input.resumeText, jobDescription: input.jobDescription, jobTitle: input.jobTitle || "" },
       });
-      slot.replaceChildren(h("div", { class: "practice-feedback stack-sm" },
-        feedback.strengths.length ? h("div", {}, h("span", { class: "section-label" }, "What works"),
-          h("ul", { class: "reqs supported" }, feedback.strengths.map((item) => h("li", {}, item)))) : null,
-        feedback.improvements.length ? h("div", {}, h("span", { class: "section-label" }, "How to improve it"),
-          h("ul", { class: "reqs partial" }, feedback.improvements.map((item) => h("li", {}, item)))) : null,
-        feedback.strongerAnswer ? h("div", { class: "stack-sm" },
-          h("div", { class: "row-between" }, h("span", { class: "section-label" }, "A stronger version"),
-            h("button", { class: "btn btn-ghost btn-sm", type: "button", onclick: () => copyText(feedback.strongerAnswer, "Answer copied") }, "Copy")),
-          h("p", { class: "stronger-answer" }, feedback.strongerAnswer),
-          h("p", { class: "faint small" }, "Built only from your answer and résumé. Fill in anything in [brackets] with your real details.")) : null,
-      ));
+      slot.replaceChildren(renderAnswerFeedback(feedback));
     } catch (error) {
-      slot.replaceChildren(h("p", { class: "text-error small" }, error.message));
+      slot.replaceChildren(h("p", { class: "text-error small" }, error.code === "pro_required" ? "Choose a plan to practice with Jane." : error.message));
     } finally {
       submit.disabled = false;
     }
+  };
+
+  const submit = h("button", { class: "btn btn-sm", type: "button", onclick: () => {
+    if (lastSpoken && answer.value.trim() !== lastSpoken.text) deliverySlot.replaceChildren();
+    getFeedback();
   } }, "Get feedback");
-  return h("details", { class: "practice" },
+
+  let mic = null;
+  if (SpeechRecognitionImpl) {
+    let recognition = null, started = 0, ticker = null, audio = null, finalText = "";
+    const stopAudio = () => {
+      if (audio) { audio.stream.getTracks().forEach((t) => t.stop()); audio.context.close().catch(() => {}); audio = null; }
+    };
+    const startLevel = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const context = new (window.AudioContext || window.webkitAudioContext)();
+        const analyser = context.createAnalyser();
+        analyser.fftSize = 256;
+        context.createMediaStreamSource(stream).connect(analyser);
+        const data = new Uint8Array(analyser.frequencyBinCount);
+        audio = { stream, context };
+        const draw = () => {
+          if (!audio) return;
+          analyser.getByteTimeDomainData(data);
+          let peak = 0;
+          for (const v of data) peak = Math.max(peak, Math.abs(v - 128));
+          level.firstChild.style.setProperty("--lvl", String(Math.min(1, peak / 64)));
+          requestAnimationFrame(draw);
+        };
+        draw();
+      } catch { /* the meter is optional */ }
+    };
+    const stop = () => {
+      if (!recognition) return;
+      recognition.onend = null;
+      recognition.stop();
+      recognition = null;
+      clearInterval(ticker);
+      stopAudio();
+      recBar.classList.add("hidden");
+      mic.classList.remove("recording");
+      mic.textContent = "🎙 Answer again";
+      const seconds = (Date.now() - started) / 1000;
+      const text = answer.value.trim();
+      if (text) {
+        lastSpoken = { text, seconds };
+        deliverySlot.replaceChildren(deliveryCard(deliveryStats(text, seconds)));
+        getFeedback();
+      }
+    };
+    mic = h("button", { class: "btn btn-primary btn-sm mic-btn", type: "button", onclick: () => {
+      if (recognition) { stop(); return; }
+      recognition = new SpeechRecognitionImpl();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = "en-US";
+      finalText = "";
+      answer.value = "";
+      deliverySlot.replaceChildren();
+      slot.replaceChildren();
+      recognition.onresult = (event) => {
+        let interim = "";
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const piece = event.results[i][0].transcript;
+          if (event.results[i].isFinal) finalText += piece + " ";
+          else interim += piece;
+        }
+        answer.value = (finalText + interim).trim();
+      };
+      recognition.onerror = (event) => {
+        if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+          toast("Allow microphone access in your browser to answer out loud.", true);
+          stop();
+        }
+      };
+      // Browsers end recognition after a silence; keep listening until the
+      // user presses stop.
+      recognition.onend = () => { if (recognition) { try { recognition.start(); } catch { /* already running */ } } };
+      try { recognition.start(); } catch { toast("Couldn't start the microphone. Try again.", true); recognition = null; return; }
+      started = Date.now();
+      clock.textContent = "0:00";
+      ticker = setInterval(() => { clock.textContent = formatClock((Date.now() - started) / 1000); }, 500);
+      recBar.classList.remove("hidden");
+      mic.classList.add("recording");
+      mic.textContent = "■ Stop and get feedback";
+      startLevel();
+    } }, "🎙 Answer out loud");
+  }
+
+  const box = h("details", { class: "practice" },
     h("summary", {}, "Practice this answer"),
-    h("div", { class: "stack-sm" }, answer, h("div", { class: "row" }, submit), slot));
+    h("div", { class: "stack-sm" },
+      recBar, answer,
+      h("div", { class: "row" }, mic, submit,
+        mic ? null : h("span", { class: "faint small" }, "Voice answers work in Chrome, Edge and Safari.")),
+      deliverySlot, slot));
+  if (open) box.open = true;
+  return box;
+}
+
+
+// ---------------------------------------------------------------------------
+// Interview practice page
+// ---------------------------------------------------------------------------
+
+async function viewInterviewPractice() {
+  const [resumes, applications] = await Promise.all([loadResumes().catch(() => []), api("/api/v1/applications").catch(() => [])]);
+  const results = h("div", { class: "stack" });
+  const head = pageHead("Interview practice", "Pick a job, then answer Jane's likely questions out loud. She scores your delivery and coaches your answer.");
+
+  if (!(resumes || []).length) {
+    return h("div", { class: "stack" }, head, h("div", { class: "card empty" },
+      h("h3", {}, "Add your résumé first"),
+      h("p", {}, "Jane uses it to predict questions and coach your answers with your real experience."),
+      link("/app/resumes", { class: "btn btn-primary" }, "Upload résumé")));
+  }
+
+  const resumeSelect = h("select", { "aria-label": "Résumé" }, resumes.map((r) => h("option", { value: r.id }, r.filename)));
+  resumeSelect.value = (resumes.find((r) => r.isPrimary) || resumes[0]).id;
+
+  const saved = (applications || []).filter((a) => a.job);
+  const jobSelect = h("select", { "aria-label": "Job to practice for" },
+    saved.map((a) => h("option", { value: a.jobId }, `${a.job.title} · ${a.job.company}`)),
+    h("option", { value: "" }, "Paste a job posting instead…"));
+  if (!saved.length) jobSelect.value = "";
+
+  const pasteTitle = h("input", { type: "text", maxlength: 200, placeholder: "Job title, e.g. Marketing Manager" });
+  const pasteBody = h("textarea", { rows: 6, maxlength: 30000, placeholder: "Paste the full job posting" });
+  const pasteArea = h("div", { class: "stack-sm" }, pasteTitle, pasteBody);
+  const syncPaste = () => pasteArea.classList.toggle("hidden", jobSelect.value !== "");
+  jobSelect.addEventListener("change", syncPaste);
+  syncPaste();
+
+  const go = h("button", { class: "btn btn-primary", type: "submit" }, "Get my practice questions");
+  const form = h("form", { class: "card stack", onsubmit: async (event) => {
+    event.preventDefault();
+    go.disabled = true;
+    results.replaceChildren(h("div", { class: "card" }, spinnerRow("Jane is predicting what they'll ask you…")));
+    try {
+      const resume = await resumeText(resumeSelect.value);
+      const body = jobSelect.value
+        ? { resumeText: resume, jobId: jobSelect.value }
+        : { resumeText: resume, jobTitle: pasteTitle.value.trim(), jobDescription: pasteBody.value.trim() };
+      const data = await api("/api/v1/interview-questions", { method: "POST", body });
+      const input = { resumeText: resume, jobDescription: data.jobDescription, jobTitle: data.jobTitle };
+      results.replaceChildren(
+        h("p", { class: "muted" }, `${data.questions.length} likely questions${data.jobTitle ? ` for ${data.jobTitle}` : ""}. Start with the first one.`),
+        ...data.questions.map((q, index) => h("div", { class: "card stack-sm practice-q" },
+          h("div", { class: "row" }, h("span", { class: "step-num", "aria-hidden": "true" }, String(index + 1)), h("strong", {}, q.question)),
+          h("p", { class: "muted small" }, q.approach),
+          practiceBox(q.question, input, { open: index === 0 }))));
+    } catch (error) {
+      results.replaceChildren(h("div", { class: "form-error" }, error.code === "pro_required" ? "Choose a plan to practice interviews with Jane." : error.message));
+    } finally {
+      go.disabled = false;
+    }
+  } },
+    h("div", { class: "grid-2" },
+      h("label", { class: "field" }, "Job", jobSelect),
+      h("label", { class: "field" }, "Résumé", resumeSelect)),
+    pasteArea,
+    h("div", { class: "row" }, go),
+    h("p", { class: "faint small" }, "Tip: practice out loud. Voice answers work in Chrome, Edge and Safari; your microphone is only used while you're answering."));
+
+  return h("div", { class: "stack" }, head, form, results);
 }
 
 // ---------------------------------------------------------------------------

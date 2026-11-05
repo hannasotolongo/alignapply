@@ -960,3 +960,20 @@ input:focus, textarea:focus, select:focus {
 @media (max-width: 480px) { .ask-pane { min-height: 470px; } .ask-bar { font-size: 14px; } }
 .ask-pane { min-height: 566px; }
 @media (max-width: 480px) { .ask-pane { min-height: 610px; } }
+
+/* ---- Voice interview practice ---- */
+.mic-btn.recording { background: #f87171; color: #fff; border-color: #f87171; box-shadow: 0 0 0 0 rgba(248, 113, 113, 0.5); animation: mic-pulse 1.6s ease-in-out infinite; }
+@keyframes mic-pulse { 50% { box-shadow: 0 0 0 8px rgba(248, 113, 113, 0); } }
+.rec-bar { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 12px; background: rgba(248, 113, 113, 0.08); border: 1px solid rgba(248, 113, 113, 0.25); font-size: 13px; font-weight: 600; }
+.rec-dot { width: 9px; height: 9px; border-radius: 50%; background: #f87171; animation: ask-blink 1s steps(1) infinite; }
+.rec-clock { font-variant-numeric: tabular-nums; color: #fff; }
+.rec-level { flex: 1; height: 6px; border-radius: 6px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+.rec-level i { --lvl: 0; display: block; height: 100%; width: calc(var(--lvl) * 100%); background: linear-gradient(90deg, #a1a1aa, #fff); transition: width 0.08s linear; }
+.delivery-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.delivery-tile { display: grid; gap: 2px; padding: 10px 12px; border-radius: 14px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); }
+.delivery-tile b { font-size: 20px; font-weight: 800; letter-spacing: -0.02em; }
+.delivery-tile.good { border-color: rgba(74, 222, 128, 0.25); }
+.delivery-tile.mid { border-color: rgba(251, 191, 36, 0.25); }
+.delivery-tile.low { border-color: rgba(248, 113, 113, 0.3); }
+.practice-q .step-num { width: 28px; height: 28px; font-size: 13px; flex: 0 0 auto; }
+@media (max-width: 560px) { .delivery-grid { grid-template-columns: 1fr; } }

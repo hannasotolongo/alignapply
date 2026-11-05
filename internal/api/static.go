@@ -56,6 +56,9 @@ func setSecurityHeaders(w http.ResponseWriter) {
 	h.Set("X-Content-Type-Options", "nosniff")
 	h.Set("X-Frame-Options", "DENY")
 	h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
+	// The microphone is used only for spoken interview practice on our own
+	// pages; camera and location are never used.
+	h.Set("Permissions-Policy", "microphone=(self), camera=(), geolocation=()")
 	h.Set(
 		"Content-Security-Policy",
 		"default-src 'self'; "+

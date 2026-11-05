@@ -162,3 +162,48 @@ func EnforceFeedback(feedback Feedback, candidateText string) Feedback {
 	feedback.StrongerAnswer = strings.TrimSpace(feedback.StrongerAnswer)
 	return feedback
 }
+
+// PracticeQuestions is the model output for a practice set.
+type PracticeQuestions struct {
+	Questions []InterviewQuestion `json:"questions"`
+}
+
+const questionsSchema = `{
+  "type":"object",
+  "properties":{
+    "questions":{"type":"array","items":{"type":"object","properties":{
+      "question":{"type":"string"},
+      "approach":{"type":"string"}
+    },"required":["question","approach"],"additionalProperties":false}}
+  },
+  "required":["questions"],
+  "additionalProperties":false
+}`
+
+// Questions predicts likely interview questions for a job, with an honest
+// approach for each based on the candidate's real experience.
+func (c *Client) Questions(ctx context.Context, resumeText, jobDescription, jobTitle string) ([]InterviewQuestion, error) {
+	if c == nil {
+		return nil, ErrUnavailable
+	}
+	var b strings.Builder
+	b.WriteString(`You are Jane, an interview coach. Predict the 6 interview questions this employer is most likely to ask for this job: a mix of behavioral ("tell me about a time"), role-specific, and one about the candidate's biggest gap versus the requirements. For each, give a 1 to 2 sentence approach that draws on the candidate's REAL experience from the résumé. Never suggest claiming experience they don't have.
+
+`)
+	if jobTitle != "" {
+		fmt.Fprintf(&b, "JOB: %s\n\n", jobTitle)
+	}
+	b.WriteString("JOB POSTING:\n" + jobDescription + "\n\nCANDIDATE RÉSUMÉ:\n" + resumeText)
+	text, err := c.structured(ctx, b.String(), "interview_questions", questionsSchema)
+	if err != nil {
+		return nil, err
+	}
+	var result PracticeQuestions
+	if err := json.Unmarshal([]byte(text), &result); err != nil {
+		return nil, fmt.Errorf("interview_questions: decode: %w", err)
+	}
+	if len(result.Questions) > 8 {
+		result.Questions = result.Questions[:8]
+	}
+	return result.Questions, nil
+}
