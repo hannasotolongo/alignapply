@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -17,7 +18,6 @@ const (
 
 	// Anonymous visitors get a few free checks per IP per day; signed-in
 	// Pro users get the same hourly allowance as job searches.
-	fitCheckAnonymousPerDay = 5
 )
 
 type fitCheckRequest struct {
@@ -64,38 +64,44 @@ type fitCheckResponse struct {
 
 // POST /api/v1/fit-check
 //
-// Public: anyone can paste a job and a résumé and see how they fit. The
-// score is free; the requirement-by-requirement breakdown and Gap Closer
-// advice need an active plan.
+// Paste a job and a résumé and see how they fit. Like every Jane feature it
+// needs an account with an active plan; there is no anonymous preview.
 func (s *Server) handleFitCheck(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		methodNotAllowed(w, "POST")
 		return
 	}
 
-	pro := false
-	limiterKey := "fit-anon:" + clientIP(r)
-	limiter := s.fitCheckAnonLimiter
-
-	if userID := s.sessionManager.OptionalUserID(r); userID != "" && s.userCareerRepo != nil {
-		if user, err := s.userCareerRepo.GetUserByID(r.Context(), userID); err == nil {
-			if current, err := s.entitlementFor(r.Context(), user); err == nil && current.Pro {
-				pro = true
-				limiterKey = "fit-user:" + user.ID
-				limiter = s.fitCheckUserLimiter
-			}
-		}
+	signUpRequired := func() {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{
+			"error": "Sign up to check your fit for a job.",
+			"code":  "sign_up_required",
+		})
 	}
+	userID := s.sessionManager.OptionalUserID(r)
+	if userID == "" || s.userCareerRepo == nil {
+		signUpRequired()
+		return
+	}
+	user, err := s.userCareerRepo.GetUserByID(r.Context(), userID)
+	if err != nil {
+		signUpRequired()
+		return
+	}
+	current, entitlementErr := s.entitlementFor(r.Context(), user)
+	if entitlementErr != nil {
+		log.Printf("load entitlement for user %s: %v", user.ID, entitlementErr)
+		writeError(w, http.StatusInternalServerError, "failed to load subscription")
+		return
+	}
+	if !current.Pro {
+		writeSubscriptionRequired(w)
+		return
+	}
+	pro := true
 
-	if !limiter.Allow(limiterKey) {
-		if pro {
-			writeError(w, http.StatusTooManyRequests, "You've run a lot of fit checks this hour. Give Jane a few minutes and try again.")
-		} else {
-			writeJSON(w, http.StatusTooManyRequests, map[string]string{
-				"error": "You've used today's free fit checks. Sign up for unlimited checks and the full gap breakdown.",
-				"code":  "fit_check_limit",
-			})
-		}
+	if !s.fitCheckUserLimiter.Allow("fit-user:" + user.ID) {
+		writeError(w, http.StatusTooManyRequests, "You've run a lot of fit checks this hour. Give Jane a few minutes and try again.")
 		return
 	}
 

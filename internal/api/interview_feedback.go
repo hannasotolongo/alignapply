@@ -84,15 +84,27 @@ func (s *Server) handleInterviewFeedback(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, http.StatusOK, feedback)
 }
 
+// maxExcludedQuestions caps how many earlier questions "More questions"
+// sends back, which keeps the request small.
+const maxExcludedQuestions = 60
+
 type interviewQuestionsRequest struct {
 	ResumeText     string `json:"resumeText"`
 	JobDescription string `json:"jobDescription,omitempty"`
 	JobTitle       string `json:"jobTitle,omitempty"`
+	// Company is the employer the interview is with, so questions can
+	// reflect it.
+	Company string `json:"company,omitempty"`
+	// Stage is the interview type to practice for (phone, behavioral,
+	// role, final, ask, or mixed by default).
+	Stage string `json:"stage,omitempty"`
+	// Exclude lists questions already practiced, for "More questions".
+	Exclude []string `json:"exclude,omitempty"`
 	// JobID loads the description of a job saved in My applications.
 	JobID string `json:"jobId,omitempty"`
 }
 
-// POST /api/v1/interview-questions (Pro)
+// POST /api/v1/interview-questions (Pro or Interview Prep)
 func (s *Server) handleInterviewQuestions(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		methodNotAllowed(w, "POST")
@@ -136,6 +148,14 @@ func (s *Server) handleInterviewQuestions(w http.ResponseWriter, r *http.Request
 		}
 	}
 
+	if company := strings.TrimSpace(request.Company); company != "" && !strings.Contains(strings.ToLower(request.JobTitle), strings.ToLower(company)) {
+		if request.JobTitle == "" {
+			request.JobTitle = "Interview at " + company
+		} else {
+			request.JobTitle += " at " + company
+		}
+	}
+
 	switch {
 	case request.ResumeText == "":
 		writeError(w, http.StatusBadRequest, "Add a résumé first so Jane can tailor your practice.")
@@ -150,13 +170,24 @@ func (s *Server) handleInterviewQuestions(w http.ResponseWriter, r *http.Request
 
 	ctx, cancel := context.WithTimeout(r.Context(), 120*time.Second)
 	defer cancel()
-	questions, err := s.applicationKit.Questions(ctx, request.ResumeText, request.JobDescription, request.JobTitle)
+	exclude := make([]string, 0, len(request.Exclude))
+	for _, question := range request.Exclude {
+		if question = strings.TrimSpace(question); question != "" && len(exclude) < maxExcludedQuestions {
+			if len(question) > 300 {
+				question = question[:300]
+			}
+			exclude = append(exclude, question)
+		}
+	}
+	questions, err := s.applicationKit.Questions(ctx, request.ResumeText, request.JobDescription, request.JobTitle,
+		tailor.QuestionOptions{Stage: strings.TrimSpace(request.Stage), Exclude: exclude})
 	if err != nil {
 		log.Printf("[interview-questions] FAILED user=%s: %v", user.ID, err)
 		writeError(w, http.StatusBadGateway, "Jane couldn't write practice questions just now. Try again in a minute.")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
+		"stage":          strings.TrimSpace(request.Stage),
 		"questions":      questions,
 		"jobTitle":       request.JobTitle,
 		"jobDescription": request.JobDescription,

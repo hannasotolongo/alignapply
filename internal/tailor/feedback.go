@@ -180,16 +180,44 @@ const questionsSchema = `{
   "additionalProperties":false
 }`
 
+// QuestionOptions shapes a practice set.
+type QuestionOptions struct {
+	// Stage is the kind of interview to practice for (see InterviewStages).
+	Stage string
+	// Exclude lists questions already asked, so a "More questions" set
+	// brings new ones.
+	Exclude []string
+}
+
+// InterviewStages are the interview types a candidate can practice for.
+var InterviewStages = map[string]string{
+	"mixed":      `the 6 questions this employer is most likely to ask: a mix of behavioral ("tell me about a time"), role-specific, and one about the candidate's biggest gap versus the requirements`,
+	"phone":      `6 questions for a short recruiter phone screen: background, why this role and company, motivation, availability and pay expectations, and a quick check on the must-have requirements`,
+	"behavioral": `6 behavioral questions ("tell me about a time…") tied to this job's requirements, such as teamwork, conflict, failure, leadership, prioritizing and handling pressure`,
+	"role":       `6 role-specific or technical questions that test the skills, tools and knowledge this job requires`,
+	"final":      `6 questions a hiring manager or senior leader would ask in a final round: impact, judgment, how the candidate would approach the first 90 days, culture fit, and why they're the best choice`,
+	"ask":        `6 smart questions the CANDIDATE should ask the interviewer about this role, team and company. For each, the approach explains why it's a good question and what to listen for in the answer`,
+}
+
 // Questions predicts likely interview questions for a job, with an honest
 // approach for each based on the candidate's real experience.
-func (c *Client) Questions(ctx context.Context, resumeText, jobDescription, jobTitle string) ([]InterviewQuestion, error) {
+func (c *Client) Questions(ctx context.Context, resumeText, jobDescription, jobTitle string, options QuestionOptions) ([]InterviewQuestion, error) {
 	if c == nil {
 		return nil, ErrUnavailable
 	}
+	focus, ok := InterviewStages[options.Stage]
+	if !ok {
+		focus = InterviewStages["mixed"]
+	}
 	var b strings.Builder
-	b.WriteString(`You are Jane, an interview coach. Predict the 6 interview questions this employer is most likely to ask for this job: a mix of behavioral ("tell me about a time"), role-specific, and one about the candidate's biggest gap versus the requirements. For each, give a 1 to 2 sentence approach that draws on the candidate's REAL experience from the résumé. Never suggest claiming experience they don't have.
-
-`)
+	fmt.Fprintf(&b, "You are Jane, an interview coach. Predict %s. For each, give a 1 to 2 sentence approach that draws on the candidate's REAL experience from the résumé. Never suggest claiming experience they don't have.\n\n", focus)
+	if len(options.Exclude) > 0 {
+		b.WriteString("The candidate has already practiced these questions. Write different ones; don't repeat or reword them:\n")
+		for _, question := range options.Exclude {
+			b.WriteString("- " + question + "\n")
+		}
+		b.WriteString("\n")
+	}
 	if jobTitle != "" {
 		fmt.Fprintf(&b, "JOB: %s\n\n", jobTitle)
 	}

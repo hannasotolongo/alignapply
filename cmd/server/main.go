@@ -344,6 +344,15 @@ func main() {
 				PriceID:      strings.TrimSpace(os.Getenv("STRIPE_PRICE_SPRINT")),
 			},
 			{
+				Key:          "interview",
+				Name:         "Interview Prep",
+				Kind:         api.PlanKindSubscription,
+				Interval:     "month",
+				Access:       api.AccessInterview,
+				DisplayPrice: envOrDefault("INTERVIEW_DISPLAY_PRICE", "$8.99"),
+				PriceID:      strings.TrimSpace(os.Getenv("STRIPE_PRICE_INTERVIEW")),
+			},
+			{
 				Key:          "school",
 				Name:         "School License",
 				Kind:         api.PlanKindOrganization,

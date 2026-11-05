@@ -3,6 +3,7 @@ package tailor
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -80,7 +81,10 @@ func TestEnforceFeedbackReplacesInventedNumbers(t *testing.T) {
 }
 
 func TestQuestionsCallsOpenAI(t *testing.T) {
+	var prompt string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		raw, _ := io.ReadAll(r.Body)
+		prompt = string(raw)
 		payload, _ := json.Marshal(PracticeQuestions{Questions: []InterviewQuestion{{Question: "Tell me about a launch you led.", Approach: "Use the Q3 campaign."}}})
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"output": []any{map[string]any{"content": []any{map[string]any{"type": "output_text", "text": string(payload)}}}},
@@ -89,8 +93,11 @@ func TestQuestionsCallsOpenAI(t *testing.T) {
 	defer server.Close()
 	client := New("test-key")
 	client.BaseURL = server.URL
-	questions, err := client.Questions(context.Background(), "résumé", "job", "Marketing Manager")
+	questions, err := client.Questions(context.Background(), "résumé", "job", "Marketing Manager", QuestionOptions{Stage: "behavioral", Exclude: []string{"Why this company?"}})
 	if err != nil || len(questions) != 1 || questions[0].Question == "" {
 		t.Fatalf("unexpected %v %+v", err, questions)
+	}
+	if !strings.Contains(prompt, "behavioral questions") || !strings.Contains(prompt, "Why this company?") {
+		t.Fatalf("prompt is missing the interview type or the questions to avoid: %s", prompt)
 	}
 }

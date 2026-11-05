@@ -36,8 +36,14 @@ type Plan struct {
 	Interval     string `json:"interval"`
 	TrialDays    int    `json:"trialDays,omitempty"`
 	PassDays     int    `json:"passDays,omitempty"`
-	PriceID      string `json:"-"`
+	// Access is what the plan unlocks: everything (Pro, the default) or
+	// only interview practice (AccessInterview).
+	Access  string `json:"access,omitempty"`
+	PriceID string `json:"-"`
 }
+
+// AccessInterview marks a plan that unlocks only interview practice.
+const AccessInterview = "interview"
 
 type BillingConfig struct {
 	Plans         []Plan
@@ -109,7 +115,11 @@ const (
 )
 
 type entitlement struct {
-	Pro           bool
+	Pro bool
+	// Interview is access to interview practice: every Pro user, plus
+	// Interview Prep subscribers (InterviewOnly).
+	Interview     bool
+	InterviewOnly bool
 	Source        string
 	Subscription  repository.Subscription
 	HasCustomer   bool
@@ -142,12 +152,18 @@ func (s *Server) entitlementFor(ctx context.Context, user repository.User) (enti
 			current.HasCustomer = subscription.StripeCustomerID != ""
 			current.TrialEligible = !subscription.TrialUsed && !subscription.SubscriptionActive()
 			if subscription.SubscriptionActive() {
-				current.Pro = true
 				current.Source = sourceSubscription
 				if subscription.Status == "trialing" {
 					current.Source = sourceTrial
 				}
-			} else if subscription.PassActive(time.Now()) {
+				if plan, found := s.billingConfig.planByPriceID(subscription.PriceID); found && plan.Access == AccessInterview {
+					current.InterviewOnly = true
+				} else {
+					current.Pro = true
+				}
+			}
+			// A Sprint pass grants Pro even alongside an Interview Prep plan.
+			if !current.Pro && subscription.PassActive(time.Now()) {
 				current.Pro = true
 				current.Source = sourcePass
 			}
@@ -168,6 +184,11 @@ func (s *Server) entitlementFor(ctx context.Context, user repository.User) (enti
 		current.Pro = true
 		current.Source = sourceOpen
 	}
+
+	if current.Pro {
+		current.InterviewOnly = false
+	}
+	current.Interview = current.Pro || current.InterviewOnly
 
 	return current, nil
 }
@@ -218,6 +239,31 @@ func (s *Server) requirePro(next http.Handler) http.Handler {
 		}
 
 		if !current.Pro {
+			writeSubscriptionRequired(w)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+// requireInterview is requirePro for interview practice, which Interview
+// Prep subscribers can use too.
+func (s *Server) requireInterview(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user, ok := s.requireSessionUser(w, r)
+		if !ok {
+			return
+		}
+
+		current, err := s.entitlementFor(r.Context(), user)
+		if err != nil {
+			log.Printf("load entitlement for user %s: %v", user.ID, err)
+			writeError(w, http.StatusInternalServerError, "failed to load subscription")
+			return
+		}
+
+		if !current.Interview {
 			writeSubscriptionRequired(w)
 			return
 		}
@@ -369,6 +415,8 @@ func (s *Server) handleBillingStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	if current.Pro {
 		response.Plan = "pro"
+	} else if current.InterviewOnly {
+		response.Plan = "interview"
 	}
 	if current.Organization != nil {
 		response.OrganizationName = current.Organization.Name
@@ -452,6 +500,14 @@ func (s *Server) handleBillingCheckout(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusConflict, map[string]string{
 			"error": "you already have Pro through your school's license",
 			"code":  "already_subscribed",
+		})
+		return
+	case current.InterviewOnly && plan.Access != AccessInterview:
+		// Upgrading swaps the plan in Stripe's billing portal, so the
+		// customer never pays for two subscriptions at once.
+		writeJSON(w, http.StatusConflict, map[string]string{
+			"error": "you're on Interview Prep; switch to Pro from Plan & billing with Manage plan",
+			"code":  "switch_in_portal",
 		})
 		return
 	case current.Subscription.SubscriptionActive():

@@ -51,7 +51,6 @@ type Server struct {
 	applicationKit *tailor.Client
 	kitLimiter     *attemptLimiter
 
-	fitCheckAnonLimiter *attemptLimiter
 	fitCheckUserLimiter *attemptLimiter
 }
 
@@ -119,7 +118,6 @@ func NewServer(
 		authLimiter: newAttemptLimiter(20, 15*time.Minute),
 
 		kitLimiter:          newAttemptLimiter(20, time.Hour),
-		fitCheckAnonLimiter: newAttemptLimiter(fitCheckAnonymousPerDay, 24*time.Hour),
 		fitCheckUserLimiter: newAttemptLimiter(ProJobMatchesPerHour, time.Hour),
 	}
 
@@ -375,8 +373,8 @@ func (s *Server) routes() {
 		// Web (email + password) authentication.
 		s.mux.HandleFunc("/api/v1/fit-check", s.handleFitCheck)
 		s.mux.Handle("/api/v1/application-kit", s.sessionManager.Middleware(s.requirePro(http.HandlerFunc(s.handleApplicationKit))))
-		s.mux.Handle("/api/v1/interview-feedback", s.sessionManager.Middleware(s.requirePro(http.HandlerFunc(s.handleInterviewFeedback))))
-		s.mux.Handle("/api/v1/interview-questions", s.sessionManager.Middleware(s.requirePro(http.HandlerFunc(s.handleInterviewQuestions))))
+		s.mux.Handle("/api/v1/interview-feedback", s.sessionManager.Middleware(s.requireInterview(http.HandlerFunc(s.handleInterviewFeedback))))
+		s.mux.Handle("/api/v1/interview-questions", s.sessionManager.Middleware(s.requireInterview(http.HandlerFunc(s.handleInterviewQuestions))))
 		s.mux.HandleFunc("/api/v1/auth/signup", s.handlePasswordSignUp)
 		s.mux.HandleFunc("/api/v1/auth/login", s.handlePasswordLogin)
 		s.mux.HandleFunc("/api/v1/auth/logout", s.handleLogout)

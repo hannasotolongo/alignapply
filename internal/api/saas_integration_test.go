@@ -170,6 +170,7 @@ func TestWebSaaSIntegration(t *testing.T) {
 				{Key: "monthly", Name: "Pro Monthly", Kind: PlanKindSubscription, Interval: "month", TrialDays: 3, DisplayPrice: "$14.99", PriceID: "price_monthly"},
 				{Key: "sprint", Name: "Job Search Sprint", Kind: PlanKindPass, Interval: "90 days", PassDays: 90, DisplayPrice: "$39", PriceID: "price_sprint"},
 				{Key: "school", Name: "School License", Kind: PlanKindOrganization, Interval: "year", DisplayPrice: "$1,000", PriceID: "price_school"},
+				{Key: "interview", Name: "Interview Prep", Kind: PlanKindSubscription, Interval: "month", Access: AccessInterview, DisplayPrice: "$8.99", PriceID: "price_interview"},
 			},
 		},
 		Web: WebConfig{
@@ -409,6 +410,50 @@ func TestWebSaaSIntegration(t *testing.T) {
 		if gated := do(http.MethodPost, "/api/v1/resume-recommendation", map[string]any{}, session, nil); gated.Code != http.StatusPaymentRequired {
 			t.Fatalf("status after cancel = %d, want 402", gated.Code)
 		}
+	})
+
+	t.Run("Interview Prep unlocks only interview practice", func(t *testing.T) {
+		if fit := do(http.MethodPost, "/api/v1/fit-check", map[string]any{}, nil, nil); fit.Code != http.StatusUnauthorized || !strings.Contains(fit.Body.String(), "sign_up_required") {
+			t.Fatalf("anonymous fit check status = %d; body = %s", fit.Code, fit.Body)
+		}
+		if gated := do(http.MethodPost, "/api/v1/interview-questions", map[string]any{}, session, nil); gated.Code != http.StatusPaymentRequired {
+			t.Fatalf("interview practice without a plan = %d, want 402", gated.Code)
+		}
+
+		stripeFake.mu.Lock()
+		stripeFake.subscriptions["sub_interview"] = map[string]any{
+			"id": "sub_interview", "customer": customerID, "status": "active", "cancel_at_period_end": false,
+			"items": map[string]any{"data": []any{map[string]any{"current_period_end": time.Now().Add(30 * 24 * time.Hour).Unix(), "price": map[string]any{"id": "price_interview"}}}},
+		}
+		stripeFake.mu.Unlock()
+		if response := sendWebhook("evt_saas_interview", "customer.subscription.created", map[string]any{"id": "sub_interview"}, webhookSecret); response.Code != http.StatusOK {
+			t.Fatalf("webhook status = %d; body = %s", response.Code, response.Body)
+		}
+
+		var status billingStatusResponse
+		_ = json.NewDecoder(do(http.MethodGet, "/api/v1/billing/status", nil, session, nil).Body).Decode(&status)
+		if status.Plan != "interview" || status.PlanKey != "interview" {
+			t.Fatalf("billing status = %+v", status)
+		}
+
+		// Past the plan gate (no AI configured in tests, so 503).
+		if practice := do(http.MethodPost, "/api/v1/interview-questions", map[string]any{}, session, nil); practice.Code != http.StatusServiceUnavailable {
+			t.Fatalf("interview practice on Interview Prep = %d; body = %s", practice.Code, practice.Body)
+		}
+		for _, path := range []string{"/api/v1/resume-recommendation", "/api/v1/fit-check", "/api/v1/application-kit"} {
+			if gated := do(http.MethodPost, path, map[string]any{}, session, nil); gated.Code != http.StatusPaymentRequired {
+				t.Fatalf("%s on Interview Prep = %d, want 402", path, gated.Code)
+			}
+		}
+		checkout := do(http.MethodPost, "/api/v1/billing/checkout", map[string]string{"plan": "monthly"}, session, nil)
+		if checkout.Code != http.StatusConflict || !strings.Contains(checkout.Body.String(), "switch_in_portal") {
+			t.Fatalf("upgrade checkout = %d; body = %s", checkout.Code, checkout.Body)
+		}
+
+		stripeFake.mu.Lock()
+		stripeFake.subscriptions["sub_interview"]["status"] = "canceled"
+		stripeFake.mu.Unlock()
+		sendWebhook("evt_saas_interview_end", "customer.subscription.deleted", map[string]any{"id": "sub_interview"}, webhookSecret)
 	})
 
 	t.Run("a second subscription gets no new trial", func(t *testing.T) {
