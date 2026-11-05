@@ -465,7 +465,7 @@ async function viewLanding() {
 
 
   const faqs = [
-    ["Why do I need a card for the free trial?", "It keeps the trial to one per person. You won't be charged during the 3 days, and you can cancel any time from Plan & billing on the website."],
+    ["What if Jane isn't for me?", "Your first payment comes with a 7-day money-back guarantee. Contact us within 7 days and we'll refund it in full. You can cancel any time from Plan & billing."],
     ["Is my résumé private?", "Your PDF is read right in your browser. Only the text is stored, it's never shared with employers, and you can delete it, or your whole account, at any time."],
     ["Does Jane work for nurses and healthcare jobs?", "Yes. Jane knows an RN license from a BLS certification, matches “RN” to “Registered Nurse”, and never counts a credential you don't hold."],
     ["How do I reach a person?", "Call customer service at 646-821-2027."],
@@ -483,7 +483,7 @@ async function viewLanding() {
             h("div", { class: "row" },
               link(signedIn ? "/app" : "/signup", { class: "btn btn-primary btn-lg" }, signedIn ? "See my matches" : "Sign up today"),
             ),
-            h("p", { class: "faint small hero-note" }, "3 days free · Cancel anytime · Jane does the searching for you"),
+            h("p", { class: "faint small hero-note" }, "Cancel anytime · 7-day money-back guarantee · Jane does the searching for you"),
           ),
           exampleResultCard(),
         ),
@@ -504,7 +504,7 @@ async function viewLanding() {
               )),
           ),
           h("div", { class: "row center section-gap" },
-            link(signedIn ? "/app" : "/signup", { class: "btn btn-primary btn-lg" }, signedIn ? "Go to my account" : "Get all of it free for 3 days")),
+            link(signedIn ? "/app" : "/signup", { class: "btn btn-primary btn-lg" }, signedIn ? "Go to my account" : "Sign up today")),
         ),
       ),
       pricingSection(plansInfo),
@@ -540,7 +540,7 @@ function trialAvailable() {
 }
 
 function subscribeLabel(plan) {
-  return plan.trialDays && trialAvailable() ? `Start ${plan.trialDays}-day free trial` : `Subscribe for ${plan.displayPrice}/${plan.interval}`;
+  return plan.trialDays && trialAvailable() ? `Start ${plan.trialDays}-day free trial` : `Get Pro Monthly`;
 }
 
 function checkoutNote() {
@@ -557,7 +557,7 @@ function checkoutNote() {
 
 function planCards(plansInfo, { compact = false } = {}) {
   const enabled = plansInfo.billingEnabled;
-  const monthly = planFor("monthly") || { key: "monthly", name: "Pro Monthly", displayPrice: "$14.99", interval: "month", trialDays: 3 };
+  const monthly = planFor("monthly") || { key: "monthly", name: "Pro Monthly", displayPrice: "$14.99", interval: "month" };
   const sprint = planFor("sprint") || { key: "sprint", name: "Job Search Sprint", displayPrice: "$39", interval: "90 days" };
   const school = planFor("school") || { key: "school", name: "School License", displayPrice: "$1,000", interval: "year" };
 
@@ -611,7 +611,7 @@ function pricingSection(plansInfo) {
   return h("section", { class: "section", id: "pricing" },
     h("div", { class: "container" },
       h("h2", { class: "section-title" }, "Simple pricing"),
-      h("p", { class: "section-sub" }, "Try everything free for 3 days. Cancel anytime before it ends and you pay nothing."),
+      h("p", { class: "section-sub" }, "Pick a plan and Jane gets to work. Cancel anytime, with a 7-day money-back guarantee."),
       h("div", { class: "grid-3" }, planCards(plansInfo)),
       h("div", { class: "section-gap" }, checkoutNote()),
     ),
@@ -725,7 +725,7 @@ async function viewAuth(mode) {
       h("div", { class: "card auth-card stack" },
         h("div", { class: "stack-sm" },
           h("h1", {}, isSignup ? "Create your account" : "Welcome back"),
-          h("p", { class: "muted" }, isSignup ? "3 days free. You'll add a card to activate, and you won't be charged if you cancel before the trial ends." : "Sign in to continue your search."),
+          h("p", { class: "muted" }, isSignup ? "Create your account, then pick a plan to start. 7-day money-back guarantee." : "Sign in to continue your search."),
         ),
         form,
         h("p", { class: "muted small" },
@@ -1052,7 +1052,7 @@ function renderUsage(slot) {
     ),
     pro
       ? null
-      : link("/app/billing", { class: "btn btn-primary btn-sm" }, trialAvailable() ? "Start free trial" : "Choose a plan"),
+      : link("/app/billing", { class: "btn btn-primary btn-sm" }, "Choose a plan"),
   ));
 }
 
@@ -1397,7 +1397,7 @@ async function viewJobs() {
       savePreferences({ minimumSalary: request.minimumSalary, remote: request.remote, hybrid: request.hybrid, onsite: request.onsite }).catch(() => {});
     } catch (error) {
       results.replaceChildren(error.code === "pro_required"
-        ? paywall("Your matches are ready to check", "Start your free trial to see every job ranked by how well your experience fits, with what you meet, what's partial, and what's missing.")
+        ? paywall("Your matches are ready to check", "Choose a plan to see every job ranked by how well your experience fits, with what you meet, what's partial, and what's missing.")
         : h("div", { class: "form-error" }, error.message));
     } finally {
       clearInterval(ticker);
@@ -1436,7 +1436,7 @@ async function viewJobs() {
   ));
 
   const freeNotice = !isPro() && state.billing && state.billing.billingEnabled
-    ? h("p", { class: "faint small" }, trialAvailable() ? "Start your 3-day free trial to see your matches. No charge if you cancel before it ends." : "Choose a plan to run searches.")
+    ? h("p", { class: "faint small" }, "Choose a plan to see your matches.")
     : null;
 
   if (sessionStorage.getItem("janecareers.autoSearch")) {
@@ -2132,7 +2132,7 @@ async function viewResetPassword() {
 }
 
 // ---------------------------------------------------------------------------
-// Activation: a card starts the trial before the app opens
+// Activation: a plan is required before the app opens
 // ---------------------------------------------------------------------------
 
 const FIT_CHECK_KEY = "janecareers.fitCheck";
@@ -2225,7 +2225,7 @@ async function viewActivate() {
       h("p", { class: "muted lead-sm" },
         trialAvailable() && monthly && monthly.trialDays
           ? `Start your ${monthly.trialDays}-day free trial. You won't be charged until ${formatDate(trialEnd.toISOString())}, and you can cancel in two clicks before then.`
-          : "Choose a plan to start matching."),
+          : "Choose a plan and Jane starts finding and scoring jobs for you right away. Cancel anytime, with a 7-day money-back guarantee."),
     ),
     plansInfo.billingEnabled ? h("div", { class: "grid-2" }, planCards(plansInfo, { compact: true })) : null,
     h("ul", { class: "ticks activate-ticks" },
@@ -2418,9 +2418,9 @@ function fitUnlockCard(message) {
   const signedIn = !!state.user;
   return h("div", { class: "card unlock stack-sm center" },
     h("h3", {}, "See every gap, and how to close it"),
-    h("p", { class: "muted" }, message || "Jane found the requirements you're missing. Start your free trial to see them, with a plan for each one."),
+    h("p", { class: "muted" }, message || "Jane found the requirements you're missing. Sign up to see them, with a plan for each one."),
     h("div", { class: "row center" },
-      link(signedIn ? "/app/activate" : "/signup", { class: "btn btn-primary" }, trialAvailable() ? "Start 3-day free trial" : "Choose a plan")),
+      link(signedIn ? "/app/activate" : "/signup", { class: "btn btn-primary" }, "Sign up today")),
     h("p", { class: "faint small" }, "Your résumé and this job stay in your browser, so your full report is waiting after you sign up."),
   );
 }
@@ -2454,8 +2454,8 @@ function fitResult(data, input, { context, rerun }) {
       h("ul", { class: "reqs missing locked-blur", "aria-hidden": "true" },
         Array.from({ length: Math.min(teaser, 5) }, (_, i) => h("li", {}, ["Requirement Jane couldn't confirm on your résumé", "A certification this employer asks for", "Years of experience in a specific area", "A tool or system named in the posting", "A preferred qualification"][i % 5]))),
       fitUnlockCard(data.missingCount + data.partialCount
-        ? `Jane found ${data.missingCount + data.partialCount} requirement${data.missingCount + data.partialCount === 1 ? "" : "s"} to work on. Start your free trial to see each one, with what to add, what to learn, and what to skip.`
-        : "Start your free trial to see the full requirement-by-requirement breakdown."),
+        ? `Jane found ${data.missingCount + data.partialCount} requirement${data.missingCount + data.partialCount === 1 ? "" : "s"} to work on. Sign up to see each one, with what to add, what to learn, and what to skip.`
+        : "Sign up to see the full requirement-by-requirement breakdown."),
     ));
   } else if (data.scorable) {
     if (data.explanation) parts.push(h("p", { class: "muted" }, data.explanation));
@@ -2727,7 +2727,7 @@ function applicationKitSection(getInput, title) {
       intro.remove();
     } catch (error) {
       start.disabled = false;
-      slot.replaceChildren(h("div", { class: "form-error" }, error.code === "pro_required" ? "Start your free trial to build Application Kits." : error.message));
+      slot.replaceChildren(h("div", { class: "form-error" }, error.code === "pro_required" ? "Choose a plan to build Application Kits." : error.message));
     }
   } }, "Build my Application Kit");
   const intro = h("div", { class: "card inset kit-intro stack-sm" },
@@ -2828,7 +2828,7 @@ async function viewHome() {
       showMatches(await searchMatches({ targetRole: role, location: where }));
     } catch (error) {
       results.replaceChildren(error.code === "pro_required"
-        ? paywall("Your matches are ready", "Start your free trial to see every job ranked by how well you fit.")
+        ? paywall("Your matches are ready", "Choose a plan to see every job ranked by how well you fit.")
         : h("div", { class: "form-error" }, error.message));
     }
   };

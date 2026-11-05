@@ -327,7 +327,7 @@ func main() {
 				Name:         "Pro Monthly",
 				Kind:         api.PlanKindSubscription,
 				Interval:     "month",
-				TrialDays:    3,
+				TrialDays:    0, // No free trial; the first payment is due at checkout.
 				DisplayPrice: envOrDefault("PRO_MONTHLY_DISPLAY_PRICE", "$14.99"),
 				PriceID:      strings.TrimSpace(os.Getenv("STRIPE_PRICE_PRO_MONTHLY")),
 			},

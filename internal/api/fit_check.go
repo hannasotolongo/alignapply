@@ -66,7 +66,7 @@ type fitCheckResponse struct {
 //
 // Public: anyone can paste a job and a résumé and see how they fit. The
 // score is free; the requirement-by-requirement breakdown and Gap Closer
-// advice need an active trial or plan.
+// advice need an active plan.
 func (s *Server) handleFitCheck(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		methodNotAllowed(w, "POST")
@@ -92,7 +92,7 @@ func (s *Server) handleFitCheck(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusTooManyRequests, "You've run a lot of fit checks this hour. Give Jane a few minutes and try again.")
 		} else {
 			writeJSON(w, http.StatusTooManyRequests, map[string]string{
-				"error": "You've used today's free fit checks. Start your free trial for unlimited checks and the full gap breakdown.",
+				"error": "You've used today's free fit checks. Sign up for unlimited checks and the full gap breakdown.",
 				"code":  "fit_check_limit",
 			})
 		}

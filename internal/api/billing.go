@@ -196,7 +196,7 @@ func (s *Server) requireSessionUser(w http.ResponseWriter, r *http.Request) (rep
 
 func writeSubscriptionRequired(w http.ResponseWriter) {
 	writeJSON(w, http.StatusPaymentRequired, map[string]string{
-		"error": "start your free trial to use this feature",
+		"error": "choose a plan to use this feature",
 		"code":  "pro_required",
 	})
 }
