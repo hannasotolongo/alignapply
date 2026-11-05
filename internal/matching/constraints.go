@@ -17,6 +17,7 @@ import (
 // candidate category. Semantic similarity may help locate evidence, but it
 // cannot manufacture a credential or a number of years.
 func evaluateHardConstraint(
+	s scorer,
 	profile candidate.Profile,
 	requirement jobs.Requirement,
 ) (evidenceResult, bool) {
@@ -42,6 +43,7 @@ func evaluateHardConstraint(
 			extractRequiredYears(requirement.Text); hasYears {
 
 			return evaluateExperienceYears(
+				s,
 				withRawLines(profile.Experience, profile, false),
 				requirement.Text,
 				careerYears(profile, time.Now()),
@@ -63,6 +65,7 @@ func evaluateHardConstraint(
 //
 // The requirement's own number is never considered candidate evidence.
 func evaluateExperienceYears(
+	s scorer,
 	evidence []candidate.Evidence,
 	requirement string,
 	datedCareerYears int,
@@ -125,7 +128,7 @@ func evaluateExperienceYears(
 	}
 
 	if len(candidates) == 0 {
-		return experienceFromDates(evidence, requirementWithoutYears, requiredYears, datedCareerYears)
+		return experienceFromDates(s, evidence, requirementWithoutYears, requiredYears, datedCareerYears)
 	}
 
 	// Semantic retrieval is used only to find the most relevant candidate
@@ -148,7 +151,7 @@ func evaluateExperienceYears(
 	}
 
 	retrieved :=
-		currentSemanticRetriever().Retrieve(
+		s.retriever().Retrieve(
 			requirementWithoutYears,
 			evidenceTexts,
 			5,
@@ -176,7 +179,7 @@ func evaluateExperienceYears(
 		// Verification determines whether THIS candidate statement actually
 		// demonstrates the required type of experience.
 		result :=
-			currentEvidenceVerifier().Verify(
+			s.verifier().Verify(
 				requirementWithoutYears,
 				text,
 			)
@@ -197,13 +200,14 @@ func evaluateExperienceYears(
 		return partialEvidence()
 	}
 
-	return experienceFromDates(evidence, requirementWithoutYears, requiredYears, datedCareerYears)
+	return experienceFromDates(s, evidence, requirementWithoutYears, requiredYears, datedCareerYears)
 }
 
 // experienceFromDates handles the common résumé that lists date ranges rather
 // than "N years of ...": if the résumé's work history shows relevant
 // experience, its dated length counts toward the required years.
 func experienceFromDates(
+	s scorer,
 	evidence []candidate.Evidence,
 	requirementWithoutYears string,
 	requiredYears int,
@@ -224,7 +228,7 @@ func experienceFromDates(
 		return missingEvidence()
 	}
 
-	retrieved := currentSemanticRetriever().Retrieve(requirementWithoutYears, texts, 5)
+	retrieved := s.retriever().Retrieve(requirementWithoutYears, texts, 5)
 	combined := make([]string, 0, len(retrieved))
 	for _, item := range retrieved {
 		if text := strings.TrimSpace(item.Evidence); text != "" {
@@ -241,7 +245,7 @@ func experienceFromDates(
 
 	relevance := verifyEvidenceDeterministically(requirementWithoutYears, joined)
 	if relevance.Level != evidenceSupported {
-		relevance = currentEvidenceVerifier().Verify(requirementWithoutYears, joined)
+		relevance = s.verifier().Verify(requirementWithoutYears, joined)
 	}
 
 	switch {

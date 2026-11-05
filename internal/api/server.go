@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/hannasotolongo/casemade-backend/internal/auth"
@@ -1222,39 +1223,26 @@ func (s *Server) handleJobMatches(
 		len(processedJobs),
 	)
 
-	for index, job := range processedJobs {
-
-		jobStarted := time.Now()
-
-		log.Printf(
-			"[job-matches] match START job=%d/%d company=%q title=%q requirements=%d",
-			index+1,
-			len(processedJobs),
-			job.Company,
-			job.Title,
-			len(job.Requirements),
-		)
-
-		match :=
-			matching.Match(
-				request,
-				job,
-			)
-
-		log.Printf(
-			"[job-matches] match COMPLETE job=%d/%d duration=%s level=%q percentage=%d",
-			index+1,
-			len(processedJobs),
-			time.Since(jobStarted),
-			match.MatchLevel,
-			match.MatchPercentage,
-		)
-
-		matches = append(
-			matches,
-			match,
-		)
+	// Score several jobs at once. Search uses the fast scorer (no OpenAI
+	// calls per requirement) plus a cache, so 50 jobs take seconds, not minutes.
+	matches = matches[:len(processedJobs)]
+	const jobWorkers = 8
+	work := make(chan int)
+	var wg sync.WaitGroup
+	for worker := 0; worker < jobWorkers && worker < len(processedJobs); worker++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for index := range work {
+				matches[index] = matching.MatchFast(request, processedJobs[index])
+			}
+		}()
 	}
+	for index := range processedJobs {
+		work <- index
+	}
+	close(work)
+	wg.Wait()
 
 	log.Printf(
 		"[job-matches] matching COMPLETE duration=%s matches=%d",

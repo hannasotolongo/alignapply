@@ -14,7 +14,7 @@ func TestHardConstraintDoesNotInferLicenseFromHealthcareWork(t *testing.T) {
 		},
 	}
 
-	result, handled := evaluateHardConstraint(profile, jobs.Requirement{
+	result, handled := evaluateHardConstraint(scorer{}, profile, jobs.Requirement{
 		Text:       "Active Registered Nurse license",
 		Category:   jobs.RequirementLicense,
 		Importance: jobs.RequirementRequired,
@@ -32,7 +32,7 @@ func TestHardConstraintDoesNotInferDegreeFromRelatedExperience(t *testing.T) {
 		},
 	}
 
-	result, handled := evaluateHardConstraint(profile, jobs.Requirement{
+	result, handled := evaluateHardConstraint(scorer{}, profile, jobs.Requirement{
 		Text:       "Bachelor's degree in Nursing",
 		Category:   jobs.RequirementEducation,
 		Importance: jobs.RequirementRequired,
@@ -50,7 +50,7 @@ func TestHardConstraintYearsCannotUseProjects(t *testing.T) {
 		},
 	}
 
-	result, handled := evaluateHardConstraint(profile, jobs.Requirement{
+	result, handled := evaluateHardConstraint(scorer{}, profile, jobs.Requirement{
 		Text:       "5 years of account management experience",
 		Category:   jobs.RequirementExperience,
 		Importance: jobs.RequirementRequired,

@@ -108,6 +108,23 @@ func Match(
 	request jobs.SearchRequest,
 	job jobs.Job,
 ) jobs.JobMatch {
+	return scoreJob(scorer{}, request, job)
+}
+
+// MatchFast scores a job with the instant checks only (no OpenAI calls). Search
+// uses it so a list of 50 jobs comes back in seconds; Fit Check uses Match.
+func MatchFast(
+	request jobs.SearchRequest,
+	job jobs.Job,
+) jobs.JobMatch {
+	return cachedScore(scorer{fast: true}, request, job)
+}
+
+func scoreJob(
+	s scorer,
+	request jobs.SearchRequest,
+	job jobs.Job,
+) jobs.JobMatch {
 	result := newJobMatch(job)
 
 	quality := jobs.EvaluateExtractionQuality(job)
@@ -221,6 +238,7 @@ func Match(
 
 				evidence :=
 					evaluateRequirementEvidence(
+						s,
 						profile,
 						requirement,
 					)
@@ -432,6 +450,7 @@ func newJobMatch(job jobs.Job) jobs.JobMatch {
 }
 
 func evaluateRequirementEvidence(
+	s scorer,
 	profile candidate.Profile,
 	requirement jobs.Requirement,
 ) evidenceResult {
@@ -444,7 +463,7 @@ func evaluateRequirementEvidence(
 	// Hard constraints remain authoritative and are evaluated before semantic
 	// retrieval. Similarity must never override a missing license, degree,
 	// certification, or other structured requirement.
-	if result, handled := evaluateHardConstraint(profile, requirement); handled {
+	if result, handled := evaluateHardConstraint(s, profile, requirement); handled {
 		return result
 	}
 
@@ -464,6 +483,7 @@ func evaluateRequirementEvidence(
 			// Skills, summaries, education dates, and unrelated résumé dates
 			// must never establish years of experience.
 			result, _ := evaluateExperienceEvidence(
+				s,
 				profile.Experience,
 				requirementText,
 				careerYears(profile, time.Now()),
@@ -496,7 +516,7 @@ func evaluateRequirementEvidence(
 
 	// Embeddings are retrieval only. A cosine similarity score is never
 	// converted directly into Supported, Partial, or Missing.
-	retrieved := currentSemanticRetriever().Retrieve(
+	retrieved := s.retriever().Retrieve(
 		requirementText,
 		evidenceTexts,
 		5,
@@ -556,7 +576,7 @@ func evaluateRequirementEvidence(
 	// Missing and partial lexical coverage can still represent a valid
 	// semantic match (for example, "patient counseling" vs "patient
 	// education"). Let the model resolve those genuinely ambiguous cases.
-	return currentEvidenceVerifier().Verify(
+	return s.verifier().Verify(
 		requirementText,
 		combinedEvidence,
 	)
@@ -682,6 +702,7 @@ func combineEvidence(
 }
 
 func evaluateExperienceEvidence(
+	s scorer,
 	evidence []candidate.Evidence,
 	requirement string,
 	datedCareerYears int,
@@ -720,7 +741,7 @@ func evaluateExperienceEvidence(
 		return missingEvidence(), true
 	}
 
-	retrieved := currentSemanticRetriever().Retrieve(
+	retrieved := s.retriever().Retrieve(
 		requirementWithoutYears,
 		evidenceTexts,
 		5,
@@ -773,7 +794,7 @@ func evaluateExperienceEvidence(
 	if contextResult.Level != evidenceSupported {
 		// A duration requirement can still use semantically equivalent
 		// evidence, so ambiguous lexical coverage is delegated to Qwen.
-		contextResult = currentEvidenceVerifier().Verify(
+		contextResult = s.verifier().Verify(
 			requirementWithoutYears,
 			combinedEvidence,
 		)

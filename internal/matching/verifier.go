@@ -38,3 +38,23 @@ func currentEvidenceVerifier() EvidenceVerifier {
 	defer evidenceVerifierMu.RUnlock()
 	return evidenceVerifier
 }
+
+// scorer picks the AI helpers for one Match call. A fast scorer (used for
+// search result lists) skips the per-requirement OpenAI verifier and
+// embedding lookups and relies on the instant word, synonym and date checks;
+// the full scorer (Fit Check, résumé recommendation) uses AI as well.
+type scorer struct{ fast bool }
+
+func (s scorer) verifier() EvidenceVerifier {
+	if s.fast {
+		return deterministicEvidenceVerifier{}
+	}
+	return currentEvidenceVerifier()
+}
+
+func (s scorer) retriever() SemanticRetriever {
+	if s.fast {
+		return HybridSemanticRetriever{}
+	}
+	return currentSemanticRetriever()
+}
