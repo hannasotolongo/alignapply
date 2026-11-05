@@ -479,7 +479,7 @@ async function viewLanding() {
           h("div", { class: "hero-copy" },
             h("span", { class: "pill eyebrow" }, "Meet Jane, your job-search copilot"),
             h("h1", {}, "Know if you'll get the interview ", h("span", { class: "hl" }, "before"), " you apply."),
-            h("p", { class: "lead" }, "Know your match before you apply. Jane finds the jobs you fit, shows what's missing, tailors your strongest résumé, and gets you ready for the interview. Every application, tracked. No more applying blind."),
+            h("p", { class: "lead" }, "Jane finds the jobs you fit, shows what's missing, tailors your strongest résumé, and preps you for the interview. No more applying blind."),
             h("div", { class: "row" },
               link(signedIn ? "/app" : "/signup", { class: "btn btn-primary btn-lg" }, signedIn ? "See my matches" : "Sign up today"),
             ),
