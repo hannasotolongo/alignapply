@@ -43,6 +43,9 @@ func main() {
 		log.Printf("SECURITY: OPENAI_API_KEY contains a non-OpenAI secret (Stripe/webhook key); refusing to use it. Set your OpenAI key (sk-proj-...) instead.")
 		openAIAPIKey = ""
 	}
+	if openAIAPIKey != "" && !strings.HasPrefix(openAIAPIKey, "sk-") {
+		log.Printf("WARNING: OPENAI_API_KEY doesn't look like an OpenAI key (they start with sk-). AI features will fail until it's replaced with your OpenAI key.")
+	}
 
 	if openAIAPIKey != "" {
 		semanticProvider :=
