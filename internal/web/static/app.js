@@ -409,43 +409,75 @@ function siteFooter() {
   );
 }
 
-// exampleResultCard is the glass preview beside the headline, with clearly
+// exampleResultCard is the glass slideshow beside the headline: one panel
+// each for match rate, tailored résumé, and interview prep, with clearly
 // labeled sample data.
 function exampleResultCard() {
   const ring = h("div", { class: "score-ring hero-ring" }, h("span", {}, h("b", {}, "86%"), h("small", {}, "match")));
   ring.style.setProperty("--pct", "86");
-  return h("div", { class: "hero-visual" },
-    h("div", { class: "card demo-card hero-pane" },
+
+  const slides = [
+    ["Match", h("div", { class: "slide-body" },
       h("div", { class: "row-between hero-pane-top" },
         h("div", { class: "stack-sm demo-head" },
           h("span", { class: "hero-kicker" }, "Top match today"),
           h("span", { class: "demo-title" }, "ICU Registered Nurse"),
           h("span", { class: "faint small" }, "Baptist Health · Miami, FL")),
         ring),
-      h("div", { class: "chip-slot" }, cyclingChip("chip-middle", [
-      "3 likely questions ready",
-      "“Tell me about a patient who declined quickly”",
-      "Jane: “Strong start. Add how the patient did.”",
-    ], 1000, "Interview")),
       h("div", { class: "hero-list" },
         h("span", { class: "demo-good" }, "✓ Meets all 4 must-haves"),
         h("span", { class: "demo-mid" }, "↗ 1 quick win: CCRN certification"),
         h("span", { class: "demo-low" }, "✕ 1 gap: Cerner EHR")),
-      h("strong", { class: "hero-verdict" }, "Jane says: Apply."),
-      h("div", { class: "hero-update" },
-        h("span", {}, "✦ 4 new matches"), h("span", {}, "✦ Best résumé ready"), h("span", {}, "✦ 1 interviewing")),
-      h("span", { class: "pill hero-example" }, "Example")),
-    cyclingChip("chip-top", [
-      "86% · Apply",
-      "92% · Cardiac Step-Down RN",
-      "71% · prep one gap first",
-    ], 0, "Match"),
-    cyclingChip("chip-bottom", [
-      "Tailored for this job",
-      "Bullets rewritten in the job's own words",
-      "Built only from your real experience",
-    ], 2000, "Résumé"),
-  );
+      h("strong", { class: "hero-verdict" }, "Jane says: Apply."))],
+    ["Résumé", h("div", { class: "slide-body" },
+      h("div", { class: "stack-sm demo-head" },
+        h("span", { class: "hero-kicker" }, "Tailored for this job"),
+        h("span", { class: "demo-title" }, "ICU Registered Nurse")),
+      h("div", { class: "tailor-box before" }, h("span", { class: "hero-kicker" }, "Your résumé"), h("span", {}, "Cared for patients in the ICU.")),
+      h("div", { class: "tailor-arrow", "aria-hidden": "true" }, "↓"),
+      h("div", { class: "tailor-box after" }, h("span", { class: "hero-kicker" }, "Jane's version"), h("span", {}, "Managed care for 2–3 critically ill ICU patients per shift, including ventilated patients and titrated drips.")),
+      h("span", { class: "truth-badge" }, "✓ Built only from your real experience"))],
+    ["Interview", h("div", { class: "slide-body" },
+      h("div", { class: "stack-sm demo-head" },
+        h("span", { class: "hero-kicker" }, "Interview prep"),
+        h("span", { class: "demo-title" }, "3 likely questions ready")),
+      h("div", { class: "chat q" }, h("span", { class: "hero-kicker" }, "Likely question"), h("span", {}, "Tell me about a time a patient's condition changed quickly.")),
+      h("div", { class: "chat a" }, h("span", { class: "hero-kicker" }, "Your answer"), h("span", {}, "A patient's pressure dropped, so I called the rapid response team…")),
+      h("div", { class: "chat f" }, h("span", { class: "hero-kicker demo-good" }, "Jane's feedback"), h("span", {}, "Strong start. Say what you did first, and end with how the patient did.")))],
+  ];
+
+  const track = h("div", { class: "slide-track" }, slides.map(([, body]) => h("div", { class: "slide" }, body)));
+  const dots = h("div", { class: "slide-dots", role: "tablist", "aria-label": "Jane features" });
+  const pane = h("div", { class: "card demo-card hero-pane slideshow" },
+    h("div", { class: "slide-viewport" }, track),
+    h("div", { class: "row-between slide-foot" }, dots, h("span", { class: "pill hero-example-inline" }, "Example")));
+
+  let index = 0;
+  const show = (next) => {
+    index = (next + slides.length) % slides.length;
+    track.style.setProperty("--slide", String(index));
+    [...dots.children].forEach((dot, i) => {
+      dot.classList.toggle("active", i === index);
+      dot.setAttribute("aria-selected", i === index ? "true" : "false");
+    });
+  };
+  slides.forEach(([label], i) => dots.append(h("button", { class: "slide-dot", type: "button", role: "tab", "aria-label": label, onclick: () => { show(i); restart(); } },
+    h("span", { class: "slide-dot-label" }, label))));
+
+  const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let timer = null;
+  const restart = () => {
+    clearInterval(timer);
+    if (reduceMotion) return;
+    timer = setInterval(() => {
+      if (!pane.isConnected) { clearInterval(timer); return; }
+      if (!pane.matches(":hover")) show(index + 1);
+    }, 5000);
+  };
+  show(0);
+  restart();
+
+  return h("div", { class: "hero-visual" }, pane);
 }
 
 // cyclingChip is a floating glass chip that rotates through Jane's features.
