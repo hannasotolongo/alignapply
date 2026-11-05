@@ -1,7 +1,6 @@
 package jobs
 
 import (
-	"log"
 	"sort"
 	"strconv"
 	"strings"
@@ -43,7 +42,7 @@ func (p *Pipeline) Process(
 	seen := make(map[string]struct{})
 
 	for _, rawJob := range input {
-		log.Printf(
+		pipelineDebugf(
 			"[pipeline-debug] CHECK title=%q company=%q location=%q country=%q arrangement=%q employment=%q active=%v apply_url=%q",
 			rawJob.Title,
 			rawJob.Company,
@@ -56,7 +55,7 @@ func (p *Pipeline) Process(
 		)
 
 		if !validPipelineJob(rawJob) {
-			log.Printf(
+			pipelineDebugf(
 				"[pipeline-debug] REJECT reason=invalid_job title=%q company=%q id=%q apply_url=%q",
 				rawJob.Title,
 				rawJob.Company,
@@ -67,7 +66,7 @@ func (p *Pipeline) Process(
 		}
 
 		if !rawJob.IsActive {
-			log.Printf(
+			pipelineDebugf(
 				"[pipeline-debug] REJECT reason=inactive title=%q company=%q",
 				rawJob.Title,
 				rawJob.Company,
@@ -76,7 +75,7 @@ func (p *Pipeline) Process(
 		}
 
 		if !p.isCurrentJob(rawJob) {
-			log.Printf(
+			pipelineDebugf(
 				"[pipeline-debug] REJECT reason=not_current title=%q company=%q posted_at=%v expires_at=%v",
 				rawJob.Title,
 				rawJob.Company,
@@ -87,7 +86,7 @@ func (p *Pipeline) Process(
 		}
 
 		if !jobTitleMatchesTargetRole(request.TargetRole, rawJob.Title) {
-			log.Printf(
+			pipelineDebugf(
 				"[pipeline-debug] REJECT reason=role title=%q target_role=%q",
 				rawJob.Title,
 				request.TargetRole,
@@ -96,7 +95,7 @@ func (p *Pipeline) Process(
 		}
 
 		if !matchesLocationPreference(request, rawJob) {
-			log.Printf(
+			pipelineDebugf(
 				"[pipeline-debug] REJECT reason=location title=%q requested=%q job_location=%q request_country=%q job_country=%q",
 				rawJob.Title,
 				request.Location,
@@ -108,7 +107,7 @@ func (p *Pipeline) Process(
 		}
 
 		if !matchesWorkArrangementPreference(request, rawJob) {
-			log.Printf(
+			pipelineDebugf(
 				"[pipeline-debug] REJECT reason=work_arrangement title=%q arrangement=%q",
 				rawJob.Title,
 				rawJob.WorkArrangement,
@@ -117,7 +116,7 @@ func (p *Pipeline) Process(
 		}
 
 		if !matchesEmploymentTypePreference(request, rawJob) {
-			log.Printf(
+			pipelineDebugf(
 				"[pipeline-debug] REJECT reason=employment_type title=%q employment=%q requested=%v",
 				rawJob.Title,
 				rawJob.EmploymentType,
@@ -127,7 +126,7 @@ func (p *Pipeline) Process(
 		}
 
 		if !matchesMinimumSalaryPreference(request, rawJob) {
-			log.Printf(
+			pipelineDebugf(
 				"[pipeline-debug] REJECT reason=salary title=%q minimum=%q salary_min=%v salary_max=%v",
 				rawJob.Title,
 				request.MinimumSalary,
@@ -140,7 +139,7 @@ func (p *Pipeline) Process(
 		key := pipelineDeduplicationKey(rawJob)
 
 		if _, exists := seen[key]; exists {
-			log.Printf(
+			pipelineDebugf(
 				"[pipeline-debug] REJECT reason=duplicate title=%q key=%q",
 				rawJob.Title,
 				key,
@@ -148,7 +147,7 @@ func (p *Pipeline) Process(
 			continue
 		}
 
-		log.Printf(
+		pipelineDebugf(
 			"[pipeline-debug] ACCEPT title=%q company=%q",
 			rawJob.Title,
 			rawJob.Company,
@@ -160,7 +159,7 @@ func (p *Pipeline) Process(
 		// before the description is returned to the client.
 		rawJob.Description = normalizeJobDescription(rawJob.Description)
 
-		job := EnrichJob(rawJob)
+		job := enrichCached(rawJob)
 
 		result = append(result, job)
 	}
