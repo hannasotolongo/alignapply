@@ -1,0 +1,164 @@
+package tailor
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"strings"
+)
+
+type FeedbackRequest struct {
+	Question       string
+	Answer         string
+	ResumeText     string
+	JobDescription string
+	JobTitle       string
+}
+
+// Feedback is Jane's coaching on one practice interview answer.
+type Feedback struct {
+	Strengths      []string `json:"strengths"`
+	Improvements   []string `json:"improvements"`
+	StrongerAnswer string   `json:"strongerAnswer"`
+}
+
+const feedbackSchema = `{
+  "type":"object",
+  "properties":{
+    "strengths":{"type":"array","items":{"type":"string"}},
+    "improvements":{"type":"array","items":{"type":"string"}},
+    "strongerAnswer":{"type":"string"}
+  },
+  "required":["strengths","improvements","strongerAnswer"],
+  "additionalProperties":false
+}`
+
+func buildFeedbackPrompt(request FeedbackRequest) string {
+	var b strings.Builder
+	b.WriteString(`You are Jane, an honest, encouraging interview coach. The candidate practiced an answer to an interview question. Coach them.
+
+RULES:
+- "strengths": 1 to 3 specific things that work in their answer. Quote or name the part.
+- "improvements": 2 to 4 concrete, actionable changes (structure such as situation, action, result; missing specifics; tie back to the job's requirements; trim filler). Be direct, kind, and specific.
+- "strongerAnswer": a rewritten answer of 90 to 160 words in first person, spoken style. Use ONLY facts from the candidate's answer and résumé. Never invent employers, titles, tools, numbers, results, or credentials. If a strong answer needs a detail they haven't given, write it as a bracketed placeholder like [the result you saw] instead of making it up.
+
+`)
+	if request.JobTitle != "" {
+		fmt.Fprintf(&b, "JOB: %s\n\n", request.JobTitle)
+	}
+	b.WriteString("JOB POSTING (for context):\n")
+	b.WriteString(request.JobDescription)
+	b.WriteString("\n\nCANDIDATE RÉSUMÉ:\n")
+	b.WriteString(request.ResumeText)
+	b.WriteString("\n\nINTERVIEW QUESTION:\n")
+	b.WriteString(request.Question)
+	b.WriteString("\n\nCANDIDATE'S PRACTICE ANSWER:\n")
+	b.WriteString(request.Answer)
+	return b.String()
+}
+
+// structured calls the Responses API with a strict JSON schema and returns
+// the model's JSON text.
+func (c *Client) structured(ctx context.Context, prompt, name, schema string) (string, error) {
+	payload, err := json.Marshal(map[string]any{
+		"model":     c.Model,
+		"reasoning": map[string]string{"effort": "low"},
+		"input":     []map[string]string{{"role": "user", "content": prompt}},
+		"text": map[string]any{"format": map[string]any{
+			"type": "json_schema", "name": name, "strict": true,
+			"schema": json.RawMessage(schema),
+		}},
+	})
+	if err != nil {
+		return "", err
+	}
+	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(c.BaseURL, "/")+"/responses", bytes.NewReader(payload))
+	if err != nil {
+		return "", err
+	}
+	httpRequest.Header.Set("Authorization", "Bearer "+c.APIKey)
+	httpRequest.Header.Set("Content-Type", "application/json")
+
+	response, err := c.HTTP.Do(httpRequest)
+	if err != nil {
+		return "", fmt.Errorf("%s request: %w", name, err)
+	}
+	defer response.Body.Close()
+	body, err := io.ReadAll(io.LimitReader(response.Body, 2<<20))
+	if err != nil {
+		return "", err
+	}
+	if response.StatusCode != http.StatusOK {
+		snippet := string(body)
+		if len(snippet) > 300 {
+			snippet = snippet[:300]
+		}
+		return "", fmt.Errorf("%s: openai status %d: %s", name, response.StatusCode, snippet)
+	}
+	var decoded struct {
+		Output []struct {
+			Content []struct {
+				Type string `json:"type"`
+				Text string `json:"text"`
+			} `json:"content"`
+		} `json:"output"`
+	}
+	if err := json.Unmarshal(body, &decoded); err != nil {
+		return "", fmt.Errorf("%s: decode response: %w", name, err)
+	}
+	for _, output := range decoded.Output {
+		for _, content := range output.Content {
+			if content.Type == "output_text" && content.Text != "" {
+				return content.Text, nil
+			}
+		}
+	}
+	return "", errors.New(name + ": empty response")
+}
+
+func (c *Client) Feedback(ctx context.Context, request FeedbackRequest) (Feedback, error) {
+	if c == nil {
+		return Feedback{}, ErrUnavailable
+	}
+	text, err := c.structured(ctx, buildFeedbackPrompt(request), "answer_feedback", feedbackSchema)
+	if err != nil {
+		return Feedback{}, err
+	}
+	var feedback Feedback
+	if err := json.Unmarshal([]byte(text), &feedback); err != nil {
+		return Feedback{}, fmt.Errorf("answer_feedback: decode: %w", err)
+	}
+	return EnforceFeedback(feedback, request.ResumeText+"\n"+request.Answer), nil
+}
+
+// EnforceFeedback keeps the rewritten answer honest: any number that isn't
+// in the candidate's own résumé or answer becomes a placeholder.
+func EnforceFeedback(feedback Feedback, candidateText string) Feedback {
+	allowed := numberSet(normalize(candidateText))
+	feedback.StrongerAnswer = numberPattern.ReplaceAllStringFunc(feedback.StrongerAnswer, func(match string) string {
+		if _, ok := allowed[strings.ReplaceAll(match, ",", "")]; ok {
+			return match
+		}
+		return "[your number]"
+	})
+	trim := func(items []string, max int) []string {
+		kept := items[:0]
+		for _, item := range items {
+			if item = strings.TrimSpace(item); item != "" {
+				kept = append(kept, item)
+			}
+			if len(kept) == max {
+				break
+			}
+		}
+		return kept
+	}
+	feedback.Strengths = trim(feedback.Strengths, 3)
+	feedback.Improvements = trim(feedback.Improvements, 4)
+	feedback.StrongerAnswer = strings.TrimSpace(feedback.StrongerAnswer)
+	return feedback
+}

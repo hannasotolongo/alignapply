@@ -376,6 +376,7 @@ func (s *Server) routes() {
 		// Web (email + password) authentication.
 		s.mux.HandleFunc("/api/v1/fit-check", s.handleFitCheck)
 		s.mux.Handle("/api/v1/application-kit", s.sessionManager.Middleware(s.requirePro(http.HandlerFunc(s.handleApplicationKit))))
+		s.mux.Handle("/api/v1/interview-feedback", s.sessionManager.Middleware(s.requirePro(http.HandlerFunc(s.handleInterviewFeedback))))
 		s.mux.HandleFunc("/api/v1/auth/signup", s.handlePasswordSignUp)
 		s.mux.HandleFunc("/api/v1/auth/login", s.handlePasswordLogin)
 		s.mux.HandleFunc("/api/v1/auth/logout", s.handleLogout)

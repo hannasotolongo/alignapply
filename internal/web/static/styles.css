@@ -843,3 +843,15 @@ input:focus, textarea:focus, select:focus {
   background: linear-gradient(transparent 62%, rgba(255, 255, 255, 0.22) 0);
 }
 .nav-icon img { display: block; margin: 0 auto; opacity: 0.85; }
+
+/* ---- Interview practice ---- */
+.practice { margin-top: 8px; }
+.practice summary { cursor: pointer; font-size: 13px; font-weight: 600; color: #fff; }
+.practice textarea { width: 100%; margin-top: 8px; }
+.practice-feedback { margin-top: 6px; padding: 12px; border-radius: 12px; background: rgba(255, 255, 255, 0.035); border: 1px solid rgba(255, 255, 255, 0.09); }
+.stronger-answer { margin: 0; line-height: 1.6; }
+.feature-items { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.feature-items li { display: grid; gap: 3px; padding-left: 26px; position: relative; }
+.feature-items li::before { content: "✓"; position: absolute; left: 0; top: 0; width: 18px; height: 18px; border-radius: 50%; background: rgba(255,255,255,0.1); display: grid; place-items: center; font-size: 11px; font-weight: 800; color: #fff; }
+.feature-items strong { font-size: 15px; }
+.feature-items .muted { font-size: 14px; line-height: 1.55; }

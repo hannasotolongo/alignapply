@@ -65,3 +65,16 @@ func TestNilClientUnavailable(t *testing.T) {
 		t.Fatalf("expected ErrUnavailable, got %v", err)
 	}
 }
+
+func TestEnforceFeedbackReplacesInventedNumbers(t *testing.T) {
+	feedback := EnforceFeedback(Feedback{
+		StrongerAnswer: "I cared for 6 patients a shift and cut falls by 40%.",
+		Strengths:      []string{"Clear example", " "},
+	}, "Care for 6 patients per shift")
+	if !strings.Contains(feedback.StrongerAnswer, "6 patients") || strings.Contains(feedback.StrongerAnswer, "40") {
+		t.Fatalf("unexpected answer %q", feedback.StrongerAnswer)
+	}
+	if len(feedback.Strengths) != 1 {
+		t.Fatalf("blank strengths should be dropped: %v", feedback.Strengths)
+	}
+}

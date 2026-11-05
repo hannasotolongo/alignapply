@@ -445,15 +445,26 @@ async function viewLanding() {
   const signedIn = !!state.user;
 
   const features = [
-    ["%", "Find and score", "Know your odds before you apply.", "Jane finds open jobs for you and scores every one against your résumé, automatically, and tells you if you should: apply, close a gap first, or skip it."],
-    ["✓", "Get ready to apply", "Close the gaps. Send your strongest résumé.", "Jane shows what's missing and how to close it, picks your best résumé for the job, and tailors it with interview prep, using only experience you actually have."],
-    ["▤", "Track it all", "Every application in one place.", "Save jobs, mark them applied, and move them through interview and offer, so you always know where you stand."],
+    ["1", "Find and score", "Know your odds before you apply.", [
+      ["Jobs found for you", "Tell Jane the job and city you want to work in. Your best matches are waiting for you every time you sign in."],
+      ["Automatic match scores", "Every job is scored against your résumé, so you know whether to apply, gain more experience, or skip it."],
+    ]],
+    ["2", "Get ready to apply", "Fix what's holding you back. Send your best résumé.", [
+      ["What you're missing, and how to fix it", "Jane lists each requirement your résumé doesn't show yet: skills you have but forgot to list, certifications you can earn quickly, and experience you'd still need."],
+      ["Best-résumé pick", "Have more than one résumé? Jane compares each one to the job and tells you which version lines up closest with what the employer is asking for."],
+      ["Tailored résumé", "Jane can tailor your résumé to increase your chances of standing out."],
+    ]],
+    ["3", "Interview prep", "Walk in ready.", [
+      ["Interview prep", "Jane helps you prepare for your interview. She goes over the questions the employer is likely to ask and tells you how to improve your responses."],
+    ]],
+    ["4", "Apply and track", "Every application in one place.", [
+      ["Apply directly with the employer", "Jane sends you to the company's own application page, not a reposted listing, so your application goes straight to the hiring team and you avoid expired or fake postings."],
+      ["Application tracker", "Move each job from saved to applied, interview, and offer, so you always know where you stand and who to follow up with."],
+    ]],
   ];
 
 
   const faqs = [
-    ["What does Jane actually do?", "She reads a job posting the way a recruiter does, checks each requirement against your résumé, tells you whether to apply, shows you how to close the gaps, and tailors your résumé for that job. Then she tracks the application for you."],
-    ["What does “truth-locked” mean?", "When Jane tailors your résumé, every bullet has to come from a line you actually wrote, and she can't add numbers, skills or credentials you don't have. If she can't trace a line back to your résumé, she throws it out. Recruiters can tell when a résumé was padded, and Jane won't do that to you."],
     ["Why do I need a card for the free trial?", "It keeps the trial to one per person. You won't be charged during the 3 days, and you can cancel any time from Plan & billing on the website."],
     ["Is my résumé private?", "Your PDF is read right in your browser. Only the text is stored, it's never shared with employers, and you can delete it, or your whole account, at any time."],
     ["Does Jane work for nurses and healthcare jobs?", "Yes. Jane knows an RN license from a BLS certification, matches “RN” to “Registered Nurse”, and never counts a credential you don't hold."],
@@ -481,14 +492,15 @@ async function viewLanding() {
         h("div", { class: "container" },
           h("h2", { class: "section-title" }, "Everything Jane does for you"),
           h("p", { class: "section-sub" }, "Less searching, less guessing, more interviews. Here's how Jane gets you there."),
-          h("div", { class: "grid-3 features-grid" },
-            features.map(([icon, name, promise, body]) =>
+          h("div", { class: "grid-2 features-grid" },
+            features.map(([icon, name, promise, items]) =>
               h("div", { class: "card feature-card" },
                 h("div", { class: "row" },
                   h("div", { class: "step-num", "aria-hidden": "true" }, icon),
                   h("span", { class: "section-label" }, name)),
                 h("h3", {}, promise),
-                h("p", { class: "muted" }, body),
+                h("ul", { class: "feature-items" }, items.map(([title, body]) =>
+                  h("li", {}, h("strong", {}, title), h("span", { class: "muted" }, body)))),
               )),
           ),
           h("div", { class: "row center section-gap" },
@@ -2658,7 +2670,7 @@ async function copyText(text, label) {
   }
 }
 
-function renderKit(kit, title) {
+function renderKit(kit, title, input) {
   const copyBtn = (text, label) => h("button", { class: "btn btn-ghost btn-sm", type: "button", onclick: () => copyText(text, label) }, "Copy");
   const parts = [
     h("div", { class: "row-between" },
@@ -2691,7 +2703,11 @@ function renderKit(kit, title) {
   if (kit.interview.length) {
     parts.push(h("div", { class: "kit-block stack-sm" },
       h("span", { class: "section-label" }, "Interview prep"),
-      h("ol", { class: "kit-interview" }, kit.interview.map((q) => h("li", {}, h("strong", {}, q.question), h("p", { class: "muted small" }, q.approach))))));
+      h("p", { class: "faint small" }, "Practice out loud, then type your answer and Jane will tell you how to improve it."),
+      h("ol", { class: "kit-interview" }, kit.interview.map((q) => h("li", {},
+        h("strong", {}, q.question),
+        h("p", { class: "muted small" }, q.approach),
+        input ? practiceBox(q.question, input) : null)))));
   }
   return h("div", { class: "card inset stack kit" }, parts);
 }
@@ -2703,10 +2719,11 @@ function applicationKitSection(getInput, title) {
   const start = h("button", { class: "btn btn-primary", type: "button", onclick: async () => {
     start.disabled = true;
     slot.replaceChildren(h("div", { class: "card inset" }, spinnerRow("Jane is tailoring your résumé to this job, using only what's true…")));
+    let input;
     try {
-      const input = await getInput();
+      input = await getInput();
       const kit = await api("/api/v1/application-kit", { method: "POST", body: input });
-      slot.replaceChildren(renderKit(kit, title));
+      slot.replaceChildren(renderKit(kit, title, input));
       intro.remove();
     } catch (error) {
       start.disabled = false;
@@ -2852,6 +2869,47 @@ async function viewHome() {
       "Have one specific job in mind? ", link("/app/fit-check", {}, "Check it here"),
       ". Need help? Call ", h("a", { href: "tel:+16468212027" }, "646-821-2027"), "."),
   );
+}
+
+// practiceBox lets the user type an answer to one interview question and get
+// Jane's coaching on it.
+function practiceBox(question, input) {
+  const slot = h("div", { class: "practice-result" });
+  const answer = h("textarea", { rows: 4, maxlength: 6000, placeholder: "Type your answer the way you'd say it in the interview." });
+  const submit = h("button", { class: "btn btn-sm", type: "button", onclick: async () => {
+    const text = answer.value.trim();
+    if (text.length < 40) {
+      slot.replaceChildren(h("p", { class: "text-error small" }, "Write a few sentences so Jane has something to coach."));
+      answer.focus();
+      return;
+    }
+    submit.disabled = true;
+    slot.replaceChildren(spinnerRow("Jane is reviewing your answer…"));
+    try {
+      const feedback = await api("/api/v1/interview-feedback", {
+        method: "POST",
+        body: { question, answer: text, resumeText: input.resumeText, jobDescription: input.jobDescription, jobTitle: input.jobTitle || "" },
+      });
+      slot.replaceChildren(h("div", { class: "practice-feedback stack-sm" },
+        feedback.strengths.length ? h("div", {}, h("span", { class: "section-label" }, "What works"),
+          h("ul", { class: "reqs supported" }, feedback.strengths.map((item) => h("li", {}, item)))) : null,
+        feedback.improvements.length ? h("div", {}, h("span", { class: "section-label" }, "How to improve it"),
+          h("ul", { class: "reqs partial" }, feedback.improvements.map((item) => h("li", {}, item)))) : null,
+        feedback.strongerAnswer ? h("div", { class: "stack-sm" },
+          h("div", { class: "row-between" }, h("span", { class: "section-label" }, "A stronger version"),
+            h("button", { class: "btn btn-ghost btn-sm", type: "button", onclick: () => copyText(feedback.strongerAnswer, "Answer copied") }, "Copy")),
+          h("p", { class: "stronger-answer" }, feedback.strongerAnswer),
+          h("p", { class: "faint small" }, "Built only from your answer and résumé. Fill in anything in [brackets] with your real details.")) : null,
+      ));
+    } catch (error) {
+      slot.replaceChildren(h("p", { class: "text-error small" }, error.message));
+    } finally {
+      submit.disabled = false;
+    }
+  } }, "Get feedback");
+  return h("details", { class: "practice" },
+    h("summary", {}, "Practice this answer"),
+    h("div", { class: "stack-sm" }, answer, h("div", { class: "row" }, submit), slot));
 }
 
 // ---------------------------------------------------------------------------
