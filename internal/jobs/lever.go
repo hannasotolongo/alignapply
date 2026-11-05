@@ -40,6 +40,9 @@ const (
 	// A slow employer board shouldn't hold up the whole search; boards that
 	// miss this budget are skipped this time and retried on the next search.
 	leverSearchBudget = 6 * time.Second
+	// Boards still downloading after the search returns may finish in the
+	// background for up to this long.
+	leverBackgroundLimit = 90 * time.Second
 )
 
 func NewLeverProvider(
@@ -114,13 +117,15 @@ func (p *LeverProvider) Search(
 		return []Job{}, nil
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, leverSearchBudget)
-	defer cancel()
-
 	type employerResult struct {
 		jobs []Job
 		err  error
 	}
+
+	// Boards download on their own clock: the search waits at most
+	// leverSearchBudget, and any board still downloading keeps going in the
+	// background so it's cached for the next search.
+	fetchCtx, cancelFetch := context.WithTimeout(context.Background(), leverBackgroundLimit)
 
 	results := make(
 		chan employerResult,
@@ -148,15 +153,15 @@ func (p *LeverProvider) Search(
 					<-sem
 				}()
 
-			case <-ctx.Done():
+			case <-fetchCtx.Done():
 				results <- employerResult{
-					err: ctx.Err(),
+					err: fetchCtx.Err(),
 				}
 				return
 			}
 
 			found, err := p.searchEmployer(
-				ctx,
+				fetchCtx,
 				employer,
 				request,
 			)
@@ -170,24 +175,36 @@ func (p *LeverProvider) Search(
 
 	go func() {
 		wg.Wait()
+		cancelFetch()
 		close(results)
 	}()
+
+	budget := time.NewTimer(leverSearchBudget)
+	defer budget.Stop()
 
 	allJobs := make([]Job, 0)
 	var firstErr error
 
-	for result := range results {
-		if result.err != nil {
-			if firstErr == nil {
+collect:
+	for {
+		select {
+		case result, ok := <-results:
+			if !ok {
+				break collect
+			}
+			if result.err != nil && firstErr == nil {
 				firstErr = result.err
 			}
-			continue
+			// Keep whatever a board returned, even if a later page failed.
+			allJobs = append(
+				allJobs,
+				result.jobs...,
+			)
+		case <-budget.C:
+			break collect
+		case <-ctx.Done():
+			break collect
 		}
-
-		allJobs = append(
-			allJobs,
-			result.jobs...,
-		)
 	}
 
 	// One broken employer feed should not erase valid jobs returned
