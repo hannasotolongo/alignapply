@@ -286,6 +286,12 @@ func matchesLocationPreference(
 	requestCountry := strings.ToUpper(strings.TrimSpace(request.CountryCode))
 	jobCountry := strings.ToUpper(strings.TrimSpace(job.CountryCode))
 
+	// A search for a US city or state is a US search, so a remote role
+	// limited to another country doesn't fit.
+	if requestCountry == "" && (len(metrosIn(requested)) > 0 || locationContainsUSRegion(request.Location)) {
+		requestCountry = "US"
+	}
+
 	if requestCountry != "" &&
 		jobCountry != "" &&
 		requestCountry != jobCountry {

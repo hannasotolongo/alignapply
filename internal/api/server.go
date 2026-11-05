@@ -112,8 +112,16 @@ func NewServer(
 	server := &Server{
 		mux: http.NewServeMux(),
 		jobProvider: jobs.NewMultiProvider(
-			// Cached for 6 hours so repeat searches don't use up the feed's allowance.
-			jobs.NewCachedProvider(jobs.NewJobOpportunitiesProvider(), 6*time.Hour),
+			// The main feed is cached for 6 hours so repeat searches don't use up
+			// its allowance. Free backup sources fill in when it returns too few
+			// jobs or fails.
+			jobs.NewFallbackProvider(
+				jobs.NewCachedProvider(jobs.NewJobOpportunitiesProvider(), 6*time.Hour),
+				15,
+				jobs.NewGreenhouseProvider(jobs.GreenhouseBoards()),
+				jobs.NewCachedProvider(jobs.NewRemotiveProvider(), 6*time.Hour),
+				usaJobsBackup(),
+			),
 			jobs.NewLeverProvider(
 				jobs.DefaultATSEmployers(),
 			),
@@ -1515,4 +1523,13 @@ func writeJSON(
 			err,
 		)
 	}
+}
+
+// usaJobsBackup is the USAJobs source when its free key is configured.
+func usaJobsBackup() jobs.Provider {
+	provider := jobs.NewUSAJobsProvider()
+	if provider == nil {
+		return nil
+	}
+	return jobs.NewCachedProvider(provider, 6*time.Hour)
 }

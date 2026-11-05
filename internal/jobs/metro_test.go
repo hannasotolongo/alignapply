@@ -57,3 +57,26 @@ func TestTitleAliases(t *testing.T) {
 		t.Error("unrelated title matched")
 	}
 }
+
+func TestCountryFromLocation(t *testing.T) {
+	cases := map[string]string{
+		"Canada - Remote (ON, AB, BC, or NS Only)": "CA",
+		"Remote - Portugal":                        "PT",
+		"Remote · USA, Canada":                     "US",
+		"New York, NY - Hybrid":                    "US",
+		"Remote - United States":                   "US",
+		"London, England":                          "GB",
+	}
+	for location, want := range cases {
+		if got := countryFromLocation(location); got != want {
+			t.Errorf("countryFromLocation(%q) = %q, want %q", location, got, want)
+		}
+	}
+	us := SearchRequest{Location: "San Francisco, CA", Remote: true}
+	if matchesLocationPreference(us, Job{Location: "Remote - Portugal", CountryCode: "PT", WorkArrangement: "remote"}) {
+		t.Error("Portugal-only remote job should not match a San Francisco search")
+	}
+	if !matchesLocationPreference(us, Job{Location: "Remote - United States", CountryCode: "US", WorkArrangement: "remote"}) {
+		t.Error("US remote job should match")
+	}
+}
