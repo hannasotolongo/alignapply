@@ -26,6 +26,10 @@ type SearchRequest struct {
 	// RadiusMiles is how far from Location a job may be. Zero means Jane
 	// starts at 40 miles and widens the area when few jobs are found.
 	RadiusMiles float64 `json:"radiusMiles,omitempty"`
+	// Offset and PageSize ask for one page of the ranked results ("Load
+	// more"). PageSize 0 returns the first results the old way.
+	Offset   int `json:"offset,omitempty"`
+	PageSize int `json:"pageSize,omitempty"`
 }
 
 // RequirementCategory describes what kind of evidence is needed.

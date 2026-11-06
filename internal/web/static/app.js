@@ -102,6 +102,28 @@ async function api(path, options = {}) {
   return data;
 }
 
+// fetchMatchPage asks for one page of ranked, scored matches. The server
+// says how many there are in all and where the next page starts.
+const MATCH_PAGE_SIZE = 20;
+async function fetchMatchPage(request, offset) {
+  const response = await fetch("/api/v1/job-matches", {
+    method: "POST", credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...request, offset, pageSize: MATCH_PAGE_SIZE }),
+  });
+  const text = await response.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch { data = null; }
+  if (!response.ok) {
+    if (response.status === 401) { state.user = null; navigate("/login", { replace: true }); }
+    throw new ApiError(response.status, (data && data.error) || text.trim() || `Request failed (${response.status})`, data && data.code);
+  }
+  const matches = Array.isArray(data) ? data : [];
+  const total = Number(response.headers.get("X-Jane-Total")) || matches.length;
+  const nextOffset = Number(response.headers.get("X-Jane-Next-Offset")) || offset + matches.length;
+  return { matches, total, nextOffset };
+}
+
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
@@ -1511,9 +1533,9 @@ async function viewJobs() {
 
     try {
       if (resumeId) request.resumeText = await resumeText(resumeId);
-      const matches = await api("/api/v1/job-matches", { method: "POST", body: request });
+      const page = await fetchMatchPage(request, 0);
       const { careerProfile, resumeText: _omit, ...shown } = request;
-      state.lastSearch = { request: shown, matches: matches || [], resumeId };
+      state.lastSearch = { request: shown, fullRequest: request, matches: page.matches, total: page.total, nextOffset: page.nextOffset, resumeId };
       renderMatches(results, state.lastSearch.matches);
       savePreferences({ minimumSalary: request.minimumSalary, remote: request.remote, hybrid: request.hybrid, onsite: request.onsite }).catch(() => {});
     } catch (error) {
@@ -1612,11 +1634,42 @@ function renderMatches(container, matches) {
     return;
   }
 
-  container.replaceChildren(
-    h("p", { class: "muted" }, `${matches.length} role${matches.length === 1 ? "" : "s"}, best fit first`),
-    ...matches.map(jobCard),
-    sourceCredit(matches),
-  );
+  const search = state.lastSearch && state.lastSearch.matches === matches ? state.lastSearch : null;
+  const total = search && search.total ? search.total : matches.length;
+  const list = h("div", { class: "stack" }, ...matches.map(jobCard));
+  const status = h("p", { class: "muted" }, `${total} role${total === 1 ? "" : "s"}, best fit first`);
+  const more = h("div", { class: "row center load-more" });
+  const credit = h("div", {}, sourceCredit(matches));
+
+  const showButton = () => {
+    if (!search || !search.fullRequest || search.nextOffset >= search.total) {
+      more.replaceChildren(matches.length > MATCH_PAGE_SIZE ? h("p", { class: "faint small" }, `That's all ${total} jobs Jane found and scored for this search.`) : "");
+      return;
+    }
+    const left = search.total - search.nextOffset;
+    const button = h("button", { class: "btn btn-lg", type: "button" }, `Load more jobs (${left} more)`);
+    button.onclick = async () => {
+      button.disabled = true;
+      button.textContent = "Loading…";
+      try {
+        const page = await fetchMatchPage(search.fullRequest, search.nextOffset);
+        search.matches.push(...page.matches);
+        search.total = page.total;
+        search.nextOffset = page.nextOffset;
+        page.matches.forEach((match) => list.append(jobCard(match)));
+        credit.replaceChildren(sourceCredit(search.matches));
+        showButton();
+      } catch (error) {
+        button.disabled = false;
+        button.textContent = "Load more jobs";
+        toast(error.message, true);
+      }
+    };
+    more.replaceChildren(button);
+  };
+  showButton();
+
+  container.replaceChildren(status, list, more, credit);
 }
 
 function salaryText(match) {
@@ -2931,9 +2984,9 @@ async function searchMatches({ targetRole, location }) {
     onsite: anyStyle || !!preferences.onsite,
   };
   if (primary) request.resumeText = await resumeText(primary.id);
-  const matches = await api("/api/v1/job-matches", { method: "POST", body: request });
+  const page = await fetchMatchPage(request, 0);
   const { careerProfile, resumeText: _omit, ...shown } = request;
-  state.lastSearch = { request: shown, matches: matches || [], resumeId: primary ? primary.id : "" };
+  state.lastSearch = { request: shown, fullRequest: request, matches: page.matches, total: page.total, nextOffset: page.nextOffset, resumeId: primary ? primary.id : "" };
   return state.lastSearch;
 }
 
@@ -2987,7 +3040,7 @@ async function viewHome() {
         h("span", { class: "muted" }, matches.length ? `Top ${matches.length} for ${label}` : `No matches yet for ${label}`),
         h("div", { class: "row" },
           h("button", { class: "btn btn-ghost btn-sm", onclick: () => askTarget(search.request.targetRole, search.request.location) }, "Change"),
-          (search.matches || []).length > 5 ? link("/app/jobs", { class: "btn btn-sm" }, `See all ${search.matches.length}`) : null)),
+          (search.total || (search.matches || []).length) > 5 ? link("/app/jobs", { class: "btn btn-sm" }, `See all ${search.total || search.matches.length}`) : null)),
       matches.length
         ? h("div", { class: "stack" }, matches.map(jobCard), sourceCredit(matches))
         : h("div", { class: "card empty" },

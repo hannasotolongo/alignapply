@@ -1141,6 +1141,15 @@ func (s *Server) handleJobMatches(
 		request.Location,
 	)
 
+	// "Load more": the next page of a search already ranked.
+	pageKey := matchPageKey(user.ID, request)
+	if request.PageSize > 0 && request.Offset > 0 {
+		if all, ok := searchPages.get(pageKey); ok {
+			writeMatchPage(w, all, request.Offset, request.PageSize)
+			return
+		}
+	}
+
 	// Count the search only once it is valid, so malformed requests do not
 	// spend a free user's weekly allowance.
 	if !s.consumeJobMatchQuota(w, r, user) {
@@ -1256,6 +1265,17 @@ func (s *Server) handleJobMatches(
 	sortStarted := time.Now()
 
 	sortJobMatches(matches)
+
+	// Pages: keep the whole ranked list so "Load more" is instant.
+	if request.PageSize > 0 {
+		if len(matches) > maxMatchesKept {
+			matches = matches[:maxMatchesKept]
+		}
+		kept := append([]jobs.JobMatch(nil), matches...)
+		searchPages.put(pageKey, kept)
+		writeMatchPage(w, kept, request.Offset, request.PageSize)
+		return
+	}
 
 	// Jane's crawler can find hundreds of jobs for a common role; the best
 	// fits come first, so the list stops at a readable length.
