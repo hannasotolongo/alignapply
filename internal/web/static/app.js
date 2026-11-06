@@ -465,7 +465,7 @@ function everythingJaneDoes() {
     h("div", { class: "stack-sm" },
       h("span", { class: "jd-kicker" }, "Interview prep · New"),
       h("h3", { class: "jd-interview-title" }, "Practice out loud. Get coached like a pro."),
-      h("p", {}, "Add the job, the company and your résumé. Jane asks the questions they're likely to ask, listens to your answer, and tells you how to make it better."),
+      h("p", {}, "Add the job, the company and your résumé. Jane asks the questions they're likely to ask, listens to your answer, and tells you how to improve your response."),
       h("div", { class: "jd-foot" },
         h("button", { class: "btn btn-primary btn-sm", onclick: startInterviewPrep }, "Try interview prep"),
         h("span", { class: "faint small" }, `${(planFor("interview") || {}).displayPrice || "$8.99"}/month on its own · included in Pro`)),
