@@ -124,15 +124,43 @@ func (p *WorkdayLiveProvider) Search(ctx context.Context, request SearchRequest)
 		wg   sync.WaitGroup
 		slot = make(chan struct{}, p.concurrency)
 	)
-	for _, board := range p.boards {
+	// Employers in the searched field (dental groups for a dentist search)
+	// go first, so the busy Workday servers answer them before anyone else
+	// and slow or rate-limited boards can't crowd them out.
+	priority, rest := boardsForRole(role, p.boards)
+	priorityDone := make(chan struct{})
+	var priorityWG sync.WaitGroup
+	launch := func(board Board, first bool) {
 		host, tenant, site, ok := workdayParts(board.Slug)
 		if !ok {
-			continue
+			return
 		}
 		base := "https://" + host + "/wday/cxs/" + url.PathEscape(tenant) + "/" + url.PathEscape(site)
+		// Read all of a fitting employer's statewide list (Aspen Dental
+		// has 185 dentist openings in Florida; the Tampa-area ones can be
+		// anywhere in it).
+		stateReach := 20
+		if first {
+			stateReach = 200
+			priorityWG.Add(1)
+		} else if len(priority) > 0 {
+			// The search has its own employers (dental groups for a
+			// dentist); the others only get the city search, which keeps
+			// Workday from rate-limiting the ones that matter.
+			stateReach = 0
+		}
 		wg.Add(1)
 		go func(board Board, base, host, site string) {
 			defer wg.Done()
+			if first {
+				defer priorityWG.Done()
+			} else {
+				select {
+				case <-priorityDone:
+				case <-listCtx.Done():
+					return
+				}
+			}
 			select {
 			case slot <- struct{}{}:
 			case <-listCtx.Done():
@@ -162,7 +190,7 @@ func (p *WorkdayLiveProvider) Search(ctx context.Context, request SearchRequest)
 			for _, query := range queries {
 				// Workday's own search matches the city in a job's location,
 				// so "dentist tampa" returns that employer's Tampa jobs.
-				listings, ok := p.listPage(listCtx, host, base, strings.TrimSpace(query+" "+city), 0)
+				listings, _, ok := p.listPage(listCtx, host, base, strings.TrimSpace(query+" "+city), 0)
 				if !ok {
 					continue
 				}
@@ -172,18 +200,45 @@ func (p *WorkdayLiveProvider) Search(ctx context.Context, request SearchRequest)
 				// Few real matches in the city itself: look across the state
 				// and let the location filter keep the nearby towns (Largo
 				// and Brandon for Tampa).
-				if keep(listings) < 3 && state != "" {
-					// Workday returns at most 20 jobs per request.
-					for offset := 0; offset < 20; offset += 20 {
-						more, ok := p.listPage(listCtx, host, base, query+" "+state, offset)
-						if !ok || len(more) == 0 {
-							break
-						}
+				if keep(listings) < 3 && state != "" && stateReach > 0 {
+					// Workday returns at most 20 jobs per request; the rest
+					// of the pages are asked for at once.
+					more, total, ok := p.listPage(listCtx, host, base, query+" "+state, 0)
+					if ok {
 						keep(more)
+						var pages sync.WaitGroup
+						for offset := 20; offset < stateReach && offset < total; offset += 20 {
+							pages.Add(1)
+							go func(offset int) {
+								defer pages.Done()
+								if more, _, ok := p.listPage(listCtx, host, base, query+" "+state, offset); ok {
+									keep(more)
+								}
+							}(offset)
+						}
+						pages.Wait()
 					}
 				}
 			}
 		}(board, base, host, site)
+	}
+	for _, board := range priority {
+		launch(board, true)
+	}
+	go func() {
+		// The rest start once the fitting employers are done, or after
+		// a short head start.
+		finished := make(chan struct{})
+		go func() { priorityWG.Wait(); close(finished) }()
+		select {
+		case <-finished:
+		case <-time.After(3 * time.Second):
+		case <-listCtx.Done():
+		}
+		close(priorityDone)
+	}()
+	for _, board := range rest {
+		launch(board, false)
 	}
 	wg.Wait()
 	found := len(hits)
@@ -234,13 +289,14 @@ type workdayListing struct {
 	LocationsText string `json:"locationsText"`
 }
 
-func (p *WorkdayLiveProvider) listPage(ctx context.Context, host, base, searchText string, offset int) ([]workdayListing, bool) {
+func (p *WorkdayLiveProvider) listPage(ctx context.Context, host, base, searchText string, offset int) ([]workdayListing, int, bool) {
 	var page struct {
+		Total       int              `json:"total"`
 		JobPostings []workdayListing `json:"jobPostings"`
 	}
 	body := map[string]any{"appliedFacets": map[string]any{}, "limit": p.perQuery, "offset": offset, "searchText": searchText}
 	if !p.clusters.acquire(ctx, host) {
-		return nil, false
+		return nil, 0, false
 	}
 	err := p.client.postJSON(ctx, base+"/jobs", body, &page)
 	if isRateLimited(err) {
@@ -252,9 +308,9 @@ func (p *WorkdayLiveProvider) listPage(ctx context.Context, host, base, searchTe
 		if workdayLiveDebug {
 			log.Printf("[workday-live] %s: %v", base, err)
 		}
-		return nil, false
+		return nil, 0, false
 	}
-	return page.JobPostings, true
+	return page.JobPostings, page.Total, true
 }
 
 // workdayLiveDebug logs each board's error (for the dev check tool).
@@ -322,4 +378,51 @@ func spreadAcrossBoards(hits []workdayHit, limit int) []workdayHit {
 
 func isRateLimited(err error) bool {
 	return err != nil && strings.Contains(err.Error(), "HTTP 429")
+}
+
+// fieldEmployerWords links a kind of job to words in the names of the
+// employers that hire for it.
+var fieldEmployerWords = []struct{ roleWords, companyWords []string }{
+	{[]string{"dentist", "dental", "hygienist", "orthodont", "oral surgeon", "endodont", "periodont", "prosthodont", "dds", "dmd"},
+		[]string{"dental", "dentist", "smile", "ortho", "oral", "teeth", "tooth"}},
+	{[]string{"physician", "doctor", "nurse", "rn", "lpn", "pharmacist", "pharmacy", "therapist", "medical", "clinical", "surgeon", "radiolog", "sonograph", "phlebotom", "paramedic", "emt", "caregiver", "nurse practitioner", "physician assistant", "dialysis"},
+		[]string{"health", "medical", "hospital", "clinic", "care", "medicine", "pharm", "dialysis", "fresenius", "kaiser", "cvs", "walgreens", "mayo", "baptist", "methodist", "mercy", "children"}},
+	{[]string{"lawyer", "attorney", "counsel", "paralegal", "legal", "litigat"},
+		[]string{"law", "llp", "legal", "cooley", "goodwin", "lovells", "jackson lewis", "holland", "mwe", "mcdermott"}},
+}
+
+// boardsForRole splits boards into the ones whose employer fits the role
+// (by field, or the role's own words in the company name) and the rest.
+func boardsForRole(role string, boards []Board) (fit, rest []Board) {
+	roleText := " " + strings.ToLower(role) + " "
+	var words []string
+	for _, field := range fieldEmployerWords {
+		for _, w := range field.roleWords {
+			if strings.Contains(roleText, w) && (len(w) > 3 || strings.Contains(roleText, " "+w+" ")) {
+				words = append(words, field.companyWords...)
+				break
+			}
+		}
+	}
+	for _, w := range strings.Fields(strings.ToLower(role)) {
+		if len(w) > 3 {
+			words = append(words, w)
+		}
+	}
+	for _, board := range boards {
+		company := strings.ToLower(board.Company)
+		matched := false
+		for _, w := range words {
+			if strings.Contains(company, w) {
+				matched = true
+				break
+			}
+		}
+		if matched {
+			fit = append(fit, board)
+		} else {
+			rest = append(rest, board)
+		}
+	}
+	return fit, rest
 }

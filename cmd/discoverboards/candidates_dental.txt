@@ -1,0 +1,71 @@
+# Dental groups (DSOs) and dental-heavy employers
+Pacific Dental Services | pds,pacificdental,pdshealth,pacificdentalservices
+Smile Brands | smilebrands
+Western Dental | westerndental
+Dental Care Alliance | dentalcarealliance,dca
+MB2 Dental | mb2dental,mb2
+Affordable Care | affordablecare,affordabledentures
+Mortenson Dental Partners | mortensondental,mortenson
+Great Expressions Dental Centers | greatexpressions,gedc
+InterDent | interdent,gentledental
+Sonrava Health | sonrava,sonravahealth
+Coast Dental | coastdental
+Benevis | benevis,koolsmiles
+Tend | tend,hellotend
+Midwest Dental | midwestdental
+Dental Depot | dentaldepot
+Ideal Dental | idealdental
+North American Dental Group | nadg,northamericandentalgroup
+Dentive | dentive
+Smile Partners USA | smilepartners,smilepartnersusa
+Sage Dental | sagedental
+ClearChoice Dental | clearchoice,clearchoicedental
+Mid-Atlantic Dental Partners | midatlanticdental,madp
+Southern Orthodontic Partners | southernorthodonticpartners,sop
+Orthodontic Partners | orthodonticpartners
+US Oral Surgery Management | usosm,usoralsurgery
+Dental Associates | dentalassociates
+Familia Dental | familiadental
+Absolute Dental | absolutedental
+Elite Dental Partners | elitedentalpartners
+Community Dental Partners | communitydentalpartners
+Choice Dental Group | choicedental
+42 North Dental | 42northdental
+Dental365 | dental365
+Aspen Dental | aspendental
+Heartland Dental | heartland,heartlanddental
+Smile Doctors | smiledoctors
+Peak Dental Services | peakdental
+Imagen Dental Partners | imagendental
+Lightwave Dental | lightwavedental
+Rodeo Dental | rodeodental
+Bright Now Dental | brightnow
+Castle Dental | castledental
+Dental Health Group | dentalhealthgroup
+Vivid Dental | vividdental
+SALT Dental Collective | saltdental
+Gen4 Dental Partners | gen4dental
+Specialty1 Partners | specialty1,specialty1partners
+People's Choice Dental | peopleschoice
+Shared Practices Group | sharedpractices
+Dental Care Partners | dentalcarepartners
+Smile Generation | smilegeneration
+Henry Schein | henryschein
+Delta Dental | deltadental,deltadentalins
+Dentsply Sirona | dentsplysirona
+Align Technology | aligntech,align
+SmileDirectClub | smiledirectclub
+Western Dental & Orthodontics | westerndental
+Aspen Group | aspen,tagaspen
+ProSmile | prosmile
+Riverside Dental Group | riversidedental
+Children's Dental Health Associates | cdha
+Dental Group of Florida | dentalgroupfl
+Floss Dental | flossdental
+Gentle Dental | gentledental
+Coast to Coast Dental | coasttocoastdental
+Perfect Teeth | perfectteeth
+Comfort Dental | comfortdental
+Small Smiles | smallsmiles
+Kool Smiles | koolsmiles
+Bay Area Pediatric Dental | bapd
