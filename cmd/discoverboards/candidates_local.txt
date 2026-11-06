@@ -1,0 +1,457 @@
+# Employers that hire in towns and cities everywhere
+# Healthcare, clinics, home health, therapy, labs
+HCA Healthcare
+CommonSpirit Health
+Ascension
+Tenet Healthcare
+Community Health Systems
+LifePoint Health
+UHS | uhs,universalhealthservices
+Encompass Health
+Select Medical
+Kindred Healthcare
+Amedisys
+LHC Group
+Enhabit
+BrightSpring Health | brightspring
+Aveanna Healthcare | aveanna
+Bayada Home Health Care | bayada
+Interim HealthCare | interimhealthcare
+Visiting Angels | visitingangels
+Home Instead | homeinstead
+Right at Home | rightathome
+Comfort Keepers | comfortkeepers
+Addus HomeCare | addus
+ATI Physical Therapy | atipt,atiphysicaltherapy
+Athletico Physical Therapy | athletico
+Upstream Rehabilitation | upstreamrehab
+BenchMark Physical Therapy | benchmarkpt
+Confluent Health | confluenthealth
+Ivy Rehab | ivyrehab
+Professional Physical Therapy | professionalpt
+US Physical Therapy | usph
+FYZICAL | fyzical
+Results Physiotherapy | resultspt
+CORA Physical Therapy | coraphysicaltherapy
+MedExpress | medexpress
+CareNow | carenow
+American Family Care | afc,americanfamilycare
+FastMed | fastmed
+Concentra | concentra
+CityMD | citymd
+GoHealth Urgent Care | gohealthuc
+One Medical | onemedical
+Oak Street Health | oakstreethealth
+ChenMed | chenmed
+VillageMD | villagemd
+Carbon Health | carbonhealth
+Forward | goforward
+Cano Health | canohealth
+CareMax | caremax
+Iora Health | iorahealth
+Privia Health | privia,priviahealth
+Optum
+Quest Diagnostics | questdiagnostics
+Labcorp
+Sonic Healthcare USA | sonichealthcareusa
+BioReference Health | bioreference
+DaVita | davita
+US Renal Care | usrenalcare
+American Renal Associates | americanrenal
+Satellite Healthcare | satellitehealthcare
+RadNet | radnet
+Akumin | akumin
+SimonMed | simonmed
+US Dermatology Partners | usdermatologypartners
+Forefront Dermatology | forefrontdermatology
+Pinnacle Dermatology | pinnacledermatology
+Schweiger Dermatology | schweigerderm
+Advanced Dermatology | advancedderm
+Eye Health America | eyehealthamerica
+EyeCare Partners | eyecarepartners
+MyEyeDr | myeyedr
+Vision Works | visionworks
+National Vision | nationalvision
+Warby Parker | warbyparker
+Thriveworks | thriveworks
+LifeStance Health | lifestance
+Talkspace | talkspace
+BetterHelp | betterhelp
+Headway | headway
+Grow Therapy | growtherapy
+Mindpath Health | mindpathhealth
+Acadia Healthcare | acadiahealthcare
+Charlie Health | charliehealth
+Cerebral | cerebral
+AppliedTherapy | appliedtherapy
+Centria Autism | centriaautism
+Action Behavior Centers | actionbehavior
+Hopebridge | hopebridge
+BlueSprig | bluesprig
+Autism Learning Partners | autismlearningpartners
+Behavioral Innovations | behavioralinnovations
+Soliant Health | soliant
+AMN Healthcare | amnhealthcare
+Cross Country Healthcare | crosscountry
+Aya Healthcare | ayahealthcare
+Medical Solutions | medicalsolutions
+Trusted Health | trustedhealth
+Incredible Health | incrediblehealth
+Nomad Health | nomadhealth
+Vivian Health | vivian
+ShiftKey | shiftkey
+Clipboard Health | clipboardhealth
+CareerStaff Unlimited | careerstaff
+Maxim Healthcare | maximhealthcare
+Jackson Healthcare | jacksonhealthcare
+CHG Healthcare | chghealthcare
+Team Health | teamhealth
+Envision Healthcare | envisionhealthcare
+Sound Physicians | soundphysicians
+US Anesthesia Partners | usap
+Mednax | mednax,pediatrix
+Pediatrix Medical Group | pediatrix
+Vituity | vituity
+ApolloMD | apollomd
+Genesis HealthCare | genesishealthcare
+Ensign Group | ensigngroup,ensign
+PruittHealth | pruitthealth
+Brookdale Senior Living | brookdale
+Sunrise Senior Living | sunriseseniorliving
+Atria Senior Living | atria,atriaseniorliving
+Erickson Senior Living | erickson
+LCS | lcs
+Benchmark Senior Living | benchmarkseniorliving
+Discovery Senior Living | discoveryseniorliving
+Sinceri Senior Living | sinceriseniorliving
+# Veterinary
+Banfield Pet Hospital | banfield
+VCA Animal Hospitals | vca,vcaanimalhospitals
+BluePearl | bluepearl
+Thrive Pet Healthcare | thrivepetcare
+NVA | nva,nationalveterinaryassociates
+PetVet Care Centers | petvet
+Southern Veterinary Partners | svp,southernvetpartners
+Mission Veterinary Partners | missionvetpartners
+Rarebreed Veterinary Partners | rarebreedvet
+Heart + Paw | heartandpaw
+Bond Vet | bondvet
+Small Door Veterinary | smalldoor
+Modern Animal | modernanimal
+AmeriVet | amerivet
+Encore Vet Group | encorevetgroup
+Veterinary Emergency Group | veterinaryemergencygroup,veg
+# Restaurants and food
+Chick-fil-A | chickfila
+Starbucks
+Chipotle
+Sweetgreen
+CAVA | cava
+Panera Bread | panera
+Shake Shack | shakeshack
+Dutch Bros | dutchbros
+Wingstop
+Raising Cane's | raisingcanes
+Whataburger
+In-N-Out Burger | innout
+Jersey Mike's | jerseymikes
+Firehouse Subs | firehousesubs
+Jimmy John's | jimmyjohns
+Texas Roadhouse | texasroadhouse
+Darden Restaurants | darden
+Bloomin' Brands | bloominbrands
+Cheesecake Factory | thecheesecakefactory,cheesecakefactory
+First Watch | firstwatch
+Hopdoddy | hopdoddy
+True Food Kitchen | truefoodkitchen
+Tatte Bakery | tatte
+Blank Street | blankstreet
+Pret A Manger | pret
+Le Pain Quotidien | lepainquotidien
+Union Square Hospitality Group | ushg
+Hillstone Restaurant Group | hillstone
+Major Food Group | majorfoodgroup
+Compass Group USA | compassgroupusa,compass
+Aramark
+Sodexo
+Delaware North | delawarenorth
+Levy Restaurants | levy
+Bon Appetit Management | bamco
+Sysco
+US Foods | usfoods
+Gordon Food Service | gfs
+HelloFresh | hellofresh
+Factor | factor75
+Instacart
+DoorDash
+Gopuff | gopuff
+# Hotels and hospitality
+Marriott International | marriott
+Hilton
+Hyatt
+IHG
+Wyndham
+Choice Hotels | choicehotels
+Aimbridge Hospitality | aimbridge
+Highgate Hotels | highgate
+Davidson Hospitality | davidsonhospitality
+Crescent Hotels | crescenthotels
+Pyramid Global Hospitality | pyramidglobal
+HHM Hospitality | hhm
+Sage Hospitality | sagehospitality
+Kimpton Hotels | kimpton
+Sonder | sonder
+Life Time | lifetime,lifetimefitness
+Equinox
+Planet Fitness | planetfitness
+Orangetheory Fitness | orangetheory
+Crunch Fitness | crunch
+Anytime Fitness | anytimefitness
+24 Hour Fitness | 24hourfitness
+F45 Training | f45
+Xponential Fitness | xponential
+Barry's | barrys
+SoulCycle | soulcycle
+YMCA | ymca
+Great Wolf Lodge | greatwolf
+Six Flags | sixflags
+Cedar Fair | cedarfair
+SeaWorld | seaworld
+Topgolf
+Dave & Buster's | daveandbusters
+Main Event | mainevent
+Bowlero | bowlero
+AMC Theatres | amctheatres
+Regal Cinemas | regal
+# Retail
+Apple
+Costco
+Trader Joe's | traderjoes
+Whole Foods Market | wholefoods
+Publix
+H-E-B | heb
+Wegmans
+Aldi | aldi,aldius
+Lidl US | lidl
+Sprouts Farmers Market | sprouts
+Natural Grocers | naturalgrocers
+The Fresh Market | thefreshmarket
+Harris Teeter | harristeeter
+Meijer
+Hy-Vee | hyvee
+Wawa
+Sheetz
+QuikTrip
+RaceTrac
+Buc-ee's | bucees
+7-Eleven | 7eleven
+Circle K | circlek
+Casey's | caseys
+Lululemon
+Aritzia
+Alo Yoga | aloyoga
+Vuori
+Allbirds
+Glossier
+Warby Parker Retail | warbyparker
+Madewell
+J.Crew | jcrew
+Everlane
+Reformation
+Skims
+Rothy's | rothys
+Bonobos
+Away | awaytravel
+Brilliant Earth | brilliantearth
+Mejuri
+Kendra Scott | kendrascott
+Pandora Jewelry | pandora
+Signet Jewelers | signetjewelers
+Sally Beauty | sallybeauty
+Bath & Body Works | bathandbodyworks
+Five Below | fivebelow
+Ollie's Bargain Outlet | ollies
+TJX | tjx
+Burlington
+Hobby Lobby | hobbylobby
+Michaels
+JOANN | joann
+At Home | athome
+HomeGoods | homegoods
+Floor & Decor | flooranddecor
+Ferguson
+Tractor Supply | tractorsupply
+Rural King | ruralking
+Harbor Freight | harborfreight
+AutoZone
+O'Reilly Auto Parts | oreillyauto
+Advance Auto Parts | advanceautoparts
+NAPA | napa
+Discount Tire | discounttire
+Valvoline
+Jiffy Lube | jiffylube
+Take 5 Oil Change | take5
+Caliber Collision | caliber
+Gerber Collision | gerbercollision
+Driven Brands | drivenbrands
+CarMax
+Carvana
+AutoNation
+Lithia Motors | lithia
+Penske Automotive | penske
+Enterprise Mobility | enterprise
+Avis Budget Group | avisbudget,avisbudgetgroup
+Hertz
+Turo
+GameStop
+Best Buy | bestbuy
+Verizon
+T-Mobile | tmobile
+AT&T | att
+Cricket Wireless | cricketwireless
+Boost Mobile | boostmobile
+# Services, trades and facilities
+ServiceTitan | servicetitan
+Neighborly | neighborly
+Authority Brands | authoritybrands
+ARS Rescue Rooter | ars
+Roto-Rooter | rotorooter
+Mr. Rooter | mrrooter
+One Hour Heating & Air | onehourheatandair
+Service Experts | serviceexperts
+TruGreen | trugreen
+Terminix
+Rollins | rollins
+Orkin
+Rentokil | rentokil
+ABM Industries | abm
+Cintas
+Aramark Uniform | vestis
+UniFirst | unifirst
+ISS Facility Services | iss
+JLL
+CBRE
+Cushman & Wakefield | cushmanwakefield
+Greystar
+Lincoln Property | lincolnproperty
+Bozzuto
+Avalon Communities | avalonbay
+Equity Residential | equityresidential
+Camden Property Trust | camden
+Mid-America Apartment Communities | maac,maa
+RPM Living | rpmliving
+Asset Living | assetliving
+Cortland
+Invitation Homes | invitationhomes
+Pulte Group | pultegroup
+Lennar
+DR Horton | drhorton
+Toll Brothers | tollbrothers
+Sunrun
+SunPower
+Tesla
+Rivian
+Lucid Motors | lucid
+# Banks, insurance, finance with branches
+Truist
+Regions Bank | regions
+PNC
+Fifth Third | fifththird
+KeyBank | keybank
+Huntington Bank | huntington
+Citizens Bank | citizens
+TD Bank | tdbank
+BMO
+Navy Federal Credit Union | navyfederal
+Suncoast Credit Union | suncoast
+VyStar Credit Union | vystar
+Alliant Credit Union | alliant
+PenFed
+State Farm | statefarm
+Allstate
+Progressive
+GEICO
+Lemonade
+Root Insurance | root
+Hippo
+Kin Insurance | kin
+H&R Block | hrblock
+Jackson Hewitt | jacksonhewitt
+Edward Jones | edwardjones
+Ameriprise
+Chime
+SoFi
+# Education and childcare
+KinderCare | kindercare
+Bright Horizons | brighthorizons
+The Learning Experience | thelearningexperience,tle
+Goddard School | goddardschool
+Primrose Schools | primrose
+Kiddie Academy | kiddieacademy
+Learning Care Group | learningcaregroup
+Stride K12 | stride,k12
+Connections Academy | connectionsacademy
+KIPP | kipp
+Success Academy | successacademy
+IDEA Public Schools | ideapublicschools
+Teach For America | teachforamerica
+Kumon
+Mathnasium
+Sylvan Learning | sylvan
+Huntington Learning | huntingtonlearning
+Varsity Tutors | varsitytutors
+Outschool
+Coursera
+2U
+Guild Education | guild
+# Logistics, transport, warehouses
+UPS
+FedEx
+DHL
+XPO
+Ryder
+JB Hunt | jbhunt
+Schneider
+Werner Enterprises | werner
+Swift Transportation | swift,knightswift
+Old Dominion Freight Line | odfl
+Estes Express | estes
+Saia
+GXO Logistics | gxo
+Amazon
+Flexport
+Convoy
+Uber
+Lyft
+Waymo
+Zoox
+Nuro
+Veho
+Shipt
+# Staffing (lots of local hourly and office jobs)
+Robert Half | roberthalf
+Adecco
+Randstad
+ManpowerGroup | manpower
+Kelly Services | kelly
+Express Employment Professionals | expresspros
+Aerotek
+Insight Global | insightglobal
+TEKsystems | teksystems
+Allegis Group | allegis
+Spherion
+Volt
+PeopleReady | peopleready
+Instawork
+Wonolo
+Qwick
+Indeed Flex | indeedflex
+# Government and nonprofit
+American Red Cross | redcross
+Goodwill | goodwill
+Salvation Army | salvationarmy
+Boys & Girls Clubs | bgca
+United Way | unitedway
+Habitat for Humanity | habitat
+Planned Parenthood | plannedparenthood
+Catholic Charities | catholiccharities

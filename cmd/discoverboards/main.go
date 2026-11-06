@@ -45,7 +45,14 @@ func main() {
 	in := flag.String("in", "cmd/discoverboards/candidates.txt", "employer list")
 	out := flag.String("out", "", "write found boards here (default stdout)")
 	workers := flag.Int("workers", 8, "employers checked at once")
+	only := flag.String("only", "", "comma-separated hiring systems to check (default: all)")
 	flag.Parse()
+	if *only != "" {
+		checkOnly = map[string]bool{}
+		for _, ats := range strings.Split(*only, ",") {
+			checkOnly[strings.TrimSpace(ats)] = true
+		}
+	}
 
 	type candidate struct {
 		name  string
@@ -152,8 +159,40 @@ func unique(values []string) []string {
 
 // discover tries every slug on every hiring system and returns the boards
 // that have open jobs.
+// checkOnly limits discovery to some hiring systems (nil = all).
+var checkOnly map[string]bool
+
+func checking(ats string) bool { return checkOnly == nil || checkOnly[ats] }
+
 func discover(company string, slugs []string) []found {
 	var boards []found
+	more := []struct {
+		ats   string
+		count func(string) int
+	}{
+		{"smartrecruiters", smartRecruitersJobs},
+		{"workable", workableJobs},
+		{"recruitee", recruiteeJobs},
+		{"bamboohr", bambooJobs},
+	}
+	for _, system := range more {
+		if !checking(system.ats) {
+			continue
+		}
+		candidates := slugs
+		if system.ats == "smartrecruiters" {
+			candidates = append(append([]string{}, slugs...), camelSlug(company))
+		}
+		for _, slug := range unique(candidates) {
+			if n := system.count(slug); n > 0 {
+				boards = append(boards, found{jobs.Board{ATS: system.ats, Slug: slug, Company: company}, n})
+				break
+			}
+		}
+	}
+	if checkOnly != nil && !checkOnly["greenhouse"] && !checkOnly["lever"] && !checkOnly["ashby"] && !checkOnly["workday"] {
+		return boards
+	}
 	for _, slug := range slugs {
 		if n := greenhouseJobs(slug); n > 0 {
 			boards = append(boards, found{jobs.Board{ATS: "greenhouse", Slug: slug, Company: company}, n})
@@ -290,4 +329,55 @@ func workdayTotal(host, tenant, site string) int {
 		return 0
 	}
 	return payload.Total
+}
+
+// camelSlug is how SmartRecruiters often names companies ("AvisBudgetGroup").
+func camelSlug(name string) string {
+	var b strings.Builder
+	for _, word := range strings.FieldsFunc(strings.ReplaceAll(name, "&", " and "), func(r rune) bool {
+		return !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9')
+	}) {
+		b.WriteString(strings.ToUpper(word[:1]) + word[1:])
+	}
+	return b.String()
+}
+
+func smartRecruitersJobs(slug string) int {
+	var payload struct {
+		TotalFound int `json:"totalFound"`
+	}
+	if !readJSON("https://api.smartrecruiters.com/v1/companies/"+slug+"/postings?limit=1", &payload) {
+		return 0
+	}
+	return payload.TotalFound
+}
+
+func workableJobs(slug string) int {
+	var payload struct {
+		Jobs []json.RawMessage `json:"jobs"`
+	}
+	if !readJSON("https://apply.workable.com/api/v1/widget/accounts/"+slug, &payload) {
+		return 0
+	}
+	return len(payload.Jobs)
+}
+
+func recruiteeJobs(slug string) int {
+	var payload struct {
+		Offers []json.RawMessage `json:"offers"`
+	}
+	if !readJSON("https://"+slug+".recruitee.com/api/offers/", &payload) {
+		return 0
+	}
+	return len(payload.Offers)
+}
+
+func bambooJobs(slug string) int {
+	var payload struct {
+		Result []json.RawMessage `json:"result"`
+	}
+	if !readJSON("https://"+slug+".bamboohr.com/careers/list", &payload) {
+		return 0
+	}
+	return len(payload.Result)
 }

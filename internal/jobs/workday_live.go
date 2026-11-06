@@ -45,6 +45,10 @@ func NewWorkdayLiveProvider(boards []Board) *WorkdayLiveProvider {
 
 func (p *WorkdayLiveProvider) Name() string { return "workday-live" }
 
+// maxLiveOtherBoards caps how many employers outside the searched field
+// are asked during a live search.
+const maxLiveOtherBoards = 130
+
 // clusterSlots limits how many requests go to one Workday server cluster
 // (for example wd1.myworkdayjobs.com) at once: Workday answers HTTP 429 when
 // one caller asks many of its employers at the same moment.
@@ -138,6 +142,11 @@ func (p *WorkdayLiveProvider) Search(ctx context.Context, request SearchRequest)
 	// go first, so the busy Workday servers answer them before anyone else
 	// and slow or rate-limited boards can't crowd them out.
 	priority, rest := boardsForRole(role, p.boards)
+	// Asking every Workday employer at once gets the search rate-limited;
+	// past this many, the rest come from the jobs the crawler has saved.
+	if len(rest) > maxLiveOtherBoards {
+		rest = rest[:maxLiveOtherBoards]
+	}
 	priorityDone := make(chan struct{})
 	var priorityWG sync.WaitGroup
 	launch := func(board Board, first bool) {
@@ -405,7 +414,9 @@ var fieldEmployerWords = []struct{ roleWords, companyWords []string }{
 	{[]string{"dentist", "dental", "hygienist", "orthodont", "oral surgeon", "endodont", "periodont", "prosthodont", "dds", "dmd"},
 		[]string{"dental", "dentist", "smile", "ortho", "oral", "teeth", "tooth"}},
 	{[]string{"physician", "doctor", "nurse", "rn", "lpn", "pharmacist", "pharmacy", "therapist", "medical", "clinical", "surgeon", "radiolog", "sonograph", "phlebotom", "paramedic", "emt", "caregiver", "nurse practitioner", "physician assistant", "dialysis"},
-		[]string{"health", "medical", "hospital", "clinic", "care", "medicine", "pharm", "dialysis", "fresenius", "kaiser", "cvs", "walgreens", "mayo", "baptist", "methodist", "mercy", "children"}},
+		[]string{"health", "medical", "hospital", "clinic", "care", "medicine", "pharm", "dialysis", "fresenius", "kaiser", "cvs", "walgreens", "mayo", "baptist", "methodist", "mercy", "children", "rehab", "therap", "physio", "urgent", "senior", "derm", "autism", "bayada", "erickson", "sunrise", "simonmed", "one medical"}},
+	{[]string{"veterinar", "vet tech", "vet assistant", "kennel", "groomer", "animal"},
+		[]string{"vet", "animal", "pet", "paw", "rarebreed", "bluepearl", "banfield"}},
 	{[]string{"lawyer", "attorney", "counsel", "paralegal", "legal", "litigat"},
 		[]string{"law", "llp", "legal", "cooley", "goodwin", "lovells", "jackson lewis", "holland", "mwe", "mcdermott"}},
 }
