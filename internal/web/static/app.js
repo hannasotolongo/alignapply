@@ -374,7 +374,8 @@ async function render() {
 function brand() {
   return link("/", { class: "brand", "aria-label": BRAND },
     h("img", { class: "brand-logo", src: "/logo-mark.svg", alt: "", width: 42, height: 42 }),
-    h("span", { class: "brand-text" }, h("span", { class: "brand-name" }, "Jane"), h("span", { class: "brand-sub" }, "Careers")));
+    h("span", { class: "brand-text" }, h("span", { class: "brand-name" }, "Jane"), h("span", { class: "brand-sub" }, "Careers")),
+    h("img", { class: "brand-jane", src: "/jane-mini.png", alt: "", width: 57, height: 58 }));
 }
 
 function siteNav() {

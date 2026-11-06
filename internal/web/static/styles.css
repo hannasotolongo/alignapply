@@ -1092,3 +1092,8 @@ input:focus, textarea:focus, select:focus {
 /* Plan buttons line up along the bottom of every price card. */
 .price-card { display: flex; flex-direction: column; gap: 18px; }
 .price-card > .btn-block:last-child { margin-top: auto; }
+
+/* ---- Jane (waist-up) next to the logo, top bar only ---- */
+.brand-jane { display: none; }
+.site-nav .brand-jane { display: block; height: 58px; width: auto; margin: 6px 0 0 6px; align-self: flex-end; }
+@media (max-width: 360px) { .site-nav .brand-jane { display: none; } }
