@@ -64,6 +64,13 @@ func TitleSearchPattern(role string) string {
 		}
 	}
 
+	// Titles can use a synonym instead of the searched word.
+	for token := range tokens {
+		for _, alternative := range roleSynonyms[token] {
+			words[alternative] = struct{}{}
+		}
+	}
+
 	list := make([]string, 0, len(words))
 	for word := range words {
 		list = append(list, regexp.QuoteMeta(word))

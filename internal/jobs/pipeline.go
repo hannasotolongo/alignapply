@@ -662,7 +662,7 @@ func jobTitleMatchesTargetRole(
 	matched := 0
 
 	for token := range roleTokens {
-		if _, exists := titleTokens[token]; exists {
+		if titleHasRoleWord(titleTokens, token) {
 			matched++
 		}
 	}
@@ -760,6 +760,54 @@ func preferenceTokenSet(
 	}
 
 	return result
+}
+
+// roleSynonyms lists the words employers actually put in job titles for a
+// role people search by another name: a "lawyer" search finds "Associate
+// Attorney" and "Legal Counsel", a "doctor" search finds "Physician".
+var roleSynonyms = map[string][]string{
+	"lawyer":     {"attorney", "counsel", "attorneys"},
+	"lawyers":    {"attorney", "counsel", "attorneys"},
+	"attorney":   {"lawyer", "counsel"},
+	"doctor":     {"physician", "hospitalist", "md", "surgeon", "doctors"},
+	"doctors":    {"physician", "hospitalist", "md", "surgeon", "doctor"},
+	"physician":  {"doctor", "hospitalist", "md"},
+	"dentist":    {"dds", "dmd"},
+	"teacher":    {"instructor", "educator", "teachers"},
+	"professor":  {"faculty", "lecturer"},
+	"cook":       {"chef"},
+	"chef":       {"cook"},
+	"driver":     {"chauffeur", "courier"},
+	"cashier":    {"clerk"},
+	"programmer": {"developer", "engineer"},
+}
+
+// synonymExclusions are title words that rule out a synonym match: a
+// "Physician Assistant" is not a doctor.
+var synonymExclusions = map[string][]string{
+	"doctor":  {"assistant", "assistants", "associate"},
+	"doctors": {"assistant", "assistants", "associate"},
+	"lawyer":  {"assistant"},
+	"lawyers": {"assistant"},
+}
+
+// titleHasRoleWord reports whether a job title contains the role word or one
+// of its synonyms.
+func titleHasRoleWord(titleTokens map[string]struct{}, word string) bool {
+	if _, ok := titleTokens[word]; ok {
+		return true
+	}
+	for _, excluded := range synonymExclusions[word] {
+		if _, ok := titleTokens[excluded]; ok {
+			return false
+		}
+	}
+	for _, alternative := range roleSynonyms[word] {
+		if _, ok := titleTokens[alternative]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 // titleAliases expands abbreviations employers use in job titles so a search
