@@ -45,6 +45,8 @@ type BoardStore interface {
 	SaveBoardJobs(ctx context.Context, board Board, jobs []Job, seenIDs []string, complete bool) error
 	RecordCrawl(ctx context.Context, board Board, status string, jobCount int, failed bool) error
 	SearchJobs(ctx context.Context, titlePattern, nearPattern string, limit int) ([]Job, error)
+	// SaveJobDetails stores descriptions read for jobs saved from a list.
+	SaveJobDetails(ctx context.Context, jobs []Job) error
 	PruneClosed(ctx context.Context, olderThan time.Duration) error
 }
 

@@ -83,7 +83,9 @@ func (r *CrawledJobsRepository) DueBoards(ctx context.Context, limit int, olderT
 }
 
 func (r *CrawledJobsRepository) KnownJobIDs(ctx context.Context, board jobs.Board) (map[string]bool, error) {
-	rows, err := r.pool.Query(ctx, `SELECT id FROM crawled_jobs WHERE ats = $1 AND board_slug = $2`, board.ATS, board.Slug)
+	// true: saved with its details. false: saved from the list alone, so
+	// the next read fills in its details.
+	rows, err := r.pool.Query(ctx, `SELECT id, description <> '' FROM crawled_jobs WHERE ats = $1 AND board_slug = $2`, board.ATS, board.Slug)
 	if err != nil {
 		return nil, fmt.Errorf("repository: known crawled jobs: %w", err)
 	}
@@ -91,10 +93,11 @@ func (r *CrawledJobsRepository) KnownJobIDs(ctx context.Context, board jobs.Boar
 	known := make(map[string]bool)
 	for rows.Next() {
 		var id string
-		if err := rows.Scan(&id); err != nil {
+		var described bool
+		if err := rows.Scan(&id, &described); err != nil {
 			return nil, err
 		}
-		known[id] = true
+		known[id] = described
 	}
 	return known, rows.Err()
 }
@@ -107,12 +110,16 @@ const upsertCrawledJob = `
 	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, TRUE, NOW())
 	ON CONFLICT (id) DO UPDATE SET
 		company = EXCLUDED.company, title = EXCLUDED.title, title_search = EXCLUDED.title_search,
-		location = EXCLUDED.location, country_code = EXCLUDED.country_code,
-		work_arrangement = EXCLUDED.work_arrangement, employment_type = EXCLUDED.employment_type,
-		description = EXCLUDED.description, apply_url = EXCLUDED.apply_url,
+		location = CASE WHEN EXCLUDED.description = '' AND crawled_jobs.description <> '' THEN crawled_jobs.location ELSE EXCLUDED.location END,
+		country_code = CASE WHEN EXCLUDED.description = '' AND crawled_jobs.description <> '' THEN crawled_jobs.country_code ELSE EXCLUDED.country_code END,
+		work_arrangement = CASE WHEN EXCLUDED.description = '' AND crawled_jobs.description <> '' THEN crawled_jobs.work_arrangement ELSE EXCLUDED.work_arrangement END,
+		employment_type = CASE WHEN EXCLUDED.description = '' AND crawled_jobs.description <> '' THEN crawled_jobs.employment_type ELSE EXCLUDED.employment_type END,
+		description = CASE WHEN EXCLUDED.description = '' THEN crawled_jobs.description ELSE EXCLUDED.description END,
+		apply_url = CASE WHEN EXCLUDED.description = '' AND crawled_jobs.description <> '' THEN crawled_jobs.apply_url ELSE EXCLUDED.apply_url END,
 		posted_at = COALESCE(EXCLUDED.posted_at, crawled_jobs.posted_at),
-		salary_min = EXCLUDED.salary_min, salary_max = EXCLUDED.salary_max,
-		salary_currency = EXCLUDED.salary_currency, salary_period = EXCLUDED.salary_period,
+		salary_min = COALESCE(EXCLUDED.salary_min, crawled_jobs.salary_min), salary_max = COALESCE(EXCLUDED.salary_max, crawled_jobs.salary_max),
+		salary_currency = CASE WHEN EXCLUDED.salary_currency = '' THEN crawled_jobs.salary_currency ELSE EXCLUDED.salary_currency END,
+		salary_period = CASE WHEN EXCLUDED.salary_period = '' THEN crawled_jobs.salary_period ELSE EXCLUDED.salary_period END,
 		active = TRUE, last_seen_at = NOW()`
 
 func (r *CrawledJobsRepository) SaveBoardJobs(ctx context.Context, board jobs.Board, saved []jobs.Job, seenIDs []string, complete bool) error {
@@ -185,7 +192,7 @@ func (r *CrawledJobsRepository) SearchJobs(ctx context.Context, titlePattern, ne
 		SELECT id, ats, company, title, location, country_code, work_arrangement, employment_type,
 			description, apply_url, posted_at, salary_min, salary_max, salary_currency, salary_period
 		FROM crawled_jobs
-		WHERE active AND description <> '' AND title_search ~ $1
+		WHERE active AND title_search ~ $1
 		ORDER BY ($2 <> '' AND location ~* $2) DESC, posted_at DESC NULLS LAST, last_seen_at DESC
 		LIMIT $3`, titlePattern, nearPattern, limit)
 	if err != nil {
@@ -207,6 +214,32 @@ func (r *CrawledJobsRepository) SearchJobs(ctx context.Context, titlePattern, ne
 		found = append(found, job)
 	}
 	return found, rows.Err()
+}
+
+// SaveJobDetails stores the description and details read for jobs that
+// were saved from a board's list alone.
+func (r *CrawledJobsRepository) SaveJobDetails(ctx context.Context, found []jobs.Job) error {
+	if len(found) == 0 {
+		return nil
+	}
+	batch := &pgx.Batch{}
+	for _, job := range found {
+		batch.Queue(`
+			UPDATE crawled_jobs SET description = $2, location = $3, country_code = $4,
+				employment_type = $5, apply_url = $6, posted_at = COALESCE($7, posted_at),
+				title = $8, title_search = $9
+			WHERE id = $1`,
+			job.ID, job.Description, job.Location, job.CountryCode, job.EmploymentType,
+			job.ApplyURL, job.PostedAt, job.Title, strings.ToLower(job.Title))
+	}
+	results := r.pool.SendBatch(ctx, batch)
+	defer results.Close()
+	for range found {
+		if _, err := results.Exec(); err != nil {
+			return fmt.Errorf("repository: save job details: %w", err)
+		}
+	}
+	return nil
 }
 
 // PruneClosed deletes jobs that have been closed for a while.

@@ -2,9 +2,15 @@ package jobs
 
 import (
 	"context"
+	"fmt"
+	"log"
+	"math"
+	"net/url"
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
+	"time"
 )
 
 // StoredJobsProvider searches the jobs Jane's crawler has saved. The
@@ -13,12 +19,22 @@ import (
 type StoredJobsProvider struct {
 	store func() BoardStore
 	limit int
+
+	// Jobs saved from an employer's list alone have no description yet,
+	// so Jane can't score them. A search reads the nearest few on the
+	// spot (and saves them), so they can be scored and shown.
+	client      *crawlClient
+	readMax     int
+	readPerHost int
+	readBudget  time.Duration
+	readAtOnce  int
 }
 
 // NewStoredJobsProvider takes a function so the store can be connected
 // after the provider is built.
 func NewStoredJobsProvider(store func() BoardStore) *StoredJobsProvider {
-	return &StoredJobsProvider{store: store, limit: 1500}
+	return &StoredJobsProvider{store: store, limit: 1500, client: newCrawlClient(),
+		readMax: 60, readPerHost: 10, readBudget: 7 * time.Second, readAtOnce: 16}
 }
 
 func (p *StoredJobsProvider) Name() string { return "jane-crawler" }
@@ -35,7 +51,157 @@ func (p *StoredJobsProvider) Search(ctx context.Context, request SearchRequest) 
 	if pattern == "" {
 		return nil, nil
 	}
-	return store.SearchJobs(ctx, pattern, NearSearchPattern(request.Location), p.limit)
+	found, err := store.SearchJobs(ctx, pattern, NearSearchPattern(request.Location), p.limit)
+	if err != nil {
+		return nil, err
+	}
+	var ready, unread []Job
+	for _, job := range found {
+		if strings.TrimSpace(job.Description) != "" {
+			ready = append(ready, job)
+		} else {
+			unread = append(unread, job)
+		}
+	}
+	return append(ready, p.readNearest(ctx, store, request, unread)...), nil
+}
+
+// readNearest reads the details of the unread jobs that fit the search,
+// nearest first, within a few seconds, saves them, and returns them.
+func (p *StoredJobsProvider) readNearest(ctx context.Context, store BoardStore, request SearchRequest, unread []Job) []Job {
+	if len(unread) == 0 || p.client == nil || p.readMax <= 0 {
+		return nil
+	}
+	wide := request
+	if wide.RadiusMiles == 0 {
+		wide.RadiusMiles = wholeStateRadius
+	}
+	type candidate struct {
+		job   Job
+		miles float64
+	}
+	var candidates []candidate
+	for _, job := range unread {
+		if !strings.HasPrefix(job.ID, "workday:") || !jobTitleMatchesTargetRole(request.TargetRole, job.Title) {
+			continue
+		}
+		if !matchesLocationPreference(wide, job) {
+			continue
+		}
+		miles := math.MaxFloat64
+		if m, _, ok := jobDistance(request, job); ok {
+			miles = m
+		}
+		candidates = append(candidates, candidate{job, miles})
+	}
+	sort.SliceStable(candidates, func(i, j int) bool { return candidates[i].miles < candidates[j].miles })
+
+	perHost := map[string]int{}
+	var picked []Job
+	for _, c := range candidates {
+		slug, _, ok := splitWorkdayJobID(c.job.ID)
+		if !ok {
+			continue
+		}
+		host, _, _, _ := workdayParts(slug)
+		if perHost[host] >= p.readPerHost {
+			continue
+		}
+		perHost[host]++
+		picked = append(picked, c.job)
+		if len(picked) >= p.readMax {
+			break
+		}
+	}
+	if len(picked) == 0 {
+		return nil
+	}
+
+	readCtx, cancel := context.WithTimeout(ctx, p.readBudget)
+	defer cancel()
+
+	// Check each site's robots.txt once, before the reads start; otherwise
+	// every read would fetch it and the half-second pacing per site would
+	// use up the time.
+	var robots sync.WaitGroup
+	for host := range perHost {
+		robots.Add(1)
+		go func(host string) {
+			defer robots.Done()
+			if target, err := url.Parse("https://" + host + "/"); err == nil {
+				_, _ = p.client.allowed(readCtx, target)
+			}
+		}(host)
+	}
+	robots.Wait()
+	var (
+		mu       sync.Mutex
+		read     []Job
+		firstErr error
+		wg       sync.WaitGroup
+		slot     = make(chan struct{}, max(1, p.readAtOnce))
+	)
+	for _, job := range picked {
+		wg.Add(1)
+		go func(job Job) {
+			defer wg.Done()
+			select {
+			case slot <- struct{}{}:
+			case <-readCtx.Done():
+				return
+			}
+			defer func() { <-slot }()
+			slug, path, _ := splitWorkdayJobID(job.ID)
+			host, tenant, site, ok := workdayParts(slug)
+			if !ok {
+				return
+			}
+			board := Board{ATS: "workday", Slug: slug, Company: job.Company}
+			base := "https://" + host + "/wday/cxs/" + url.PathEscape(tenant) + "/" + url.PathEscape(site)
+			full, err := fetchWorkdayJob(readCtx, p.client, board, base, host, site, path, job.Title, job.Location)
+			if err != nil || strings.TrimSpace(full.Description) == "" {
+				mu.Lock()
+				if firstErr == nil {
+					firstErr = fmt.Errorf("%s: %v (description %d chars)", host+path, err, len(full.Description))
+				}
+				mu.Unlock()
+				return
+			}
+			full.ID = job.ID
+			finishCrawledJob(&full, board)
+			full.IsActive = true
+			mu.Lock()
+			read = append(read, full)
+			mu.Unlock()
+		}(job)
+	}
+	wg.Wait()
+
+	if len(read) > 0 {
+		saved := append([]Job(nil), read...)
+		go func() {
+			saveCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
+			if err := store.SaveJobDetails(saveCtx, saved); err != nil {
+				log.Printf("[jane-crawler] saving details read during a search failed: %v", err)
+			}
+		}()
+	}
+	log.Printf("[jane-crawler] %q in %q: %d unread matches, read %d of %d tried (first problem: %v)", request.TargetRole, request.Location, len(candidates), len(read), len(picked), firstErr)
+	return read
+}
+
+// splitWorkdayJobID takes "workday:<host/tenant/site>:<path>" apart.
+func splitWorkdayJobID(id string) (slug, path string, ok bool) {
+	rest, found := strings.CutPrefix(id, "workday:")
+	if !found {
+		return "", "", false
+	}
+	i := strings.Index(rest, ":/")
+	if i <= 0 {
+		return "", "", false
+	}
+	return rest[:i], rest[i+1:], true
 }
 
 // NearSearchPattern is a PostgreSQL regular expression for job locations

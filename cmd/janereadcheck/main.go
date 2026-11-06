@@ -30,7 +30,13 @@ func main() {
 		ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
 		found, complete, err := jobs.CheckBoard(ctx, board)
 		cancel()
-		fmt.Printf("\n### %s %s (%s): %d jobs, complete=%v, err=%v\n", board.ATS, board.Slug, board.Company, len(found), complete, err)
+		described := 0
+		for _, job := range found {
+			if job.Description != "" {
+				described++
+			}
+		}
+		fmt.Printf("\n### %s %s (%s): %d jobs (%d with details, %d from the list), complete=%v, err=%v\n", board.ATS, board.Slug, board.Company, len(found), described, len(found)-described, complete, err)
 		for i, job := range found {
 			if i == 3 {
 				break

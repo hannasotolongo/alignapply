@@ -266,7 +266,13 @@ func readWorkdayBoard(ctx context.Context, client *crawlClient, board Board, kno
 			continue // already saved; it stays open because it's listed
 		}
 		if newFetched >= workdayMaxNewPerRun {
-			result.Complete = false // the rest are saved on later runs
+			// Save it from the list now so searches can find it; its
+			// details are read on a later run, or the moment a search
+			// needs it.
+			result.Complete = false
+			if _, saved := known[id]; !saved {
+				result.Jobs = append(result.Jobs, workdayListingJob(board, host, site, path, item.Title, item.LocationsText))
+			}
 			continue
 		}
 		newFetched++
@@ -274,12 +280,29 @@ func readWorkdayBoard(ctx context.Context, client *crawlClient, board Board, kno
 		job, err := fetchWorkdayJob(ctx, client, board, base, host, site, path, item.Title, item.LocationsText)
 		if err != nil {
 			result.Complete = false
+			result.Jobs = append(result.Jobs, workdayListingJob(board, host, site, path, item.Title, item.LocationsText))
 			continue
 		}
 		job.ID = id
 		result.Jobs = append(result.Jobs, job)
 	}
 	return result, nil
+}
+
+// workdayListingJob is a job saved from a board's list alone: title,
+// place and link, no description yet.
+func workdayListingJob(board Board, host, site, path, title, location string) Job {
+	link := "https://" + host + "/" + site + path
+	return Job{
+		ID:          crawledJobID(board, path),
+		SourceJobID: path,
+		Title:       strings.TrimSpace(title),
+		Company:     board.Company,
+		Location:    strings.TrimSpace(workdayLocation(location)),
+		CountryCode: countryFromLocation(location),
+		ApplyURL:    link,
+		SourceURL:   link,
+	}
 }
 
 // fetchWorkdayJob reads one Workday posting's details (description, exact

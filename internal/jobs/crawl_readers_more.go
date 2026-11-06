@@ -392,3 +392,13 @@ func CheckBoard(ctx context.Context, board Board) ([]Job, bool, error) {
 	}
 	return result.Jobs, result.Complete, err
 }
+
+// CheckBoardListOnly reads a board's list without downloading any job's
+// details, for the dev check tools.
+func CheckBoardListOnly(ctx context.Context, board Board) ([]Job, error) {
+	saved := workdayMaxNewPerRun
+	workdayMaxNewPerRun = 0
+	defer func() { workdayMaxNewPerRun = saved }()
+	jobs, _, err := CheckBoard(ctx, board)
+	return jobs, err
+}
