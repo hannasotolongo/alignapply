@@ -200,7 +200,7 @@ func readAshbyBoard(ctx context.Context, client *crawlClient, board Board, _ map
 const (
 	workdayPageSize            = 20
 	workdayMaxListed           = 3000
-	workdayMaxNewPerRunDefault = 600 // ~5 minutes per board at a polite pace
+	workdayMaxNewPerRunDefault = 200 // ~2 minutes per board; unfinished boards come back soon
 )
 
 // workdayParts splits "host/tenant/site".
@@ -271,58 +271,66 @@ func readWorkdayBoard(ctx context.Context, client *crawlClient, board Board, kno
 		}
 		newFetched++
 
-		var detail struct {
-			JobPostingInfo struct {
-				Title               string   `json:"title"`
-				JobDescription      string   `json:"jobDescription"`
-				Location            string   `json:"location"`
-				AdditionalLocations []string `json:"additionalLocations"`
-				TimeType            string   `json:"timeType"`
-				StartDate           string   `json:"startDate"`
-				PostedOn            string   `json:"postedOn"`
-				ExternalURL         string   `json:"externalUrl"`
-				JobReqID            string   `json:"jobReqId"`
-				Country             struct {
-					Descriptor string `json:"descriptor"`
-				} `json:"country"`
-			} `json:"jobPostingInfo"`
-			HiringOrganization struct {
-				Name string `json:"name"`
-			} `json:"hiringOrganization"`
-		}
-		if err := client.getJSON(ctx, base+path, &detail); err != nil {
+		job, err := fetchWorkdayJob(ctx, client, board, base, host, site, path, item.Title, item.LocationsText)
+		if err != nil {
 			result.Complete = false
 			continue
 		}
-		info := detail.JobPostingInfo
-		link := firstNonEmpty(info.ExternalURL, "https://"+host+"/"+site+path)
-		location := workdayLocation(firstNonEmpty(info.Location, item.LocationsText))
-		country := ""
-		switch strings.ToLower(info.Country.Descriptor) {
-		case "united states of america", "united states", "usa":
-			country = "US"
-		case "":
-		default:
-			country = countryFromLocation(info.Country.Descriptor)
-			if country == "" {
-				country = "XX"
-			}
-		}
-		result.Jobs = append(result.Jobs, Job{
-			ID:             id,
-			SourceJobID:    firstNonEmpty(info.JobReqID, path),
-			Title:          strings.TrimSpace(firstNonEmpty(info.Title, item.Title)),
-			Company:        board.Company,
-			Description:    info.JobDescription,
-			Location:       strings.TrimSpace(location),
-			CountryCode:    country,
-			EmploymentType: strings.ToLower(info.TimeType),
-			PostedAt:       parseTimeLoose(info.StartDate),
-			ApplyURL:       link,
-			SourceURL:      link,
-		})
+		job.ID = id
+		result.Jobs = append(result.Jobs, job)
 	}
 	return result, nil
+}
+
+// fetchWorkdayJob reads one Workday posting's details (description, exact
+// location, apply link) and returns it as a Jane job.
+func fetchWorkdayJob(ctx context.Context, client *crawlClient, board Board, base, host, site, path, listTitle, listLocation string) (Job, error) {
+	var detail struct {
+		JobPostingInfo struct {
+			Title               string   `json:"title"`
+			JobDescription      string   `json:"jobDescription"`
+			Location            string   `json:"location"`
+			AdditionalLocations []string `json:"additionalLocations"`
+			TimeType            string   `json:"timeType"`
+			StartDate           string   `json:"startDate"`
+			PostedOn            string   `json:"postedOn"`
+			ExternalURL         string   `json:"externalUrl"`
+			JobReqID            string   `json:"jobReqId"`
+			Country             struct {
+				Descriptor string `json:"descriptor"`
+			} `json:"country"`
+		} `json:"jobPostingInfo"`
+	}
+	if err := client.getJSON(ctx, base+path, &detail); err != nil {
+		return Job{}, err
+	}
+	info := detail.JobPostingInfo
+	link := firstNonEmpty(info.ExternalURL, "https://"+host+"/"+site+path)
+	location := workdayLocation(firstNonEmpty(info.Location, listLocation))
+	country := ""
+	switch strings.ToLower(info.Country.Descriptor) {
+	case "united states of america", "united states", "usa":
+		country = "US"
+	case "":
+	default:
+		country = countryFromLocation(info.Country.Descriptor)
+		if country == "" {
+			country = "XX"
+		}
+	}
+	return Job{
+		ID:             crawledJobID(board, path),
+		SourceJobID:    firstNonEmpty(info.JobReqID, path),
+		Title:          strings.TrimSpace(firstNonEmpty(info.Title, listTitle)),
+		Company:        board.Company,
+		Description:    info.JobDescription,
+		Location:       strings.TrimSpace(location),
+		CountryCode:    country,
+		EmploymentType: strings.ToLower(info.TimeType),
+		PostedAt:       parseTimeLoose(info.StartDate),
+		ApplyURL:       link,
+		SourceURL:      link,
+	}, nil
 }
 
 // workdayMaxNewPerRun caps how many new Workday jobs one run downloads.

@@ -61,7 +61,10 @@ func (r *CrawledJobsRepository) SeedBoards(ctx context.Context, boards []jobs.Bo
 func (r *CrawledJobsRepository) DueBoards(ctx context.Context, limit int, olderThan time.Duration) ([]jobs.Board, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT ats, slug, company FROM job_boards
-		WHERE active AND (last_crawled_at IS NULL OR last_crawled_at < NOW() - make_interval(secs => $1))
+		WHERE active AND (last_crawled_at IS NULL OR last_crawled_at < NOW() - make_interval(secs => $1)
+			-- A board read only partly (big Workday boards save a batch per
+			-- read) comes back after 15 minutes until all its jobs are saved.
+			OR (last_status = 'partial' AND last_crawled_at < NOW() - INTERVAL '15 minutes'))
 		ORDER BY last_crawled_at NULLS FIRST
 		LIMIT $2`, olderThan.Seconds(), limit)
 	if err != nil {

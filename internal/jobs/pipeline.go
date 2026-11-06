@@ -316,6 +316,12 @@ func matchesLocationPreference(
 		return true
 	}
 
+	// Same city name, different state ("Gainesville, FL" vs "Gainesville,
+	// GA") is a different place.
+	if statesConflict(request.Location, job.Location) {
+		return false
+	}
+
 	if strings.Contains(location, requested) ||
 		strings.Contains(requested, location) {
 		return true
@@ -787,8 +793,8 @@ var roleSynonyms = map[string][]string{
 var synonymExclusions = map[string][]string{
 	"doctor":  {"assistant", "assistants", "associate"},
 	"doctors": {"assistant", "assistants", "associate"},
-	"lawyer":  {"assistant"},
-	"lawyers": {"assistant"},
+	"lawyer":  {"assistant", "recruiting", "recruiter", "coordinator", "secretary"},
+	"lawyers": {"assistant", "recruiting", "recruiter", "coordinator", "secretary"},
 }
 
 // titleHasRoleWord reports whether a job title contains the role word or one

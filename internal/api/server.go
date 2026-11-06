@@ -1551,6 +1551,8 @@ func newJobProvider(server *Server) *jobs.MultiProvider {
 				}
 				return server.crawledJobs
 			}),
+			// Every Workday employer's own job search, asked at search time.
+			jobs.NewCachedProvider(jobs.NewWorkdayLiveProvider(jobs.CrawlSeedBoards()), 3*time.Hour),
 			jobs.NewGreenhouseProvider(jobs.GreenhouseBoards()),
 		// Every source above links straight to the employer's own job
 		// posting. Job boards that send people to their own site first
