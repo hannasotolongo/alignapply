@@ -200,7 +200,7 @@ func readAshbyBoard(ctx context.Context, client *crawlClient, board Board, _ map
 const (
 	workdayPageSize            = 20
 	workdayMaxListed           = 3000
-	workdayMaxNewPerRunDefault = 150
+	workdayMaxNewPerRunDefault = 600 // ~5 minutes per board at a polite pace
 )
 
 // workdayParts splits "host/tenant/site".

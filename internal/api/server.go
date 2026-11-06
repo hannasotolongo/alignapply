@@ -1552,9 +1552,12 @@ func newJobProvider(server *Server) *jobs.MultiProvider {
 				return server.crawledJobs
 			}),
 			jobs.NewGreenhouseProvider(jobs.GreenhouseBoards()),
-			jobs.NewCachedProvider(jobs.NewRemotiveProvider(), 6*time.Hour),
-			usaJobsBackup(),
-		).WithLastResort(joobleSource(server)),
+		// Every source above links straight to the employer's own job
+		// posting. Job boards that send people to their own site first
+		// (Remotive, Jooble) are no longer used. Federal jobs, whose
+		// official application site is USAJobs, only fill in when the
+		// employer sources don't have enough matching jobs for the search.
+		).WithLastResort(usaJobsBackup()),
 		jobs.NewLeverProvider(
 			jobs.DefaultATSEmployers(),
 		),
