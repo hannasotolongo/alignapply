@@ -6,6 +6,11 @@
  },
  {
   "ats": "ashby",
+  "slug": "foley",
+  "company": "Foley & Lardner"
+ },
+ {
+  "ats": "ashby",
   "slug": "lemonade",
   "company": "Lemonade"
  },
@@ -56,6 +61,11 @@
  },
  {
   "ats": "greenhouse",
+  "slug": "42northdental",
+  "company": "42 North Dental"
+ },
+ {
+  "ats": "greenhouse",
   "slug": "affirm",
   "company": "Affirm"
  },
@@ -78,6 +88,11 @@
   "ats": "greenhouse",
   "slug": "asana",
   "company": "Asana"
+ },
+ {
+  "ats": "greenhouse",
+  "slug": "axiom",
+  "company": "Axiom Law"
  },
  {
   "ats": "greenhouse",
@@ -121,6 +136,11 @@
  },
  {
   "ats": "greenhouse",
+  "slug": "dental365",
+  "company": "Dental365"
+ },
+ {
+  "ats": "greenhouse",
   "slug": "discord",
   "company": "Discord"
  },
@@ -151,6 +171,11 @@
  },
  {
   "ats": "greenhouse",
+  "slug": "gibsondunn",
+  "company": "Gibson Dunn"
+ },
+ {
+  "ats": "greenhouse",
   "slug": "gitlab",
   "company": "GitLab"
  },
@@ -158,6 +183,11 @@
   "ats": "greenhouse",
   "slug": "gusto",
   "company": "Gusto"
+ },
+ {
+  "ats": "greenhouse",
+  "slug": "hellotend",
+  "company": "Tend"
  },
  {
   "ats": "greenhouse",
@@ -261,6 +291,11 @@
  },
  {
   "ats": "greenhouse",
+  "slug": "universal",
+  "company": "Universal Parks"
+ },
+ {
+  "ats": "greenhouse",
   "slug": "vercel",
   "company": "Vercel"
  },
@@ -268,6 +303,11 @@
   "ats": "greenhouse",
   "slug": "verkada",
   "company": "Verkada"
+ },
+ {
+  "ats": "greenhouse",
+  "slug": "wilsonelser",
+  "company": "Wilson Elser"
  },
  {
   "ats": "greenhouse",
@@ -331,6 +371,16 @@
  },
  {
   "ats": "workday",
+  "slug": "align.wd503.myworkdayjobs.com/align/A-LIGN",
+  "company": "Align Technology"
+ },
+ {
+  "ats": "workday",
+  "slug": "allina.wd5.myworkdayjobs.com/allina/External",
+  "company": "Allina Health"
+ },
+ {
+  "ats": "workday",
   "slug": "allstate.wd5.myworkdayjobs.com/allstate/Agent",
   "company": "Allstate"
  },
@@ -341,8 +391,18 @@
  },
  {
   "ats": "workday",
+  "slug": "alston.wd1.myworkdayjobs.com/alston/ExternalCareer",
+  "company": "Alston & Bird"
+ },
+ {
+  "ats": "workday",
   "slug": "amgen.wd1.myworkdayjobs.com/amgen/Careers",
   "company": "Amgen"
+ },
+ {
+  "ats": "workday",
+  "slug": "aspendental.wd1.myworkdayjobs.com/aspendental/Careers_Aspen_Dental",
+  "company": "Aspen Dental"
  },
  {
   "ats": "workday",
@@ -363,6 +423,11 @@
   "ats": "workday",
   "slug": "baxter.wd1.myworkdayjobs.com/baxter/baxter",
   "company": "Baxter"
+ },
+ {
+  "ats": "workday",
+  "slug": "bilh.wd1.myworkdayjobs.com/bilh/External",
+  "company": "Beth Israel Lahey"
  },
  {
   "ats": "workday",
@@ -391,6 +456,11 @@
  },
  {
   "ats": "workday",
+  "slug": "carmax.wd1.myworkdayjobs.com/carmax/External",
+  "company": "CarMax"
+ },
+ {
+  "ats": "workday",
   "slug": "ccf.wd1.myworkdayjobs.com/ccf/ClevelandClinicCareers",
   "company": "Cleveland Clinic"
  },
@@ -398,6 +468,11 @@
   "ats": "workday",
   "slug": "centene.wd5.myworkdayjobs.com/centene/Centene_External",
   "company": "Centene"
+ },
+ {
+  "ats": "workday",
+  "slug": "chenmed.wd1.myworkdayjobs.com/chenmed/ChenMed",
+  "company": "ChenMed"
  },
  {
   "ats": "workday",
@@ -411,6 +486,11 @@
  },
  {
   "ats": "workday",
+  "slug": "christianacare.wd5.myworkdayjobs.com/christianacare/CCHS",
+  "company": "ChristianaCare"
+ },
+ {
+  "ats": "workday",
   "slug": "cigna.wd5.myworkdayjobs.com/cigna/cignacareers",
   "company": "Cigna"
  },
@@ -421,8 +501,18 @@
  },
  {
   "ats": "workday",
+  "slug": "clio.wd3.myworkdayjobs.com/clio/ClioCareerSite",
+  "company": "Clio"
+ },
+ {
+  "ats": "workday",
   "slug": "coke.wd1.myworkdayjobs.com/coke/coca-cola-careers",
   "company": "Coca-Cola"
+ },
+ {
+  "ats": "workday",
+  "slug": "cooley.wd1.myworkdayjobs.com/cooley/Cooley_US_LLP",
+  "company": "Cooley"
  },
  {
   "ats": "workday",
@@ -456,6 +546,11 @@
  },
  {
   "ats": "workday",
+  "slug": "dlapiper.wd1.myworkdayjobs.com/dlapiper/dlapiper",
+  "company": "DLA Piper"
+ },
+ {
+  "ats": "workday",
   "slug": "dollartree.wd5.myworkdayjobs.com/dollartree/dollartreeus",
   "company": "Dollar Tree"
  },
@@ -481,6 +576,16 @@
  },
  {
   "ats": "workday",
+  "slug": "fenwick.wd1.myworkdayjobs.com/fenwick/Fenwick_External_Careers",
+  "company": "Fenwick & West"
+ },
+ {
+  "ats": "workday",
+  "slug": "freseniusmedicalcare.wd3.myworkdayjobs.com/freseniusmedicalcare/fme",
+  "company": "Fresenius Medical Care"
+ },
+ {
+  "ats": "workday",
   "slug": "gehc.wd5.myworkdayjobs.com/gehc/GEHC_ExternalSite",
   "company": "GE HealthCare"
  },
@@ -501,8 +606,43 @@
  },
  {
   "ats": "workday",
+  "slug": "goodwinprocter.wd5.myworkdayjobs.com/goodwinprocter/External_Careers",
+  "company": "Goodwin Procter"
+ },
+ {
+  "ats": "workday",
   "slug": "google.wd501.myworkdayjobs.com/google/GOCJobs",
   "company": "Google"
+ },
+ {
+  "ats": "workday",
+  "slug": "heartland.wd3.myworkdayjobs.com/heartland/External",
+  "company": "Heartland Dental"
+ },
+ {
+  "ats": "workday",
+  "slug": "henryschein.wd1.myworkdayjobs.com/henryschein/External_Careers",
+  "company": "Henry Schein"
+ },
+ {
+  "ats": "workday",
+  "slug": "hhc.wd5.myworkdayjobs.com/hhc/HHC",
+  "company": "Hartford HealthCare"
+ },
+ {
+  "ats": "workday",
+  "slug": "hklaw.wd1.myworkdayjobs.com/hklaw/Holland_Knight",
+  "company": "Holland & Knight"
+ },
+ {
+  "ats": "workday",
+  "slug": "hoganlovells.wd3.myworkdayjobs.com/hoganlovells/Search",
+  "company": "Hogan Lovells"
+ },
+ {
+  "ats": "workday",
+  "slug": "honorhealth.wd12.myworkdayjobs.com/honorhealth/HonorHealth_careers",
+  "company": "HonorHealth"
  },
  {
   "ats": "workday",
@@ -521,8 +661,23 @@
  },
  {
   "ats": "workday",
+  "slug": "jabil.wd5.myworkdayjobs.com/jabil/Jabil_Careers",
+  "company": "Jabil"
+ },
+ {
+  "ats": "workday",
+  "slug": "jacksonlewis.wd1.myworkdayjobs.com/jacksonlewis/JacksonLewisLawyerCareers",
+  "company": "Jackson Lewis"
+ },
+ {
+  "ats": "workday",
   "slug": "jj.wd5.myworkdayjobs.com/jj/JJ",
   "company": "Johnson & Johnson"
+ },
+ {
+  "ats": "workday",
+  "slug": "kslaw.wd1.myworkdayjobs.com/kslaw/careers",
+  "company": "King & Spalding"
  },
  {
   "ats": "workday",
@@ -533,6 +688,11 @@
   "ats": "workday",
   "slug": "leidos.wd5.myworkdayjobs.com/leidos/External",
   "company": "Leidos"
+ },
+ {
+  "ats": "workday",
+  "slug": "lennar.wd1.myworkdayjobs.com/lennar/Lennar_Jobs",
+  "company": "Lennar"
  },
  {
   "ats": "workday",
@@ -561,6 +721,16 @@
  },
  {
   "ats": "workday",
+  "slug": "mhs.wd1.myworkdayjobs.com/mhs/Careers",
+  "company": "Memorial Healthcare System"
+ },
+ {
+  "ats": "workday",
+  "slug": "morganlewis.wd5.myworkdayjobs.com/morganlewis/morganlewis",
+  "company": "Morgan Lewis"
+ },
+ {
+  "ats": "workday",
   "slug": "ms.wd5.myworkdayjobs.com/ms/External",
   "company": "Morgan Stanley"
  },
@@ -568,6 +738,16 @@
   "ats": "workday",
   "slug": "msd.wd5.myworkdayjobs.com/msd/SearchJobs",
   "company": "Merck"
+ },
+ {
+  "ats": "workday",
+  "slug": "musc.wd1.myworkdayjobs.com/musc/MUSC",
+  "company": "MUSC Health"
+ },
+ {
+  "ats": "workday",
+  "slug": "mwe.wd5.myworkdayjobs.com/mwe/mwe_careers",
+  "company": "McDermott Will & Emery"
  },
  {
   "ats": "workday",
@@ -601,6 +781,11 @@
  },
  {
   "ats": "workday",
+  "slug": "ohiohealth.wd5.myworkdayjobs.com/ohiohealth/OhioHealthJobs",
+  "company": "OhioHealth"
+ },
+ {
+  "ats": "workday",
   "slug": "osu.wd1.myworkdayjobs.com/osu/OSUCareers",
   "company": "Ohio State University"
  },
@@ -608,6 +793,11 @@
   "ats": "workday",
   "slug": "panerabread.wd5.myworkdayjobs.com/panerabread/Panera_Careers",
   "company": "Panera Bread"
+ },
+ {
+  "ats": "workday",
+  "slug": "pattersoncompanies.wd501.myworkdayjobs.com/pattersoncompanies/PDCO",
+  "company": "Patterson Companies"
  },
  {
   "ats": "workday",
@@ -646,6 +836,16 @@
  },
  {
   "ats": "workday",
+  "slug": "raymondjames.wd1.myworkdayjobs.com/raymondjames/RaymondJamesCareers",
+  "company": "Raymond James"
+ },
+ {
+  "ats": "workday",
+  "slug": "relx.wd3.myworkdayjobs.com/relx/relx",
+  "company": "RELX LexisNexis"
+ },
+ {
+  "ats": "workday",
   "slug": "roberthalf.wd1.myworkdayjobs.com/roberthalf/RHAPACCareers",
   "company": "Robert Half"
  },
@@ -653,6 +853,21 @@
   "ats": "workday",
   "slug": "salesforce.wd12.myworkdayjobs.com/salesforce/External_Career_Site",
   "company": "Salesforce"
+ },
+ {
+  "ats": "workday",
+  "slug": "sidley.wd501.myworkdayjobs.com/sidley/US",
+  "company": "Sidley Austin"
+ },
+ {
+  "ats": "workday",
+  "slug": "skadden.wd5.myworkdayjobs.com/skadden/Skadden_Careers",
+  "company": "Skadden"
+ },
+ {
+  "ats": "workday",
+  "slug": "smiledoctors.wd108.myworkdayjobs.com/smiledoctors/SD",
+  "company": "Smile Doctors"
  },
  {
   "ats": "workday",
@@ -671,8 +886,18 @@
  },
  {
   "ats": "workday",
+  "slug": "teladoc.wd503.myworkdayjobs.com/teladoc/teladochealth_is_hiring",
+  "company": "Teladoc Health"
+ },
+ {
+  "ats": "workday",
   "slug": "tempus.wd5.myworkdayjobs.com/tempus/Tempus_Careers",
   "company": "Tempus"
+ },
+ {
+  "ats": "workday",
+  "slug": "thomsonreuters.wd5.myworkdayjobs.com/thomsonreuters/External_Career_Site",
+  "company": "Thomson Reuters"
  },
  {
   "ats": "workday",
@@ -711,6 +936,11 @@
  },
  {
   "ats": "workday",
+  "slug": "usacs.wd1.myworkdayjobs.com/usacs/usacscareers",
+  "company": "US Acute Care Solutions"
+ },
+ {
+  "ats": "workday",
   "slug": "usbank.wd1.myworkdayjobs.com/usbank/US_Bank_Careers",
   "company": "U.S. Bank"
  },
@@ -741,8 +971,18 @@
  },
  {
   "ats": "workday",
+  "slug": "wellstar.wd1.myworkdayjobs.com/wellstar/wellstarcareers",
+  "company": "Wellstar"
+ },
+ {
+  "ats": "workday",
   "slug": "workday.wd5.myworkdayjobs.com/workday/Workday",
   "company": "Workday"
+ },
+ {
+  "ats": "workday",
+  "slug": "wsgr.wd503.myworkdayjobs.com/wsgr/WSGR",
+  "company": "Wilson Sonsini"
  },
  {
   "ats": "workday",

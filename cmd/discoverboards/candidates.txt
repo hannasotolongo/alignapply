@@ -364,3 +364,150 @@ Carbon Health | carbonhealth
 Tempus
 Benchling
 Komodo Health | komodohealth
+
+# Dental groups and dental companies
+Aspen Dental | aspendental,aspen
+Heartland Dental | heartland,heartlanddental
+Pacific Dental Services | pds,pacificdentalservices
+Smile Brands | smilebrands
+Western Dental | westerndental
+Dental Care Alliance | dentalcarealliance,dca
+Mortenson Dental Partners | mortensondental,mortenson
+Great Expressions Dental Centers | greatexpressions,gedc
+Affordable Care | affordablecare,affordabledentures
+Dental365 | dental365
+Sonrava Health | sonrava
+MB2 Dental | mb2dental,mb2
+Smile Doctors | smiledoctors
+42 North Dental | 42northdental
+Tend | tend,hellotend
+Benevis | benevis
+ClearChoice | clearchoice
+Coast Dental | coastdental
+Gentle Dental | gentledental
+Dentsply Sirona | dentsplysirona
+Henry Schein | henryschein
+Align Technology | aligntech,align
+Patterson Companies | patterson,pattersoncompanies
+Delta Dental | deltadental
+# Law firms and legal
+Kirkland & Ellis | kirkland
+Latham & Watkins | lw,latham
+DLA Piper | dlapiper
+Baker McKenzie | bakermckenzie
+Skadden | skadden
+Jones Day | jonesday
+Sidley Austin | sidley
+Morgan Lewis | morganlewis
+Greenberg Traurig | gtlaw,greenbergtraurig
+Hogan Lovells | hoganlovells
+Gibson Dunn | gibsondunn
+White & Case | whitecase
+Norton Rose Fulbright | nortonrosefulbright
+Holland & Knight | hklaw,hollandknight
+K&L Gates | klgates
+Littler Mendelson | littler
+Jackson Lewis | jacksonlewis
+Ogletree Deakins | ogletree,ogletreedeakins
+Fisher Phillips | fisherphillips
+Morgan & Morgan | forthepeople,morganandmorgan
+Akerman | akerman
+Foley & Lardner | foley,foleylardner
+McDermott Will & Emery | mwe
+Perkins Coie | perkinscoie
+Cooley | cooley
+Wilson Sonsini | wsgr,wilsonsonsini
+Orrick | orrick
+Fenwick & West | fenwick
+Goodwin Procter | goodwinlaw,goodwin
+Ropes & Gray | ropesgray
+Paul Weiss | paulweiss
+Davis Polk | davispolk
+Sullivan & Cromwell | sullcrom
+Quinn Emanuel | quinnemanuel
+Mayer Brown | mayerbrown
+Winston & Strawn | winston
+Alston & Bird | alston,alstonbird
+King & Spalding | kslaw,kingspalding
+Shook Hardy & Bacon | shb
+Polsinelli | polsinelli
+Lewis Brisbois | lewisbrisbois
+Gordon Rees | grsm,gordonrees
+Wilson Elser | wilsonelser
+LegalZoom | legalzoom
+Thomson Reuters | thomsonreuters,tr
+RELX LexisNexis | relx,lexisnexis
+Clio | clio,themis
+Axiom Law | axiomlaw,axiom
+Epiq | epiq,epiqglobal
+Consilio | consilio
+UnitedLex | unitedlex
+# Hospitals and health systems
+Sanford Health | sanfordhealth
+Orlando Health | orlandohealth
+UF Health | ufhealth,uf
+Tampa General Hospital | tgh,tampageneral
+Jackson Health System | jacksonhealth,jhs
+BayCare | baycare
+Memorial Healthcare System | mhs,memorialhealthcare
+Allina Health | allina,allinahealth
+Fairview Health | fairview
+Prisma Health | prismahealth
+WellSpan Health | wellspan
+ChristianaCare | christianacare
+Hackensack Meridian Health | hmh,hackensackmeridian
+Yale New Haven Health | ynhh,ynhhs
+MUSC Health | musc
+Piedmont Healthcare | piedmont
+Wellstar | wellstar
+OhioHealth | ohiohealth
+Encompass Health | encompasshealth
+Select Medical | selectmedical
+Fresenius Medical Care | fmcna,fresenius
+Teladoc Health | teladoc
+ChenMed | chenmed
+Envision Healthcare | envision
+TeamHealth | teamhealth
+Sound Physicians | soundphysicians
+US Acute Care Solutions | usacs
+Vituity | vituity
+Banfield Pet Hospital | banfield
+VCA Animal Hospitals | vca
+BluePearl | bluepearl
+Mars | mars
+Christus Health | christushealth,christus
+Methodist Le Bonheur | mlh
+Ochsner LSU | ochsnerlsu
+Lee Health | leehealth
+HonorHealth | honorhealth
+Hartford HealthCare | hhc,hartfordhealthcare
+Beth Israel Lahey | bilh
+UCSF Health | ucsf
+# Universities
+# Retail, food, hospitality, services
+Publix | publix
+ABM Industries | abm
+Allied Universal | aus,alliedUniversal
+ADT | adt
+Fidelity Investments | fmr,fidelity
+Raymond James | raymondjames
+Jabil | jabil
+Lennar | lennar
+Sherwin-Williams | sherwinwilliams
+AutoZone | autozone
+O'Reilly Auto Parts | oreilly
+CarMax | carmax
+Enterprise Mobility | enterprise
+Hertz | hertz
+JetBlue | jetblue
+Royal Caribbean | rccl,royalcaribbean
+Carnival | carnival
+Universal Parks | universal,nbcuniversal
+Six Flags | sixflags
+Planet Fitness | planetfitness
+Equinox | equinox
+Sephora US | sephorausa
+Ulta Salon | ultabeauty
+Great Clips | greatclips
+H&R Block | hrblock
+Jackson Hewitt | jacksonhewitt
