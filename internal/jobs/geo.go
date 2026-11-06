@@ -37,6 +37,7 @@ var (
 	geoByName      map[string]geoPlace // name -> largest place with that name
 	geoZips        map[string]geoPoint
 	geoMaxWords    int
+	geoNameStates  map[string]int // how many states have a place with this name
 	geoStateMiddle = map[string]geoPoint{}
 )
 
@@ -45,6 +46,7 @@ func loadGeo() {
 		geoByState = map[string]geoPoint{}
 		geoByName = map[string]geoPlace{}
 		geoZips = map[string]geoPoint{}
+		geoNameStates = map[string]int{}
 		add := func(name, state string, point geoPoint, size int, city bool) {
 			name = geoNormalize(name)
 			if name == "" {
@@ -53,6 +55,7 @@ func loadGeo() {
 			key := name + "|" + state
 			if _, ok := geoByState[key]; !ok {
 				geoByState[key] = point
+				geoNameStates[name]++
 			}
 			// A bare name means the biggest city or town with it;
 			// townships only count when no city has the name.
@@ -223,7 +226,11 @@ func geoLocateUncached(text, hintState string, anyState bool) (geoPoint, string,
 				// Main Campus" is Cleveland, Ohio, not Cleveland, Florida:
 				// trust the hint only when the best-known place with this
 				// name is in that state.
-				if len(states) == 0 && geoByName[phrase].state != state {
+				// "Clear Lake" and "Lake Hallie" name towns in many states;
+				// without the job naming its state, only a name that is
+				// best known in the searched state and used in few states
+				// counts.
+				if len(states) == 0 && (geoByName[phrase].state != state || geoNameStates[phrase] > 4) {
 					continue
 				}
 				return point, state, true

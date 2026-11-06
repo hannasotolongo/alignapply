@@ -24,6 +24,8 @@ func TestGeoLocate(t *testing.T) {
 		{"Cleveland Clinic Main Campus", "FL", false, "", false},
 		{"United Hospital - Hastings Regina Campus", "FL", false, "", false},
 		{"Boston", "NY", false, "", false},
+		{"HM Clear Lake - Medical Office Building 1", "FL", false, "", false},
+		{"05066 - Lake Hallie Dialysis", "FL", false, "", false},
 	}
 	for _, c := range cases {
 		_, state, ok := geoLocate(c.text, c.hint, c.any)
