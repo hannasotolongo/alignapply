@@ -1097,3 +1097,10 @@ input:focus, textarea:focus, select:focus {
 .brand-jane { display: none; }
 .site-nav .brand-jane { display: block; height: 58px; width: auto; margin: 6px 0 0 6px; align-self: flex-end; }
 @media (max-width: 360px) { .site-nav .brand-jane { display: none; } }
+
+/* Hero: "Meet Jane." headline (Nov 2026) */
+.hero-full .cover-pane h1.hero-meet { font-size: clamp(48px, 7.6vw, 112px); }
+.hero-tagline { margin: 18px auto 0; font-size: clamp(22px, 2.6vw, 34px); font-weight: 700; letter-spacing: -0.025em; line-height: 1.15; color: var(--text); }
+.hero-interview { margin-top: 18px; color: var(--text-2); font-size: 16px; }
+.hero-interview a { color: var(--text); font-weight: 600; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: rgba(255, 255, 255, 0.35); }
+.hero-interview a:hover { text-decoration-color: var(--text); }
