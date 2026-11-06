@@ -950,7 +950,7 @@ async function viewOnboarding() {
   // Step 3: what they're looking for
   const stepPreferences = () => {
     const role = h("input", { type: "text", maxlength: 200, value: draft.targetRole, placeholder: "e.g. Registered Nurse, Software Engineer" });
-    const location = h("input", { type: "text", maxlength: 200, value: draft.location, placeholder: "e.g. Miami, FL" });
+    const location = h("input", { type: "text", maxlength: 200, value: draft.location, placeholder: "City, town or ZIP (e.g. Ocala, FL)" });
     const salary = h("input", { type: "text", inputmode: "numeric", maxlength: 20, value: draft.minimumSalary, placeholder: "Optional, e.g. 70000" });
     const checks = ["remote", "hybrid", "onsite"].map((key) => {
       const input = h("input", { type: "checkbox" });
@@ -1217,7 +1217,7 @@ function profileEditor(initial, { showRoleFields = false } = {}) {
   const summary = h("textarea", { maxlength: 5000, placeholder: "A short summary of your background." });
   summary.value = initial.summary || "";
   const targetRole = h("input", { type: "text", maxlength: 200, value: initial.targetRole || "", placeholder: "e.g. Software Engineer" });
-  const location = h("input", { type: "text", maxlength: 200, value: initial.location || "", placeholder: "e.g. Miami, FL" });
+  const location = h("input", { type: "text", maxlength: 200, value: initial.location || "", placeholder: "City, town or ZIP (e.g. Ocala, FL)" });
 
   const lists = {};
   const sections = EVIDENCE_SECTIONS.map(([category, label, hint]) => {
@@ -1463,7 +1463,7 @@ async function viewJobs() {
 
   const last = state.lastSearch && state.lastSearch.request;
   const targetRole = h("input", { type: "text", required: true, maxlength: 200, placeholder: "e.g. Registered Nurse", value: (last && last.targetRole) || profile.targetRole || "" });
-  const location = h("input", { type: "text", required: true, maxlength: 200, placeholder: "e.g. Miami, FL", value: (last && last.location) || profile.location || "" });
+  const location = h("input", { type: "text", required: true, maxlength: 200, placeholder: "City, town or ZIP (e.g. Ocala, FL)", value: (last && last.location) || profile.location || "" });
   const minimumSalary = h("input", { type: "text", inputmode: "numeric", placeholder: "Optional", value: (last && last.minimumSalary) || preferences.minimumSalary || "" });
   const remote = h("input", { type: "checkbox" });
   const hybrid = h("input", { type: "checkbox" });
@@ -1684,11 +1684,18 @@ function trackButton(match, extraClass) {
   return button;
 }
 
+// "12 mi away" when Jane knows how far the job is from the searched place.
+function distanceText(match) {
+  const miles = match && typeof match.distanceMiles === "number" ? match.distanceMiles : null;
+  if (miles === null) return "";
+  return miles < 1 ? "In your area" : `${Math.round(miles)} mi away`;
+}
+
 function jobCard(match) {
   const cls = fitClass(match);
   const preview = isPreview(match);
   const applyURL = safeUrl(match.applyURL || match.sourceURL || "");
-  const meta = [match.location, match.workArrangement, match.employmentType, salaryText(match)].filter(Boolean);
+  const meta = [match.location, distanceText(match), match.workArrangement, match.employmentType, salaryText(match)].filter(Boolean);
 
   return h("article", { class: "card job-card" },
     h("div", { class: "job-head" },
@@ -1726,7 +1733,7 @@ function openJobDetail(match) {
 
   openDialog(match.title,
     h("div", { class: "row-between" },
-      h("div", {}, h("div", { class: "muted" }, match.company), h("div", { class: "faint small" }, [match.location, salaryText(match)].filter(Boolean).join(" · "))),
+      h("div", {}, h("div", { class: "muted" }, match.company), h("div", { class: "faint small" }, [match.location, distanceText(match), salaryText(match)].filter(Boolean).join(" · "))),
       h("div", { class: `score ${cls}` }, preview ? "—" : `${match.matchPercentage}%`),
     ),
     h("div", { class: "row" },
@@ -3011,7 +3018,7 @@ async function viewHome() {
   // The only question Jane asks: what job, and where.
   const askTarget = (role = "", where = "") => {
     const roleInput = h("input", { type: "text", maxlength: 200, placeholder: "e.g. Registered Nurse", value: role });
-    const cityInput = h("input", { type: "text", maxlength: 200, placeholder: "e.g. Miami, FL", value: where });
+    const cityInput = h("input", { type: "text", maxlength: 200, placeholder: "City, town or ZIP (e.g. Ocala, FL)", value: where });
     const go = h("button", { class: "btn btn-primary", type: "submit" }, "Find my matches");
     results.replaceChildren(h("form", { class: "card stack", onsubmit: async (event) => {
       event.preventDefault();

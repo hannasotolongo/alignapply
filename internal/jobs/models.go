@@ -23,6 +23,9 @@ type SearchRequest struct {
 	Onsite         bool     `json:"onsite"`
 	EmploymentType []string `json:"employmentType,omitempty"`
 	CountryCode    string   `json:"countryCode,omitempty"`
+	// RadiusMiles is how far from Location a job may be. Zero means Jane
+	// starts at 40 miles and widens the area when few jobs are found.
+	RadiusMiles float64 `json:"radiusMiles,omitempty"`
 }
 
 // RequirementCategory describes what kind of evidence is needed.
@@ -68,10 +71,13 @@ type Job struct {
 	Company     string `json:"company"`
 	Description string `json:"description"`
 
-	Location        string `json:"location"`
-	CountryCode     string `json:"countryCode,omitempty"`
-	WorkArrangement string `json:"workArrangement,omitempty"`
-	EmploymentType  string `json:"employmentType,omitempty"`
+	Location    string `json:"location"`
+	CountryCode string `json:"countryCode,omitempty"`
+	// DistanceMiles is how far the job is from the searched place, when
+	// both are known.
+	DistanceMiles   *float64 `json:"distanceMiles,omitempty"`
+	WorkArrangement string   `json:"workArrangement,omitempty"`
+	EmploymentType  string   `json:"employmentType,omitempty"`
 
 	SalaryMin      *float64 `json:"salaryMin,omitempty"`
 	SalaryMax      *float64 `json:"salaryMax,omitempty"`
@@ -114,6 +120,8 @@ type JobMatch struct {
 	CountryCode     string `json:"countryCode,omitempty"`
 	WorkArrangement string `json:"workArrangement,omitempty"`
 	EmploymentType  string `json:"employmentType,omitempty"`
+	// DistanceMiles is how far the job is from the searched place.
+	DistanceMiles *float64 `json:"distanceMiles,omitempty"`
 
 	SalaryMin      *float64 `json:"salaryMin,omitempty"`
 	SalaryMax      *float64 `json:"salaryMax,omitempty"`

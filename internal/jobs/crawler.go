@@ -44,7 +44,7 @@ type BoardStore interface {
 	// still open, and when complete is true closes the board's other jobs.
 	SaveBoardJobs(ctx context.Context, board Board, jobs []Job, seenIDs []string, complete bool) error
 	RecordCrawl(ctx context.Context, board Board, status string, jobCount int, failed bool) error
-	SearchJobs(ctx context.Context, titlePattern string, limit int) ([]Job, error)
+	SearchJobs(ctx context.Context, titlePattern, nearPattern string, limit int) ([]Job, error)
 	PruneClosed(ctx context.Context, olderThan time.Duration) error
 }
 

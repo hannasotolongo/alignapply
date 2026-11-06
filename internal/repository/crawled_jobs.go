@@ -179,14 +179,15 @@ func (r *CrawledJobsRepository) RecordCrawl(ctx context.Context, board jobs.Boar
 
 // SearchJobs returns open US jobs whose title matches the regular
 // expression, newest first.
-func (r *CrawledJobsRepository) SearchJobs(ctx context.Context, titlePattern string, limit int) ([]jobs.Job, error) {
+func (r *CrawledJobsRepository) SearchJobs(ctx context.Context, titlePattern, nearPattern string, limit int) ([]jobs.Job, error) {
+	// Jobs in the searched state come first ($2 = '' puts none first).
 	rows, err := r.pool.Query(ctx, `
 		SELECT id, ats, company, title, location, country_code, work_arrangement, employment_type,
 			description, apply_url, posted_at, salary_min, salary_max, salary_currency, salary_period
 		FROM crawled_jobs
 		WHERE active AND description <> '' AND title_search ~ $1
-		ORDER BY posted_at DESC NULLS LAST, last_seen_at DESC
-		LIMIT $2`, titlePattern, limit)
+		ORDER BY ($2 <> '' AND location ~* $2) DESC, posted_at DESC NULLS LAST, last_seen_at DESC
+		LIMIT $3`, titlePattern, nearPattern, limit)
 	if err != nil {
 		return nil, fmt.Errorf("repository: search crawled jobs: %w", err)
 	}

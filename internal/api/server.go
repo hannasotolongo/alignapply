@@ -1226,6 +1226,8 @@ func (s *Server) handleJobMatches(
 			defer wg.Done()
 			for index := range work {
 				matches[index] = previewOrScore(request, processedJobs[index])
+				// Distance depends on this search's place, not the cached score.
+				matches[index].DistanceMiles = processedJobs[index].DistanceMiles
 			}
 		}()
 	}

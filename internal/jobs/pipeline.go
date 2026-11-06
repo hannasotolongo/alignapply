@@ -1,6 +1,7 @@
 package jobs
 
 import (
+	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -30,7 +31,48 @@ func NewPipeline() *Pipeline {
 // Provider-specific code should retrieve and normalize data.
 // Candidate matching belongs to the matching package.
 // This pipeline sits between those layers.
+// widenBelow is how few local jobs make Jane look farther out.
+const widenBelow = 8
+
 func (p *Pipeline) Process(
+	request SearchRequest,
+	input []Job,
+) []Job {
+	result := p.processWithin(request, input)
+	if request.RadiusMiles != 0 || len(result) >= widenBelow {
+		return withDistances(request, result)
+	}
+	if _, _, ok := geoLocate(request.Location, "", true); !ok {
+		return result
+	}
+	// Few jobs nearby: look 80 miles out, then 150, then the whole state,
+	// stopping as soon as there's a useful list.
+	for _, radius := range []float64{80, 150, wholeStateRadius} {
+		wider := request
+		wider.RadiusMiles = radius
+		more := p.processWithin(wider, input)
+		if len(more) > len(result) {
+			result = more
+		}
+		if len(result) >= widenBelow {
+			break
+		}
+	}
+	return withDistances(request, result)
+}
+
+// withDistances records how far each job is from the searched place.
+func withDistances(request SearchRequest, jobs []Job) []Job {
+	for i := range jobs {
+		if miles, _, ok := jobDistance(request, jobs[i]); ok {
+			rounded := math.Round(miles)
+			jobs[i].DistanceMiles = &rounded
+		}
+	}
+	return jobs
+}
+
+func (p *Pipeline) processWithin(
 	request SearchRequest,
 	input []Job,
 ) []Job {
@@ -314,6 +356,25 @@ func matchesLocationPreference(
 		// Missing provider metadata should not be interpreted as a confirmed
 		// mismatch. The UI can still display the posting's available data.
 		return true
+	}
+
+	// Any US town, city or ZIP: measure the distance.
+	if miles, jobState, ok := jobDistance(request, job); ok {
+		radius := request.RadiusMiles
+		if radius == 0 {
+			radius = defaultRadiusMiles
+		}
+		if radius == wholeStateRadius {
+			_, requestState, _ := geoLocate(request.Location, "", true)
+			return miles <= 150 || (jobState != "" && jobState == requestState)
+		}
+		return miles <= radius
+	}
+	// A search for a whole state ("Florida") takes any job in it.
+	if state, ok := geoStateOnly(request.Location); ok {
+		if _, has := usStatesIn(job.Location)[state]; has {
+			return true
+		}
 	}
 
 	// Same city name, different state ("Gainesville, FL" vs "Gainesville,

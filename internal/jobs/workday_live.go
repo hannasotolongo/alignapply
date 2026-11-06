@@ -3,7 +3,9 @@ package jobs
 import (
 	"context"
 	"log"
+	"math"
 	"net/url"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -109,6 +111,14 @@ func (p *WorkdayLiveProvider) Search(ctx context.Context, request SearchRequest)
 	if city != "" {
 		for code := range usStatesIn(request.Location) {
 			state = usStateFullName(code)
+		}
+		// A town or ZIP code with no state named: find its state.
+		if _, code, ok := geoLocate(request.Location, "", true); ok && state == "" && code != "" {
+			state = usStateFullName(code)
+		}
+		// Workday's search box doesn't know ZIP codes; search the state.
+		if zipRE.MatchString(city) {
+			city = ""
 		}
 	}
 
@@ -244,7 +254,11 @@ func (p *WorkdayLiveProvider) Search(ctx context.Context, request SearchRequest)
 	found := len(hits)
 
 	// 2. Read the details (description, apply link) of the best few,
-	// spread across employers so one big employer doesn't fill the list.
+	// nearest first, spread across employers so one big employer doesn't
+	// fill the list.
+	sort.SliceStable(hits, func(i, j int) bool {
+		return hitMiles(request, hits[i]) < hitMiles(request, hits[j])
+	})
 	hits = spreadAcrossBoards(hits, p.maxDetails)
 	var jobs []Job
 	for _, hit := range hits {
@@ -345,6 +359,11 @@ func workdayListingNear(request SearchRequest, locationsText string) bool {
 		return true
 	}
 	job := Job{Location: workdayLocation(text), CountryCode: countryFromLocation(text), WorkArrangement: arrangementFromLocation(text)}
+	// Keep anything the search could still show after widening its area;
+	// Jane's filters pick the nearest later.
+	if request.RadiusMiles == 0 {
+		request.RadiusMiles = wholeStateRadius
+	}
 	return matchesLocationPreference(request, job)
 }
 
@@ -425,4 +444,13 @@ func boardsForRole(role string, boards []Board) (fit, rest []Board) {
 		}
 	}
 	return fit, rest
+}
+
+// hitMiles is how far a listing is from the searched place; listings
+// that can't be placed come last.
+func hitMiles(request SearchRequest, hit workdayHit) float64 {
+	if miles, _, ok := jobDistance(request, Job{Location: workdayLocation(hit.location)}); ok {
+		return miles
+	}
+	return math.MaxFloat64
 }

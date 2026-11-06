@@ -59,7 +59,7 @@ func TestCrawledJobsRepository(t *testing.T) {
 		t.Fatalf("known = %v", known)
 	}
 
-	found, err := repo.SearchJobs(ctx, jobs.TitleSearchPattern("Retail Store Manager"), 50)
+	found, err := repo.SearchJobs(ctx, jobs.TitleSearchPattern("Retail Store Manager"), "", 50)
 	if err != nil || len(found) != 1 || found[0].Title != "Store Manager" || found[0].Source != "workday" {
 		t.Fatalf("search = %+v, %v", found, err)
 	}
@@ -68,14 +68,14 @@ func TestCrawledJobsRepository(t *testing.T) {
 	if err := repo.SaveBoardJobs(ctx, target, nil, []string{"w:1", "w:2"}, true); err != nil {
 		t.Fatal(err)
 	}
-	if found, _ := repo.SearchJobs(ctx, jobs.TitleSearchPattern("Barista"), 50); len(found) != 0 {
+	if found, _ := repo.SearchJobs(ctx, jobs.TitleSearchPattern("Barista"), "", 50); len(found) != 0 {
 		t.Fatalf("closed job still found: %+v", found)
 	}
 	// A partial read never closes jobs it didn't see.
 	if err := repo.SaveBoardJobs(ctx, target, nil, []string{"w:1"}, false); err != nil {
 		t.Fatal(err)
 	}
-	if found, _ := repo.SearchJobs(ctx, jobs.TitleSearchPattern("Team Leader"), 50); len(found) != 1 {
+	if found, _ := repo.SearchJobs(ctx, jobs.TitleSearchPattern("Team Leader"), "", 50); len(found) != 1 {
 		t.Fatalf("partial read closed a job: %+v", found)
 	}
 

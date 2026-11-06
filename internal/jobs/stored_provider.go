@@ -35,7 +35,23 @@ func (p *StoredJobsProvider) Search(ctx context.Context, request SearchRequest) 
 	if pattern == "" {
 		return nil, nil
 	}
-	return store.SearchJobs(ctx, pattern, p.limit)
+	return store.SearchJobs(ctx, pattern, NearSearchPattern(request.Location), p.limit)
+}
+
+// NearSearchPattern is a PostgreSQL regular expression for job locations
+// in the searched state, so a common role ("cashier") brings back the
+// jobs near the user first rather than the newest ones nationwide.
+func NearSearchPattern(location string) string {
+	state := ""
+	if _, code, ok := geoLocate(location, "", true); ok {
+		state = code
+	} else if code, ok := geoStateOnly(location); ok {
+		state = code
+	}
+	if state == "" {
+		return ""
+	}
+	return `(,\s*` + state + `\y|\y` + usStateFullName(state) + `\y)`
 }
 
 // TitleSearchPattern is a PostgreSQL regular expression that finds every
