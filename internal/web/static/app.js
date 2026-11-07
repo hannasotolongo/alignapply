@@ -3172,6 +3172,28 @@ function practiceBox(question, input, { open = false } = {}) {
   const recBar = h("div", { class: "rec-bar hidden" }, h("span", { class: "rec-dot" }), h("span", {}, "Listening"), clock, level);
 
   let lastSpoken = null;
+  let attempt = 0;
+  // Earlier attempts stay below, folded, so the user can compare.
+  const history = h("div", { class: "stack-sm" });
+
+  // retry keeps this attempt for comparison, clears the answer and starts
+  // recording again (or puts the cursor back in the box when typing).
+  const retry = (feedback) => {
+    const spoken = answer.value.trim();
+    const kept = h("details", { class: "card practice-attempt" },
+      h("summary", {}, `Attempt ${attempt}${lastSpoken ? ` · ${formatClock(lastSpoken.seconds)}` : ""}`),
+      h("div", { class: "stack-sm" },
+        h("p", { class: "muted" }, spoken),
+        deliverySlot.firstChild ? deliverySlot.firstChild.cloneNode(true) : null,
+        renderAnswerFeedback(feedback)));
+    history.prepend(kept);
+    answer.value = "";
+    lastSpoken = null;
+    deliverySlot.replaceChildren();
+    slot.replaceChildren();
+    if (mic) mic.click();
+    else answer.focus();
+  };
 
   const getFeedback = async () => {
     const text = answer.value.trim();
@@ -3184,9 +3206,13 @@ function practiceBox(question, input, { open = false } = {}) {
     try {
       const feedback = await api("/api/v1/interview-feedback", {
         method: "POST",
-        body: { question, answer: text, resumeText: input.resumeText, jobDescription: input.jobDescription, jobTitle: input.jobTitle || "" },
+        body: { question, answer: text, resumeText: input.resumeText, jobDescription: input.jobDescription, jobTitle: input.jobTitle || "", stage: input.stage || "" },
       });
-      slot.replaceChildren(renderAnswerFeedback(feedback));
+      attempt += 1;
+      const tryAgain = h("button", { class: "btn btn-primary btn-sm", type: "button", onclick: () => retry(feedback) }, mic ? "🎙 Try again" : "Try again");
+      slot.replaceChildren(renderAnswerFeedback(feedback),
+        h("div", { class: "row try-again" }, tryAgain,
+          h("span", { class: "faint small" }, "Use Jane's tips and record your answer again.")));
     } catch (error) {
       slot.replaceChildren(h("p", { class: "text-error small" }, error.code === "pro_required" ? "Choose a plan to practice with Jane." : error.message));
     } finally {
@@ -3288,7 +3314,7 @@ function practiceBox(question, input, { open = false } = {}) {
       recBar, answer,
       h("div", { class: "row" }, mic, submit,
         mic ? null : h("span", { class: "faint small" }, "Voice answers work in Chrome, Edge and Safari.")),
-      deliverySlot, slot));
+      deliverySlot, slot, history));
   if (open) box.open = true;
   return box;
 }
@@ -3300,11 +3326,13 @@ function practiceBox(question, input, { open = false } = {}) {
 
 // Interview types to practice for (matches tailor.InterviewStages).
 const INTERVIEW_STAGES = [
-  ["mixed", "Most likely questions (a mix)"],
-  ["phone", "Phone screen with a recruiter"],
-  ["behavioral", "Behavioral (“Tell me about a time…”)"],
-  ["role", "Role-specific or technical"],
-  ["final", "Final round with the hiring manager"],
+  ["mixed", "Not sure yet: the most likely questions"],
+  ["phone", "First introduction: phone screen with a recruiter"],
+  ["first", "First round: with the hiring manager"],
+  ["behavioral", "Behavioral round (“Tell me about a time…”)"],
+  ["role", "Technical or skills interview"],
+  ["panel", "Panel interview"],
+  ["final", "Final round"],
   ["ask", "Questions to ask the interviewer"],
 ];
 
@@ -3344,7 +3372,7 @@ async function viewInterviewPractice() {
   jobSelect.addEventListener("change", syncPaste);
   syncPaste();
 
-  const stageSelect = h("select", { "aria-label": "Interview type" },
+  const stageSelect = h("select", { "aria-label": "Interview stage" },
     INTERVIEW_STAGES.map(([value, label]) => h("option", { value }, label)));
 
   // One practice session: the request that made it, every question asked so
@@ -3382,7 +3410,7 @@ async function viewInterviewPractice() {
       }
       const data = await api("/api/v1/interview-questions", { method: "POST", body: { ...session.body, exclude: session.asked } });
       if (!again) {
-        session.input = { resumeText: session.body.resumeText, jobDescription: data.jobDescription, jobTitle: data.jobTitle };
+        session.input = { resumeText: session.body.resumeText, jobDescription: data.jobDescription, jobTitle: data.jobTitle, stage: session.stage };
         const label = (INTERVIEW_STAGES.find(([value]) => value === session.stage) || INTERVIEW_STAGES[0])[1];
         list.replaceChildren();
         results.replaceChildren(
@@ -3409,7 +3437,7 @@ async function viewInterviewPractice() {
       h("label", { class: "field" }, "Job", jobSelect),
       h("label", { class: "field" }, "Résumé", resumeSelect)),
     pasteArea,
-    h("label", { class: "field" }, "Interview type", stageSelect),
+    h("label", { class: "field" }, "Interview stage", stageSelect),
     h("div", { class: "row" }, go),
     h("p", { class: "faint small" }, "Tip: practice out loud. Voice answers work in Chrome, Edge and Safari; your microphone is only used while you're answering."));
 

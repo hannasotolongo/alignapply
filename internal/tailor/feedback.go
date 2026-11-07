@@ -17,6 +17,8 @@ type FeedbackRequest struct {
 	ResumeText     string
 	JobDescription string
 	JobTitle       string
+	// Stage is the interview stage practiced (see InterviewStages).
+	Stage string
 }
 
 // Feedback is Jane's coaching on one practice interview answer.
@@ -49,6 +51,9 @@ RULES:
 `)
 	if request.JobTitle != "" {
 		fmt.Fprintf(&b, "JOB: %s\n\n", request.JobTitle)
+	}
+	if stage, ok := InterviewStageNames[request.Stage]; ok {
+		fmt.Fprintf(&b, "INTERVIEW STAGE: %s. Coach for what interviewers listen for at this stage, and keep the stronger answer at the length and depth this stage calls for.\n\n", stage)
 	}
 	b.WriteString("JOB POSTING (for context):\n")
 	b.WriteString(request.JobDescription)
@@ -191,12 +196,24 @@ type QuestionOptions struct {
 
 // InterviewStages are the interview types a candidate can practice for.
 var InterviewStages = map[string]string{
-	"mixed":      `the 6 questions this employer is most likely to ask: a mix of behavioral ("tell me about a time"), role-specific, and one about the candidate's biggest gap versus the requirements`,
-	"phone":      `6 questions for a short recruiter phone screen: background, why this role and company, motivation, availability and pay expectations, and a quick check on the must-have requirements`,
+	"mixed":      `the 6 questions this employer is most likely to ask: a mix of behavioral ("tell me about a time…"), role-specific, and one about the candidate's biggest gap versus the requirements`,
+	"phone":      `6 questions for a first introduction phone screen with a recruiter: tell me about yourself, why this role and company, motivation for a move, availability and pay expectations, and a quick check on the must-have requirements`,
+	"first":      `6 questions for a first-round interview with the hiring manager: walking through the résumé, why this role, how the candidate's past work fits the job's main responsibilities, one behavioral question, and one about the biggest gap versus the requirements`,
 	"behavioral": `6 behavioral questions ("tell me about a time…") tied to this job's requirements, such as teamwork, conflict, failure, leadership, prioritizing and handling pressure`,
-	"role":       `6 role-specific or technical questions that test the skills, tools and knowledge this job requires`,
+	"role":       `6 technical or skills questions that test the specific skills, tools, methods and knowledge this job requires, the way a technical interviewer or skills assessment would`,
+	"panel":      `6 questions a panel of several interviewers (the hiring manager, a peer and someone from a partner team) would ask: collaboration across teams, role skills, a behavioral question, and how the candidate handles different stakeholders`,
 	"final":      `6 questions a hiring manager or senior leader would ask in a final round: impact, judgment, how the candidate would approach the first 90 days, culture fit, and why they're the best choice`,
 	"ask":        `6 smart questions the CANDIDATE should ask the interviewer about this role, team and company. For each, the approach explains why it's a good question and what to listen for in the answer`,
+}
+
+// InterviewStageNames say what each interview stage is, for Jane's coaching.
+var InterviewStageNames = map[string]string{
+	"phone":      "first introduction phone screen with a recruiter",
+	"first":      "first-round interview with the hiring manager",
+	"behavioral": "behavioral interview",
+	"role":       "technical or skills interview",
+	"panel":      "panel interview",
+	"final":      "final-round interview",
 }
 
 // Questions predicts likely interview questions for a job, with an honest

@@ -17,6 +17,8 @@ type interviewFeedbackRequest struct {
 	ResumeText     string `json:"resumeText"`
 	JobDescription string `json:"jobDescription"`
 	JobTitle       string `json:"jobTitle,omitempty"`
+	// Stage is the interview stage being practiced, for stage-aware coaching.
+	Stage string `json:"stage,omitempty"`
 }
 
 // POST /api/v1/interview-feedback (Pro)
@@ -70,6 +72,7 @@ func (s *Server) handleInterviewFeedback(w http.ResponseWriter, r *http.Request)
 		ResumeText:     strings.TrimSpace(request.ResumeText),
 		JobDescription: strings.TrimSpace(request.JobDescription),
 		JobTitle:       strings.TrimSpace(request.JobTitle),
+		Stage:          strings.TrimSpace(request.Stage),
 	})
 	if err != nil {
 		if errors.Is(err, tailor.ErrUnavailable) {
