@@ -1104,3 +1104,31 @@ input:focus, textarea:focus, select:focus {
 .hero-interview { margin-top: 18px; color: var(--text-2); font-size: 16px; }
 .hero-interview a { color: var(--text); font-weight: 600; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: rgba(255, 255, 255, 0.35); }
 .hero-interview a:hover { text-decoration-color: var(--text); }
+
+/* Homepage walkthrough: Jane takes you through four steps */
+.hero-jane { display: block; height: 150px; width: auto; margin: 0 auto 14px; }
+.jw { max-width: 1040px; }
+.jw-kicker { text-align: center; font-size: 13px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-3); margin: 0 0 8px; }
+.jw-step { display: grid; grid-template-columns: 64px minmax(0, 1fr) minmax(240px, 330px); gap: 24px; align-items: center; padding: 30px 0; border-top: 1px solid rgba(255, 255, 255, 0.09); scroll-margin-top: 90px; }
+.jw-step:last-child { border-bottom: 1px solid rgba(255, 255, 255, 0.09); }
+.jw-num { font-size: 44px; font-weight: 800; color: #52525b; line-height: 1; }
+.jw-text h3 { margin: 0; font-size: 27px; letter-spacing: -0.02em; line-height: 1.2; }
+.jw-text p { margin: 8px 0 0; font-size: 16px; line-height: 1.55; color: var(--text-2); }
+.jw-try { margin-top: 14px; }
+.jw-demo { border-radius: 18px; padding: 16px 18px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); }
+.jw-demo .jd-track { margin-top: 0; font-size: 12px; }
+.jw-input { font-size: 12px; padding: 6px 10px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.16); }
+.jw-label { flex-basis: 100%; font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-3); }
+.jw-job { display: flex; align-items: center; gap: 12px; }
+.jw-ring { width: 48px; height: 48px; flex: none; border-radius: 50%; border: 4px solid #fff; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; }
+.jw-job-name { flex: 1; display: grid; font-size: 14px; }
+.jw-job-name small { color: var(--text-3); font-size: 13px; }
+.jw-strong { font-weight: 600; }
+.jd-chip.jw-on { background: #fff; color: #08090b; font-weight: 600; border-color: #fff; }
+.jw-stats { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; color: var(--text-2); }
+@media (max-width: 760px) {
+  .jw-step { grid-template-columns: 44px minmax(0, 1fr); gap: 14px 16px; }
+  .jw-num { font-size: 32px; }
+  .jw-demo { grid-column: 2; }
+  .jw-text h3 { font-size: 22px; }
+}

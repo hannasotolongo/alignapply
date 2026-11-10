@@ -396,8 +396,7 @@ async function render() {
 function brand() {
   return link("/", { class: "brand", "aria-label": BRAND },
     h("img", { class: "brand-logo", src: "/logo-mark.svg", alt: "", width: 42, height: 42 }),
-    h("span", { class: "brand-text" }, h("span", { class: "brand-name" }, "Jane"), h("span", { class: "brand-sub" }, "Careers")),
-    h("img", { class: "brand-jane", src: "/jane-mini.png", alt: "", width: 57, height: 58 }));
+    h("span", { class: "brand-text" }, h("span", { class: "brand-name" }, "Jane"), h("span", { class: "brand-sub" }, "Careers")));
 }
 
 function siteNav() {
@@ -481,67 +480,49 @@ function startInterviewPrep() {
   startCheckout("interview");
 }
 
-function everythingJaneDoes() {
-  const interview = h("div", { class: "jd-tile jd-interview", id: "interview" },
-    h("div", { class: "jd-orb", "aria-hidden": "true" }),
-    h("div", { class: "stack-sm" },
-      h("span", { class: "jd-kicker" }, "Interview prep · New"),
-      h("h3", { class: "jd-interview-title" }, "Practice out loud. Get coached like a pro."),
-      h("p", {}, "Add the job, the company and your résumé. Jane asks the questions they're likely to ask, listens to your answer, and tells you how to improve your response."),
-      h("div", { class: "jd-foot" },
-        h("button", { class: "btn btn-primary btn-sm", onclick: startInterviewPrep }, "Try interview prep"),
-        h("span", { class: "faint small" }, `${(planFor("interview") || {}).displayPrice || "$8.99"}/month on its own · included in Pro`)),
-    ),
-    h("div", { class: "jd-demo" },
-      h("div", { class: "stack-sm" },
-        h("div", { class: "jd-q" }, "“Tell me about a campaign that didn't go as planned.”"),
-        jdWave(),
-        h("span", { class: "faint small" }, "● Listening… 1:42")),
-      h("div", { class: "stack-sm" },
-        jdStat("Pace", "148", "wpm · good", "demo-good"),
-        jdStat("Filler words", "3", "“um”, “like”", "demo-mid"),
-        jdStat("Length", "1:42", "just right", "demo-good")),
-    ),
-  );
+// janeWalkthrough shows the four steps Jane takes you through, each with
+// what she says and a small picture of it.
+function janeWalkthrough() {
+  const step = (num, title, quote, demo, extra) =>
+    h("div", { class: "jw-step", id: num === 4 ? "interview" : null },
+      h("span", { class: "jw-num", "aria-hidden": "true" }, String(num)),
+      h("div", { class: "jw-text" },
+        h("h3", {}, title),
+        h("p", {}, `“${quote}”`),
+        extra || null),
+      h("div", { class: "jw-demo" }, demo));
 
-  const resumeBar = (label, percent, best) => {
-    const bar = h("div", { class: best ? "jd-resbar best" : "jd-resbar" }, h("i", {}), h("span", {}, label));
-    bar.firstChild.style.setProperty("width", `${percent}%`);
-    return bar;
-  };
+  const chip = (text, tone) => h("span", { class: `jd-chip ${tone || ""}` }, text);
 
   return h("section", { class: "section", id: "features" },
-    h("div", { class: "container" },
-      h("h2", { class: "section-title" }, "Everything Jane does, in one place"),
-      h("div", { class: "jd-grid section-gap" },
-        interview,
-        h("div", { class: "jd-tile" },
-          h("span", { class: "jd-kicker" }, "Find"),
-          h("h3", {}, "Every job, scored for you"),
-          jdRing(88),
-          h("p", {}, "Tell Jane the job and city you want. She searches every time you sign in and tells you whether to apply, close a gap first, or skip it.")),
-        h("div", { class: "jd-tile" },
-          h("span", { class: "jd-kicker" }, "Apply"),
-          h("h3", {}, "See what you're missing"),
-          h("p", {}, "The requirements your résumé doesn't show yet, and the quickest fix for each."),
-          h("div", { class: "jd-chips" },
-            h("span", { class: "jd-chip demo-good" }, "✓ HubSpot"),
-            h("span", { class: "jd-chip demo-good" }, "✓ 5+ years"),
-            h("span", { class: "jd-chip demo-mid" }, "↗ Add SQL"))),
-        h("div", { class: "jd-tile" },
-          h("span", { class: "jd-kicker" }, "Apply"),
-          h("h3", {}, "Your best résumé for every job"),
-          h("p", {}, "Upload all your résumés. Jane picks the one that fits each job best, then tailors it to stand out using your experience."),
-          resumeBar("Marketing · 74%", 74),
-          resumeBar("Digital marketing · 88% ★", 88, true),
-          resumeBar("General · 61%", 61),
-          h("span", { class: "faint small" }, "★ Best fit for this job")),
-        h("div", { class: "jd-tile" },
-          h("span", { class: "jd-kicker" }, "Apply & track"),
-          h("h3", {}, "Skip the spam pile."),
-          h("p", {}, "One-click and auto-apply applications get filtered. Jane sends you to the employer's own site, with a résumé built for that job. Then she tracks every application, from saved to offer."),
-          h("div", { class: "jd-track" }, ["Saved", "Applied", "Interview", "Offer"].map((step) => h("div", { class: step === "Interview" ? "on" : "" }, step)))),
-      ),
+    h("div", { class: "container jw" },
+      h("p", { class: "jw-kicker" }, "How Jane helps"),
+      step(1, "Find jobs you're qualified for",
+        "Tell me the job you want and where. I'll find the openings you're most qualified for and show you how well you match each one.",
+        h("div", { class: "stack-sm" },
+          h("div", { class: "jd-chips" }, h("span", { class: "jw-input" }, "Office manager"), h("span", { class: "jw-input" }, "Tampa, FL")),
+          h("div", { class: "jw-job" },
+            h("span", { class: "jw-ring" }, "88%"),
+            h("span", { class: "jw-job-name" }, "Office Manager", h("small", {}, "Company · 5 mi")),
+            h("span", { class: "small demo-good jw-strong" }, "Great match")))),
+      step(2, "Get the right résumé for each job",
+        "This job lists Excel as a requirement, but your résumé doesn't show it. If you have that skill, I'll help you add it so they see it.",
+        h("div", { class: "jd-chips" },
+          h("span", { class: "jw-label" }, "This job requires"),
+          chip("✓ Scheduling", "demo-good"), chip("✓ 3+ years", "demo-good"), chip("⚠ Excel: not on your résumé", "demo-mid"))),
+      step(3, "Apply direct. Skip the spam pile.",
+        "I'll send you to their own site, not a job board, and track it from there.",
+        h("div", { class: "jd-track" }, ["Saved", "Applied", "Interview", "Offer"].map((name) => h("div", { class: name === "Interview" ? "on" : "" }, name)))),
+      step(4, "Practice for the interview",
+        "Pick your interview stage, like a phone screen or final round. Answer my questions out loud and I'll tell you how to improve.",
+        h("div", { class: "stack-sm" },
+          h("div", { class: "jd-chips" }, chip("Phone screen"), h("span", { class: "jd-chip jw-on" }, "Final round")),
+          h("div", { class: "jw-stats small" },
+            h("span", {}, "Pace ", h("b", { class: "demo-good" }, "good")),
+            h("span", {}, "Filler words ", h("b", { class: "demo-mid" }, "3")),
+            h("span", {}, "Try again ↻"))),
+        h("button", { class: "btn btn-sm jw-try", type: "button", onclick: startInterviewPrep },
+          `Try interview prep · ${(planFor("interview") || {}).displayPrice || "$8.99"}/month`)),
     ),
   );
 }
@@ -572,20 +553,18 @@ async function viewLanding() {
         h("div", { class: "cover-blob cover-blob-2", "aria-hidden": "true" }),
         h("div", { class: "cover-blob cover-blob-3", "aria-hidden": "true" }),
         h("div", { class: "container" }, h("div", { class: "cover-pane" },
+          h("img", { class: "hero-jane", src: "/jane-mini.png", alt: "Jane", width: 196, height: 200 }),
           h("h1", { class: "hero-meet" }, "Meet ", h("span", { class: "hl" }, "Jane.")),
-          h("p", { class: "hero-tagline" }, "Your next career move starts here."),
-          h("p", { class: "lead" }, "Find jobs you will land. Build a résumé that stands out. Prepare for interviews with confidence."),
+          h("p", { class: "hero-tagline" }, "Fewer applications. More offers."),
+          h("p", { class: "lead" }, "Jane finds the jobs you're most qualified for and helps you ace the interview."),
           h("div", { class: "row" },
-            link(signedIn ? "/app" : "/signup", { class: "btn btn-primary btn-lg" }, signedIn ? "Go to my account" : "Sign up today"),
+            link(signedIn ? "/app" : "/signup", { class: "btn btn-primary btn-lg" }, signedIn ? "Go to my account" : "Get started"),
           ),
-          h("p", { class: "hero-interview" }, "Already have an interview? ",
-            h("a", { href: "#interview", onclick: scrollTo("interview") }, "Practice for it with Jane ",
-              h("span", { class: "faint" }, `· ${(planFor("interview") || {}).displayPrice || "$8.99"}/month`), " →")),
-          h("p", { class: "faint small hero-note" }, "Cancel anytime · 7-day money-back guarantee · Jane does the searching for you"),
+          h("p", { class: "faint small hero-note" }, "Cancel anytime · 7-day money-back guarantee"),
         )),
-        h("a", { class: "scroll-cue", href: "#features", onclick: scrollTo("features") }, "See what Jane does ↓"),
+        h("a", { class: "scroll-cue", href: "#features", onclick: scrollTo("features") }, "How Jane helps ↓"),
       ),
-      everythingJaneDoes(),
+      janeWalkthrough(),
       pricingSection(plansInfo),
       h("section", { class: "section" },
         h("div", { class: "container narrow stack" },
