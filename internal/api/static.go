@@ -62,11 +62,12 @@ func setSecurityHeaders(w http.ResponseWriter) {
 	h.Set(
 		"Content-Security-Policy",
 		"default-src 'self'; "+
-			"script-src 'self'; "+
+			// Cloudflare Web Analytics: the beacon script and where it reports visits.
+			"script-src 'self' https://static.cloudflareinsights.com; "+
 			"style-src 'self' https://fonts.googleapis.com; "+
 			"font-src https://fonts.gstatic.com; "+
 			"img-src 'self' data:; "+
-			"connect-src 'self'; "+
+			"connect-src 'self' https://cloudflareinsights.com; "+
 			"frame-ancestors 'none'; "+
 			"base-uri 'self'; "+
 			"form-action 'self'",
