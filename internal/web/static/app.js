@@ -540,11 +540,6 @@ async function viewLanding() {
     ["How do I reach a person?", "Call customer service at 646-821-2027."],
   ];
 
-  const scrollTo = (id) => (event) => {
-    event.preventDefault();
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
-
   mount(h("div", {},
     siteNav(),
     h("main", {},
@@ -562,7 +557,6 @@ async function viewLanding() {
           ),
           h("p", { class: "faint small hero-note" }, "Cancel anytime · 7-day money-back guarantee"),
         )),
-        h("a", { class: "scroll-cue", href: "#features", onclick: scrollTo("features") }, "How Jane helps ↓"),
       ),
       janeWalkthrough(),
       pricingSection(plansInfo),
