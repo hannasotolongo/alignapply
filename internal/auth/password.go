@@ -23,7 +23,7 @@ const (
 	passwordSaltBytes      = 16
 	passwordKeyBytes       = 32
 
-	MinPasswordLength = 10
+	MinPasswordLength = 8
 	MaxPasswordLength = 256
 )
 

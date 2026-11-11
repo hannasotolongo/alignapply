@@ -18,6 +18,30 @@ type passwordSignUpRequest struct {
 	Email       string `json:"email"`
 	Password    string `json:"password"`
 	DisplayName string `json:"displayName,omitempty"`
+	FirstName   string `json:"firstName,omitempty"`
+	LastName    string `json:"lastName,omitempty"`
+	Phone       string `json:"phone,omitempty"`
+}
+
+// normalizePhone keeps the digits of a phone number (and a leading +) and
+// checks it has a sensible length. US numbers are 10 digits, or 11 with a
+// leading 1; international numbers are up to 15 digits.
+func normalizePhone(raw string) (string, error) {
+	raw = strings.TrimSpace(raw)
+	var digits strings.Builder
+	for _, r := range raw {
+		if r >= '0' && r <= '9' {
+			digits.WriteRune(r)
+		}
+	}
+	n := digits.Len()
+	if n < 10 || n > 15 {
+		return "", errors.New("Enter a valid phone number, including area code.")
+	}
+	if strings.HasPrefix(raw, "+") {
+		return "+" + digits.String(), nil
+	}
+	return digits.String(), nil
 }
 
 type passwordLoginRequest struct {
@@ -64,11 +88,24 @@ func (s *Server) handlePasswordSignUp(
 		return
 	}
 
-	displayName := strings.TrimSpace(request.DisplayName)
-	if len(displayName) > 120 {
-		writeError(w, http.StatusBadRequest, "displayName must not exceed 120 characters")
+	firstName := strings.TrimSpace(request.FirstName)
+	lastName := strings.TrimSpace(request.LastName)
+	if firstName == "" || lastName == "" {
+		writeError(w, http.StatusBadRequest, "Enter your first and last name.")
 		return
 	}
+	if len(firstName) > 60 || len(lastName) > 60 {
+		writeError(w, http.StatusBadRequest, "Names must not exceed 60 characters.")
+		return
+	}
+
+	phone, err := normalizePhone(request.Phone)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	displayName := firstName + " " + lastName
 
 	passwordHash, err := auth.HashPassword(request.Password)
 	if err != nil {
@@ -94,6 +131,11 @@ func (s *Server) handlePasswordSignUp(
 		log.Printf("create password user: %v", err)
 		writeError(w, http.StatusInternalServerError, "failed to create account")
 		return
+	}
+
+	if err := s.userCareerRepo.SetContactDetails(r.Context(), user.ID, firstName, lastName, phone); err != nil {
+		// The account exists; missing contact details shouldn't block sign-in.
+		log.Printf("save contact details for %s: %v", user.ID, err)
 	}
 
 	s.sendVerificationAfterSignUp(user)

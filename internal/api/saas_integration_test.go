@@ -220,7 +220,7 @@ func TestWebSaaSIntegration(t *testing.T) {
 
 	t.Run("signup sets HttpOnly session cookie", func(t *testing.T) {
 		response := do(http.MethodPost, "/api/v1/auth/signup", map[string]string{
-			"email": email, "password": "a-strong-password", "displayName": "SaaS User",
+			"email": email, "password": "a-strong-password", "firstName": "SaaS", "lastName": "User", "phone": "(646) 555-0100",
 		}, nil, nil)
 		if response.Code != http.StatusOK {
 			t.Fatalf("status = %d; body = %s", response.Code, response.Body)
@@ -245,7 +245,7 @@ func TestWebSaaSIntegration(t *testing.T) {
 
 	t.Run("duplicate signup is rejected case-insensitively", func(t *testing.T) {
 		response := do(http.MethodPost, "/api/v1/auth/signup", map[string]string{
-			"email": strings.ToUpper(email), "password": "a-strong-password",
+			"email": strings.ToUpper(email), "password": "a-strong-password", "firstName": "SaaS", "lastName": "User", "phone": "6465550100",
 		}, nil, nil)
 		if response.Code != http.StatusConflict {
 			t.Fatalf("status = %d, want 409; body = %s", response.Code, response.Body)
@@ -505,7 +505,7 @@ func TestWebSaaSIntegration(t *testing.T) {
 
 	signUp := func(t *testing.T, address string) *http.Cookie {
 		t.Helper()
-		response := do(http.MethodPost, "/api/v1/auth/signup", map[string]string{"email": address, "password": "a-strong-password"}, nil, nil)
+		response := do(http.MethodPost, "/api/v1/auth/signup", map[string]string{"email": address, "password": "a-strong-password", "firstName": "Test", "lastName": "User", "phone": "6465550100"}, nil, nil)
 		if response.Code != http.StatusOK {
 			t.Fatalf("sign up %s = %d %s", address, response.Code, response.Body)
 		}

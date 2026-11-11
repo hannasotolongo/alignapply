@@ -133,3 +133,23 @@ WHERE LOWER(email) = LOWER($1)
 
 	return user, passwordHash, nil
 }
+
+// SetContactDetails stores the first name, last name and phone number a
+// person gave at web sign-up.
+func (r *UserCareerRepository) SetContactDetails(
+	ctx context.Context,
+	userID string,
+	firstName string,
+	lastName string,
+	phone string,
+) error {
+	_, err := r.pool.Exec(ctx, `
+UPDATE users
+SET first_name = NULLIF($2, ''), last_name = NULLIF($3, ''), phone = NULLIF($4, ''), updated_at = NOW()
+WHERE id = $1::uuid`,
+		userID, strings.TrimSpace(firstName), strings.TrimSpace(lastName), strings.TrimSpace(phone))
+	if err != nil {
+		return fmt.Errorf("repository: set contact details: %w", err)
+	}
+	return nil
+}

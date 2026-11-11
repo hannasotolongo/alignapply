@@ -482,51 +482,134 @@ function startInterviewPrep() {
   startCheckout("interview");
 }
 
-// janeWalkthrough shows the four steps Jane takes you through, each with
-// what she says and a small picture of it.
-function janeWalkthrough() {
-  const step = (num, title, quote, demo, extra) =>
-    h("div", { class: "jw-step", id: num === 4 ? "interview" : null },
-      h("span", { class: "jw-num", "aria-hidden": "true" }, String(num)),
-      h("div", { class: "jw-text" },
-        h("h3", {}, title),
-        h("p", {}, `“${quote}”`),
-        extra || null),
-      h("div", { class: "jw-demo" }, demo));
+// ---------------------------------------------------------------------------
+// Homepage: Meet Jane, How Jane works (three illustrated steps), interview
+// practice sample, and a note from the founder.
+// ---------------------------------------------------------------------------
 
-  const chip = (text, tone) => h("span", { class: `jd-chip ${tone || ""}` }, text);
+// svgIcon turns a fixed, trusted SVG string from this file into an element.
+function svgIcon(markup) {
+  const t = document.createElement("template");
+  t.innerHTML = markup.trim();
+  return t.content.firstElementChild;
+}
 
-  return h("section", { class: "section", id: "features" },
-    h("div", { class: "container jw" },
-      h("p", { class: "jw-kicker" }, "How Jane helps"),
-      step(1, "Find jobs you're qualified for",
-        "Tell me the job you want and where. I'll find the openings you're most qualified for and show you how well you match each one.",
-        h("div", { class: "stack-sm" },
-          h("div", { class: "jd-chips" }, h("span", { class: "jw-input" }, "Office manager"), h("span", { class: "jw-input" }, "Tampa, FL")),
-          h("div", { class: "jw-job" },
-            h("span", { class: "jw-ring" }, "88%"),
-            h("span", { class: "jw-job-name" }, "Office Manager", h("small", {}, "Company · 5 mi")),
-            h("span", { class: "small demo-good jw-strong" }, "Great match")))),
-      step(2, "Get the right résumé for each job",
-        "This job lists Excel as a requirement, but your résumé doesn't show it. If you have that skill, I'll help you add it so they see it.",
-        h("div", { class: "jd-chips" },
-          h("span", { class: "jw-label" }, "This job requires"),
-          chip("✓ Scheduling", "demo-good"), chip("✓ 3+ years", "demo-good"), chip("⚠ Excel: not on your résumé", "demo-mid"))),
-      step(3, "Apply direct. Skip the spam pile.",
-        "I'll send you to their own site, not a job board, and track it from there.",
-        h("div", { class: "jd-track" }, ["Saved", "Applied", "Interview", "Offer"].map((name) => h("div", { class: name === "Interview" ? "on" : "" }, name)))),
-      step(4, "Practice for the interview",
-        "Pick your interview stage, like a phone screen or final round. Answer my questions out loud and I'll tell you how to improve.",
-        h("div", { class: "stack-sm" },
-          h("div", { class: "jd-chips" }, chip("Phone screen"), h("span", { class: "jd-chip jw-on" }, "Final round")),
-          h("div", { class: "jw-stats small" },
-            h("span", {}, "Pace ", h("b", { class: "demo-good" }, "good")),
-            h("span", {}, "Filler words ", h("b", { class: "demo-mid" }, "3")),
-            h("span", {}, "Try again ↻"))),
-        h("button", { class: "btn btn-sm jw-try", type: "button", onclick: startInterviewPrep },
-          `Try interview prep · ${(planFor("interview") || {}).displayPrice || "$8.99"}/month`)),
-    ),
-  );
+const HD_ARROW = '<svg class="hd-arrow" aria-hidden="true" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+const HD_SEARCH = '<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>';
+const HD_PERSON = '<svg aria-hidden="true" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#7ee39a" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>';
+
+function hdRing(text, tone, size) {
+  return h("span", { class: `hd-ring hd-ring-${tone || "white"} ${size || ""}` }, text);
+}
+
+function hdLines() {
+  return h("span", { class: "hd-lines", "aria-hidden": "true" }, h("i", {}), h("i", {}), h("i", {}), h("i", {}));
+}
+
+function hdStep(num, title, text, visual) {
+  return h("div", { class: "hd-step" },
+    h("div", { class: "hd-step-text" },
+      h("span", { class: "hd-num", "aria-hidden": "true" }, String(num)),
+      h("div", {}, h("h3", {}, title), h("p", {}, text))),
+    h("div", { class: "hd-card" }, visual));
+}
+
+function hdFindVisual() {
+  return h("div", {},
+    h("div", { class: "hd-search" }, svgIcon(HD_SEARCH), h("span", {}, "Office manager"), h("span", { class: "hd-dot" }, "·"), h("span", {}, "Tampa, FL")),
+    h("div", { class: "hd-job" },
+      hdRing("88%", "white", "hd-ring-lg"),
+      h("div", {},
+        h("div", { class: "hd-job-title" }, "Office Manager"),
+        h("div", { class: "hd-muted" }, "Company · 5 miles away"),
+        h("span", { class: "hd-pill-good" }, "Great match · Apply"))),
+    h("p", { class: "hd-caption" }, "Your match score for every job near you"));
+}
+
+function hdResume(label, score, tone, mark, good) {
+  return h("div", { class: "hd-resume" },
+    h("div", { class: "hd-kicker" }, label),
+    h("div", { class: "hd-paper" }, hdLines(), h("div", { class: good ? "hd-good" : "hd-mid" }, mark)),
+    hdRing(score, tone, "hd-ring-md"));
+}
+
+function hdFixVisual() {
+  return h("div", {},
+    h("p", { class: "hd-lead" }, "The job asks for ", h("b", {}, "Excel"), ". You know it, but it's not on your résumé."),
+    h("div", { class: "hd-compare" },
+      hdResume("Before", "72%", "gray", "✗ Missing: Excel", false),
+      svgIcon(HD_ARROW),
+      hdResume("After", "86%", "white", "✓ Added: Excel", true)));
+}
+
+function hdApplyVisual() {
+  const pile = h("div", { class: "hd-pile", "aria-hidden": "true" });
+  for (let i = 0; i < 6; i++) {
+    const card = h("i", {});
+    card.style.setProperty("left", `${10 + i * 7}px`);
+    card.style.setProperty("top", `${6 + i * 6}px`);
+    pile.append(card);
+  }
+  return h("div", { class: "hd-two" },
+    h("div", { class: "hd-side hd-side-bad" },
+      h("div", { class: "hd-kicker" }, "One-click job board"),
+      pile,
+      h("div", { class: "hd-side-title" }, "Lost in the pile"),
+      h("div", { class: "hd-muted small" }, "Hundreds of mass applications")),
+    h("div", { class: "hd-side hd-side-good" },
+      h("div", { class: "hd-kicker" }, "Employer's own site"),
+      h("div", { class: "hd-direct" }, h("span", { class: "hd-paper hd-paper-sm" }, hdLines()), svgIcon(HD_ARROW), h("span", { class: "hd-person" }, svgIcon(HD_PERSON))),
+      h("div", { class: "hd-side-title" }, "Seen by the hiring team"),
+      h("div", { class: "hd-muted small" }, "With a résumé built for that job")));
+}
+
+function hdInterviewVisual() {
+  const wave = h("div", { class: "hd-wave", "aria-hidden": "true" });
+  for (const height of [14, 30, 44, 24, 50, 20, 38, 16, 42, 26, 12]) {
+    const bar = h("i", {});
+    bar.style.setProperty("height", `${height}px`);
+    wave.append(bar);
+  }
+  const stat = (label, value, note, tone) => h("div", { class: "hd-stat" }, h("span", {}, label), h("b", { class: tone === "mid" ? "hd-mid" : "" }, value), h("small", { class: tone === "mid" ? "hd-mid" : "hd-good" }, note));
+  return h("div", {},
+    h("div", { class: "hd-chips" }, h("span", {}, "Phone screen"), h("span", {}, "First round"), h("span", { class: "on" }, "Final round"), h("em", {}, "Sample")),
+    h("div", { class: "hd-question" }, "“Tell me about a time you handled a difficult customer.”"),
+    wave,
+    h("div", { class: "hd-stats" }, stat("Pace", "148", "wpm · good"), stat("Filler words", "3", "“um”, “like”", "mid"), stat("Length", "1:42", "just right")),
+    h("p", { class: "hd-tip" }, h("b", {}, "How to improve: "), "Lead with the result, then explain the steps you took."),
+    h("span", { class: "hd-again" }, "Try again ↻"));
+}
+
+function janeHomeSections() {
+  const how = h("section", { class: "hd-section", id: "features" },
+    h("div", { class: "container hd-wrap" },
+      h("p", { class: "hd-eyebrow" }, "How Jane works"),
+      h("h2", { class: "hd-h2" }, "Apply to fewer jobs. Land more interviews."),
+      hdStep(1, "Find the jobs", "Tell Jane the job and city. She scores every opening near you, so you start with the ones you're most qualified for.", hdFindVisual()),
+      hdStep(2, "Fix your résumé", "Jane checks the job's requirements against your résumé and shows what's missing. Often it's a skill you have but never listed. Add it, and your match goes up.", hdFixVisual()),
+      hdStep(3, "Apply direct", "One-click job boards bury you in a pile of mass applications. Jane tailors your best résumé and sends you to the employer's own site, where your application has a real shot at being seen. Then she tracks it.", hdApplyVisual()),
+    ));
+
+  const practice = h("section", { class: "hd-section hd-border", id: "interview" },
+    h("div", { class: "container hd-wrap" },
+      h("h2", { class: "hd-h2" }, "Walk into every interview ready."),
+      h("div", { class: "hd-split" },
+        h("div", { class: "hd-points" },
+          h("div", {}, h("span", { class: "hd-num" }, "1"), h("div", {}, h("h3", {}, "Pick your stage"), h("p", {}, "Phone screen, first round, final round and more."))),
+          h("div", {}, h("span", { class: "hd-num" }, "2"), h("div", {}, h("h3", {}, "Answer out loud"), h("p", {}, "Jane asks the questions they're likely to ask."))),
+          h("div", {}, h("span", { class: "hd-num" }, "3"), h("div", {}, h("h3", {}, "Get coached"), h("p", {}, "Pace, filler words and how to improve. Then try again.")))),
+        h("div", { class: "hd-card" }, hdInterviewVisual())),
+    ));
+
+  const founder = h("section", { class: "hd-section hd-border" },
+    h("div", { class: "container hd-founder" },
+      h("p", { class: "hd-eyebrow" }, "A note from the founder"),
+      h("p", { class: "hd-note" }, "“A few months ago, I was doing what everyone tells you to do, apply to as many jobs as possible. I was sending out hundreds of applications a week and hearing nothing back. The problem wasn’t effort. I didn’t know which jobs I actually had a shot at, what my résumé was missing, or how to stand out once I got the interview. So I built the tool I wish I’d had. Jane finds the jobs you’re most qualified for, shows you exactly what to fix, and helps you walk into the interview ready. Fewer applications, more offers.”"),
+      h("p", { class: "hd-note" }, "Good luck, I am rooting for you."),
+      h("p", { class: "hd-sign" }, "Hanna ", h("span", {}, "· Founder, Jane Careers")),
+    ));
+
+  return [how, practice, founder];
 }
 
 async function viewLanding() {
@@ -545,22 +628,17 @@ async function viewLanding() {
   mount(h("div", {},
     siteNav(),
     h("main", {},
-      h("section", { class: "hero hero-full" },
-        h("div", { class: "cover-blob cover-blob-1", "aria-hidden": "true" }),
-        h("div", { class: "cover-blob cover-blob-2", "aria-hidden": "true" }),
-        h("div", { class: "cover-blob cover-blob-3", "aria-hidden": "true" }),
-        h("div", { class: "container" }, h("div", { class: "cover-pane" },
-          h("img", { class: "hero-jane", src: "/jane-mini.png", alt: "Jane", width: 196, height: 200 }),
-          h("h1", { class: "hero-meet" }, "Meet ", h("span", { class: "hl" }, "Jane.")),
-          h("p", { class: "hero-tagline" }, "Fewer applications. More offers."),
+      h("section", { class: "hd-hero" },
+        h("div", { class: "container" },
+          h("img", { src: "/jane-mini.png", alt: "Jane", width: 196, height: 200 }),
+          h("h1", {}, "Meet Jane."),
+          h("p", { class: "hd-slogan" }, "Fewer applications. More offers."),
           h("p", { class: "lead" }, "Jane finds the jobs you're most qualified for and helps you ace the interview."),
-          h("div", { class: "row" },
-            link(signedIn ? "/app" : "/signup", { class: "btn btn-primary btn-lg" }, signedIn ? "Go to my account" : "Get started"),
-          ),
+          link(signedIn ? "/app" : "/signup", { class: "btn btn-primary btn-lg" }, signedIn ? "Go to my account" : "Get started"),
           h("p", { class: "faint small hero-note" }, "Cancel anytime · 7-day money-back guarantee"),
-        )),
+        ),
       ),
-      janeWalkthrough(),
+      ...janeHomeSections(),
       pricingSection(plansInfo),
       h("section", { class: "section" },
         h("div", { class: "container narrow stack" },
@@ -776,7 +854,11 @@ async function viewAuth(mode) {
 
     const data = new FormData(form);
     const body = { email: data.get("email"), password: data.get("password") };
-    if (isSignup) body.displayName = data.get("displayName") || "";
+    if (isSignup) {
+      body.firstName = data.get("firstName") || "";
+      body.lastName = data.get("lastName") || "";
+      body.phone = data.get("phone") || "";
+    }
 
     try {
       const session = await api(isSignup ? "/api/v1/auth/signup" : "/api/v1/auth/login", {
@@ -804,11 +886,14 @@ async function viewAuth(mode) {
       submit.disabled = false;
     }
   } },
-    isSignup ? h("label", { class: "field" }, "Name", h("input", { type: "text", name: "displayName", autocomplete: "name", maxlength: 120 })) : null,
+    isSignup ? h("div", { class: "field-row" },
+      h("label", { class: "field" }, "First name", h("input", { type: "text", name: "firstName", autocomplete: "given-name", maxlength: 60, required: true })),
+      h("label", { class: "field" }, "Last name", h("input", { type: "text", name: "lastName", autocomplete: "family-name", maxlength: 60, required: true }))) : null,
     h("label", { class: "field" }, "Email", h("input", { type: "email", name: "email", autocomplete: "email", required: true })),
+    isSignup ? h("label", { class: "field" }, "Phone number", h("input", { type: "tel", name: "phone", autocomplete: "tel", inputmode: "tel", placeholder: "(555) 555-5555", required: true })) : null,
     h("label", { class: "field" }, "Password",
-      h("input", { type: "password", name: "password", autocomplete: isSignup ? "new-password" : "current-password", required: true, minlength: isSignup ? 10 : undefined }),
-      isSignup ? h("span", { class: "faint small" }, "At least 10 characters.") : link("/forgot-password", { class: "faint small" }, "Forgot password?"),
+      h("input", { type: "password", name: "password", autocomplete: isSignup ? "new-password" : "current-password", required: true, minlength: isSignup ? 8 : undefined }),
+      isSignup ? h("span", { class: "faint small" }, "At least 8 characters.") : link("/forgot-password", { class: "faint small" }, "Forgot password?"),
     ),
     error,
     submit,
@@ -2346,7 +2431,7 @@ async function viewResetPassword() {
       submit.disabled = false;
     }
   } },
-    h("label", { class: "field" }, "New password", password, h("span", { class: "faint small" }, "At least 10 characters.")),
+    h("label", { class: "field" }, "New password", password, h("span", { class: "faint small" }, "At least 8 characters.")),
     error, submit);
 
   mount(h("div", {}, siteNav(),
