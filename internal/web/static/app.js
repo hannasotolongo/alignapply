@@ -688,8 +688,8 @@ function planCards(plansInfo, { compact = false, include = ["monthly", "intervie
 
   const proFeatures = [
     "Job search with match scores",
-    "What you're missing and how to fix it",
-    "Best-résumé pick and tailored résumé",
+    "What your résumé is missing and how to fix it",
+    "Upload all your résumés. Jane picks the best one for each job and tailors it",
     plansInfo.gmailEnabled ? "Application tracker with Gmail sync" : "Application tracker",
     h("strong", {}, "Interview Prep included"),
   ];
