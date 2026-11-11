@@ -377,6 +377,7 @@ function navigate(path, { replace } = {}) {
 window.addEventListener("popstate", render);
 
 async function render() {
+  document.body.classList.remove("nav-locked");
   const path = location.pathname.replace(/\/+$/, "") || "/";
   const view = routes[path];
   if (!view) {
@@ -480,6 +481,7 @@ function siteNav() {
   const toggle = h("button", { type: "button", class: "nav-toggle", "aria-label": "Menu", "aria-expanded": "false", onclick: () => {
     const open = !header.classList.contains("menu-open");
     header.classList.toggle("menu-open", open);
+    document.body.classList.toggle("nav-locked", open);
     toggle.setAttribute("aria-expanded", open ? "true" : "false");
   } }, svgIcon('<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>'));
 

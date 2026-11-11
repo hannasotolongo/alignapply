@@ -1353,3 +1353,13 @@ body { background: #0b0b0c; background-image: none; }
 .hd-sub { margin: 14px auto 0; max-width: 700px; text-align: center; font-size: 18px; line-height: 1.55; color: var(--text-2); }
 .hd-roles { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 6px; }
 .hd-roles span { font-size: 12.5px; padding: 5px 10px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.14); color: #c9c9cf; }
+
+/* Phone menu: the header's blur makes it the frame for fixed children, which
+   squeezed the open menu to zero height. Drop the blur while it's open. */
+@media (max-width: 900px) {
+  .site-nav.menu-open { -webkit-backdrop-filter: none; backdrop-filter: none; background: #0b0b0c; }
+  .site-nav.menu-open .nav-panel { height: calc(100vh - 64px); height: calc(100dvh - 64px); }
+  .site-nav.menu-open nav a[href="/pricing"] { display: flex; }
+  .site-nav.menu-open .nav-menus { flex-wrap: nowrap; }
+  body.nav-locked { overflow: hidden; }
+}
