@@ -54,6 +54,7 @@ type Server struct {
 	kitLimiter     *attemptLimiter
 
 	fitCheckUserLimiter *attemptLimiter
+	trialLimiter        *attemptLimiter
 }
 
 // WebConfig configures the browser-facing SaaS: where it is hosted (used for
@@ -124,6 +125,7 @@ func NewServer(
 
 		kitLimiter:          newAttemptLimiter(20, time.Hour),
 		fitCheckUserLimiter: newAttemptLimiter(ProJobMatchesPerHour, time.Hour),
+		trialLimiter:        newAttemptLimiter(trialSearchesPerDay, 24*time.Hour),
 	}
 
 	server.jobProvider = newJobProvider(server)
@@ -446,6 +448,8 @@ func (s *Server) routes() {
 		)
 	}
 
+	// Free trial: one search without an account (janecareers.com/try).
+	s.mux.HandleFunc("/api/v1/trial/search", s.handleTrialSearch)
 	s.mux.HandleFunc("/api/v1/billing/plans", s.handleBillingPlans)
 
 	// Stripe calls this directly; it is authenticated by signature.

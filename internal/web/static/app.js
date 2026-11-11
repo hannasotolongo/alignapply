@@ -349,6 +349,7 @@ function resumeDropzone(onUploaded, { label = "Upload résumé PDFs", hint = "Se
 const routes = {
   "/": viewLanding,
   "/pricing": viewLanding,
+  "/try": viewTry,
   "/fit-check": () => navigate(state.user ? "/app/fit-check" : "/signup", { replace: true }),
   "/login": () => viewAuth("login"),
   "/signup": () => viewAuth("signup"),
@@ -383,7 +384,10 @@ async function render() {
     return;
   }
   await view();
-  if (path === "/pricing") {
+  const anchor = location.hash ? document.getElementById(decodeURIComponent(location.hash.slice(1))) : null;
+  if (anchor) {
+    anchor.scrollIntoView();
+  } else if (path === "/pricing") {
     const pricing = document.getElementById("pricing");
     if (pricing) pricing.scrollIntoView();
   }
@@ -399,22 +403,98 @@ function brand() {
     h("span", { class: "brand-text" }, h("span", { class: "brand-name" }, "Jane"), h("span", { class: "brand-sub" }, "Careers")));
 }
 
+// ---------------------------------------------------------------------------
+// Top menu: Product, Interview Prep and Resources open a panel of links;
+// on a phone the whole menu opens from the menu button.
+// ---------------------------------------------------------------------------
+
+const NAV_MENUS = [
+  { label: "Product", items: [
+    { title: "Job search", text: "Jobs near you, scored by how well you fit", href: "/try" },
+    { title: "Résumé check", text: "What you're missing and how to fix it", href: "/try" },
+    { title: "Tailored résumés", text: "Your best résumé, fitted to each job", href: "/#how" },
+    { title: "Apply direct", text: "Straight to the employer's own site", href: "/#how" },
+    { title: "Application tracker", text: "Every application in one place", href: "/pricing" },
+    { title: "How Jane works", text: "Find the jobs, fix your résumé, apply", href: "/#how" },
+  ] },
+  { label: "Interview Prep", items: [
+    { title: "Practice out loud", text: "Jane asks, you answer, she coaches you", href: "/#interview" },
+    { title: "Interview questions by job", text: "Likely questions and sample answers", href: "/interview-questions", plain: true },
+    { title: "Tell me about yourself", text: "How to answer the first question", href: "/interview-tips/tell-me-about-yourself", plain: true },
+    { title: "Your greatest weakness", text: "An honest answer that still lands", href: "/interview-tips/what-is-your-greatest-weakness", plain: true },
+    { title: "The STAR method", text: "Answer any \"tell me about a time\" question", href: "/interview-tips/star-method", plain: true },
+    { title: "Interview Prep plan", text: "Just the interview practice", href: "/pricing" },
+  ] },
+  { label: "Resources", items: [
+    { title: "Interview questions", text: "By job, with sample answers", href: "/interview-questions", plain: true },
+    { title: "Why should we hire you?", text: "Turn it into your best answer", href: "/interview-tips/why-should-we-hire-you", plain: true },
+    { title: "Questions to ask the interviewer", text: "End the interview strong", href: "/interview-tips/questions-to-ask-the-interviewer", plain: true },
+    { title: "Schools & career programs", text: "Pro for every student", href: "/pricing#schools" },
+    { title: "Customer service", text: "Call 646-821-2027", href: "/contact", plain: true },
+    { title: "Refund policy", text: "3-day money-back guarantee", href: "/refunds", plain: true },
+  ] },
+];
+
+function closeNavMenus(except) {
+  document.querySelectorAll(".nav-item.open").forEach((item) => {
+    if (item === except) return;
+    item.classList.remove("open");
+    const trigger = item.querySelector(".nav-trigger");
+    if (trigger) trigger.setAttribute("aria-expanded", "false");
+  });
+}
+
+document.addEventListener("click", (event) => {
+  if (!event.target.closest || !event.target.closest(".nav-item")) closeNavMenus();
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    closeNavMenus();
+    document.querySelectorAll(".site-nav.menu-open").forEach((nav) => nav.classList.remove("menu-open"));
+  }
+});
+
+function navMenuLink(item) {
+  const children = [h("span", { class: "menu-link-title" }, item.title), h("span", { class: "menu-link-text" }, item.text)];
+  // Guide and legal pages are separate pages, so they load in full.
+  if (item.plain) return h("a", { class: "menu-link", href: item.href }, ...children);
+  return link(item.href, { class: "menu-link" }, ...children);
+}
+
 function siteNav() {
   const signedIn = !!state.user;
-  return h("header", { class: "site-nav" },
-    h("div", { class: "container" },
-      brand(),
-      h("nav", { class: "row" },
-        link("/pricing", { class: "btn btn-ghost btn-sm" }, "Pricing"),
+  const items = NAV_MENUS.map((menu, index) => {
+    const panelId = `nav-panel-${index}`;
+    const item = h("div", { class: "nav-item" });
+    const trigger = h("button", { type: "button", class: "nav-trigger", "aria-expanded": "false", "aria-controls": panelId, onclick: () => {
+      const open = !item.classList.contains("open");
+      closeNavMenus(item);
+      item.classList.toggle("open", open);
+      trigger.setAttribute("aria-expanded", open ? "true" : "false");
+    } }, menu.label, svgIcon('<svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>'));
+    item.append(trigger, h("div", { class: "nav-drop", id: panelId }, menu.items.map(navMenuLink)));
+    return item;
+  });
+
+  const header = h("header", { class: "site-nav" });
+  const toggle = h("button", { type: "button", class: "nav-toggle", "aria-label": "Menu", "aria-expanded": "false", onclick: () => {
+    const open = !header.classList.contains("menu-open");
+    header.classList.toggle("menu-open", open);
+    toggle.setAttribute("aria-expanded", open ? "true" : "false");
+  } }, svgIcon('<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>'));
+
+  header.append(h("div", { class: "container nav-bar" },
+    brand(),
+    h("div", { class: "nav-panel" },
+      h("nav", { class: "nav-menus", "aria-label": "Main" }, ...items, link("/pricing", { class: "nav-trigger nav-plain" }, "Pricing")),
+      h("div", { class: "nav-actions" },
         signedIn
           ? link("/app", { class: "btn btn-primary btn-sm" }, "My account")
-          : [
-              link("/login", { class: "btn btn-ghost btn-sm" }, "Sign in"),
-              link("/signup", { class: "btn btn-primary btn-sm" }, "Get started"),
-            ],
-      ),
+          : [link("/login", { class: "nav-signin" }, "Sign in"), link("/try", { class: "btn btn-primary btn-sm" }, "Try it free")]),
     ),
-  );
+    toggle,
+  ));
+  return header;
 }
 
 function legalLinks(className) {
@@ -427,12 +507,18 @@ function legalLinks(className) {
 }
 
 function siteFooter() {
-  return h("footer", { class: "site-footer" },
-    h("div", { class: "container row-between" },
-      h("span", {}, `© ${new Date().getFullYear()} ${BRAND} · Payments secured by Stripe · Customer service: `, h("a", { href: "tel:+16468212027" }, "646-821-2027"),
-        // A plain link (not the app router) so it loads the static guide pages.
-        " · ", h("a", { href: "/interview-questions" }, "Interview questions")),
-      legalLinks("footer-links"),
+  const column = (title, ...links) => h("div", { class: "foot-col" }, h("h2", {}, title), ...links);
+  const page = (href, text) => h("a", { href }, text);
+  return h("footer", { class: "site-footer foot-big" },
+    h("div", { class: "container foot-grid" },
+      h("div", { class: "foot-brand" }, brand(), h("p", {}, "Fewer applications. More offers.")),
+      column("Product", link("/#how", {}, "How Jane works"), link("/#interview", {}, "Interview Prep"), link("/pricing", {}, "Pricing"), link("/try", {}, "Try it free")),
+      column("Resources", page("/interview-questions", "Interview questions"), page("/interview-tips/tell-me-about-yourself", "Interview tips"), link("/pricing#schools", {}, "Schools & career programs")),
+      column("Customer service", page("tel:+16468212027", "646-821-2027"), page("/contact", "Contact us")),
+    ),
+    h("div", { class: "container foot-bottom" },
+      h("span", {}, `© ${new Date().getFullYear()} ${BRAND} · Payments secured by Stripe`),
+      h("nav", { class: "footer-links", "aria-label": "Legal" }, page("/terms", "Terms"), page("/privacy", "Privacy"), page("/refunds", "Refunds")),
     ),
   );
 }
@@ -581,13 +667,14 @@ function hdInterviewVisual() {
 }
 
 function janeHomeSections() {
-  const how = h("section", { class: "hd-section", id: "features" },
+  const how = h("section", { class: "hd-section", id: "how" },
     h("div", { class: "container hd-wrap" },
       h("p", { class: "hd-eyebrow" }, "How Jane works"),
       h("h2", { class: "hd-h2" }, "Apply to fewer jobs. Land more interviews."),
       hdStep(1, "Find the jobs", "Tell Jane the job and city. She scores every opening near you, so you start with the ones you're most qualified for.", hdFindVisual()),
       hdStep(2, "Fix your résumé", "Jane checks the job's requirements against your résumé and shows what's missing. Often it's a skill you have but never listed. Add it, and your match goes up.", hdFixVisual()),
       hdStep(3, "Apply direct", "One-click job boards bury you in a pile of mass applications. Jane tailors your best résumé and sends you to the employer's own site, where your application has a real shot at being seen. Then she tracks it.", hdApplyVisual()),
+      state.user ? null : h("p", { class: "hd-try" }, link("/try", {}, "Try it on your résumé →")),
     ));
 
   const practice = h("section", { class: "hd-section hd-border", id: "interview" },
@@ -601,6 +688,21 @@ function janeHomeSections() {
         h("div", { class: "hd-card" }, hdInterviewVisual())),
     ));
 
+  const row = (label, board, jane) => h("tr", {}, h("th", { scope: "row" }, label), h("td", {}, board), h("td", {}, jane));
+  const why = h("section", { class: "hd-section hd-border", id: "why" },
+    h("div", { class: "container hd-wrap" },
+      h("p", { class: "hd-eyebrow" }, "Why Jane"),
+      h("h2", { class: "hd-h2" }, "Apply direct, skip the spam pile."),
+      h("div", { class: "why-wrap" },
+        h("table", { class: "why-table" },
+          h("thead", {}, h("tr", {}, h("th", { scope: "col" }, h("span", { class: "sr-only" }, "Compare")), h("th", { scope: "col" }, "One-click job boards"), h("th", { scope: "col", class: "why-jane" }, "Jane"))),
+          h("tbody", {},
+            row("Which jobs to apply to", "Endless scrolling", "Match scores on jobs near you"),
+            row("Your résumé", "Same one for every job", "Your best one, tailored to each job"),
+            row("Where you apply", "Lost in the pile", "The employer's own site"),
+            row("The interview", "You're on your own", "Interview Prep included")))),
+    ));
+
   const founder = h("section", { class: "hd-section hd-border" },
     h("div", { class: "container hd-founder" },
       h("p", { class: "hd-eyebrow" }, "A note from the founder"),
@@ -609,7 +711,7 @@ function janeHomeSections() {
       h("p", { class: "hd-sign" }, "Hanna ", h("span", {}, "· Founder, Jane Careers")),
     ));
 
-  return [how, practice, founder];
+  return [how, practice, why, founder];
 }
 
 async function viewLanding() {
@@ -617,13 +719,6 @@ async function viewLanding() {
   const plansInfo = await loadPlans();
   if (state.user) await loadBilling().catch(() => null);
   const signedIn = !!state.user;
-
-  const faqs = [
-    ["Can I get just the interview prep?", `Yes. Interview Prep is ${(planFor("interview") || {}).displayPrice || "$8.99"} a month and includes unlimited practice for any job. You can upgrade to Pro anytime to add job search and résumé tools.`],
-    ["What if Jane isn't for me?", "Your first payment comes with a 7-day money-back guarantee. Contact us within 7 days and we'll refund it in full. You can cancel any time from Plan & billing."],
-    ["Is my résumé private?", "Your PDF is read right in your browser. Only the text is stored, it's never shared with employers, and you can delete it, or your whole account, at any time."],
-    ["How do I reach a person?", "Call customer service at 646-821-2027."],
-  ];
 
   mount(h("div", {},
     siteNav(),
@@ -634,21 +729,212 @@ async function viewLanding() {
           h("h1", {}, "Meet Jane."),
           h("p", { class: "hd-slogan" }, "Fewer applications. More offers."),
           h("p", { class: "lead" }, "Jane finds the jobs you're most qualified for and helps you ace the interview."),
-          link(signedIn ? "/app" : "/signup", { class: "btn btn-primary btn-lg" }, signedIn ? "Go to my account" : "Get started"),
-          h("p", { class: "faint small hero-note" }, "Cancel anytime · 7-day money-back guarantee"),
+          link(signedIn ? "/app" : "/try", { class: "btn btn-primary btn-lg" }, signedIn ? "Go to my account" : "Try it free"),
+          h("p", { class: "faint small hero-note" }, signedIn ? "Cancel anytime · 3-day money-back guarantee" : "No card needed · Cancel anytime · 3-day money-back guarantee"),
         ),
       ),
       ...janeHomeSections(),
       pricingSection(plansInfo),
-      h("section", { class: "section" },
-        h("div", { class: "container narrow stack" },
-          h("h2", { class: "section-title" }, "Questions"),
-          h("div", { class: "faq" }, faqs.map(([q, a]) => h("details", { class: "card faq-item" }, h("summary", {}, q), h("p", { class: "muted" }, a)))),
-        ),
-      ),
     ),
     siteFooter(),
   ));
+}
+
+// ---------------------------------------------------------------------------
+// Free trial (/try): one search without an account. Upload a résumé, see
+// what to fix and the 3 best matches, then unlock the rest with Pro.
+// ---------------------------------------------------------------------------
+
+const TRIAL_USED_KEY = "janecareers.trialUsed";
+
+function trialUsed() {
+  try { return localStorage.getItem(TRIAL_USED_KEY) === "1"; } catch { return false; }
+}
+
+function markTrialUsed() {
+  try { localStorage.setItem(TRIAL_USED_KEY, "1"); } catch { /* private mode */ }
+}
+
+async function viewTry() {
+  if (state.user === undefined) await loadUser();
+  await loadPlans().catch(() => null);
+  const body = h("div", { class: "try-body" });
+  mount(h("div", {}, siteNav(), h("main", { class: "try-page" }, h("div", { class: "container try-wrap" }, body)), siteFooter()));
+  if (state.user) {
+    body.replaceChildren(trialAccountNote());
+    return;
+  }
+  if (trialUsed()) {
+    body.replaceChildren(trialUsedNote());
+    return;
+  }
+  renderTrialForm(body);
+}
+
+function trialAccountNote() {
+  return h("div", { class: "try-head" },
+    h("img", { src: "/jane-mini.png", alt: "Jane", width: 110, height: 112 }),
+    h("h1", {}, "You're already in."),
+    h("p", { class: "lead" }, "Search jobs, check your résumé and practice interviews from your account."),
+    link("/app", { class: "btn btn-primary btn-lg" }, "Go to my account"));
+}
+
+function trialUsedNote() {
+  return h("div", { class: "try-head" },
+    h("img", { src: "/jane-mini.png", alt: "Jane", width: 110, height: 112 }),
+    h("h1", {}, "You've used your free search."),
+    h("p", { class: "lead" }, "Get Pro to see every match near you, a tailored résumé for each job, and interview practice."),
+    h("button", { class: "btn btn-primary btn-lg", onclick: () => startCheckout("monthly") }, "Get Pro"),
+    h("p", { class: "faint small" }, "Cancel anytime · 3-day money-back guarantee"));
+}
+
+function renderTrialForm(body, saved = {}) {
+  const role = h("input", { id: "try-role", type: "text", required: true, maxlength: 100, autocomplete: "organization-title", placeholder: "Office manager", value: saved.role || "" });
+  const place = h("input", { id: "try-place", type: "text", required: true, maxlength: 100, placeholder: "Gainesville, FL or 32601", value: saved.place || "" });
+  const file = h("input", { id: "try-resume", type: "file", accept: ".pdf,.txt,application/pdf,text/plain", class: "try-file-input" });
+  const fileName = h("span", { class: "try-file-name" }, "Upload your résumé");
+  const fileHint = h("span", { class: "try-file-hint" }, "PDF, up to 10 MB");
+  file.addEventListener("change", () => {
+    const chosen = file.files && file.files[0];
+    fileName.textContent = chosen ? chosen.name : "Upload your résumé";
+    fileHint.textContent = chosen ? "Ready · tap to change" : "PDF, up to 10 MB";
+  });
+  const error = h("p", { class: "try-error", role: "alert" });
+  const submit = h("button", { type: "submit", class: "btn btn-primary btn-lg btn-block" }, "Show my matches");
+
+  const form = h("form", { class: "try-form", onsubmit: async (event) => {
+    event.preventDefault();
+    error.textContent = "";
+    const chosen = file.files && file.files[0];
+    if (!role.value.trim() || !place.value.trim()) { error.textContent = "Tell Jane the job you want and your city."; return; }
+    if (!chosen) { error.textContent = "Upload your résumé so Jane can check it."; return; }
+    submit.disabled = true;
+    let resumeText;
+    try {
+      resumeText = await extractResumeText(chosen);
+    } catch (problem) {
+      error.textContent = problem.message || "Jane couldn't read that file. Try a PDF.";
+      submit.disabled = false;
+      return;
+    }
+    const request = { targetRole: role.value.trim(), location: place.value.trim(), resumeText };
+    body.replaceChildren(h("div", { class: "try-loading" },
+      h("img", { src: "/jane-mini.png", alt: "", width: 90, height: 92 }),
+      spinnerRow(`Jane is reading your résumé and scoring ${request.targetRole} jobs near ${request.location}…`)));
+    try {
+      const result = await api("/api/v1/trial/search", { method: "POST", body: request, allowUnauthorized: true });
+      markTrialUsed();
+      renderTrialResults(body, request, result);
+    } catch (problem) {
+      if (problem.code === "trial_used") { markTrialUsed(); body.replaceChildren(trialUsedNote()); return; }
+      renderTrialForm(body, { role: request.targetRole, place: request.location });
+      const again = body.querySelector(".try-error");
+      if (again) again.textContent = problem.message || "Something went wrong. Try again.";
+    }
+  } },
+    h("div", { class: "field" }, h("label", { for: "try-role" }, "Job you want"), role),
+    h("div", { class: "field" }, h("label", { for: "try-place" }, "City or ZIP"), place),
+    h("div", { class: "field" },
+      h("span", { class: "try-label" }, "Your résumé"),
+      h("label", { for: "try-resume", class: "try-file" },
+        svgIcon('<svg aria-hidden="true" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 17v-6M9 14l3-3 3 3"/></svg>'),
+        h("span", { class: "try-file-text" }, fileName, fileHint)),
+      file),
+    error,
+    submit,
+    h("p", { class: "faint small center" }, "One free search. Your résumé is read in your browser and isn't saved."),
+  );
+
+  body.replaceChildren(
+    h("div", { class: "try-head" },
+      h("img", { src: "/jane-mini.png", alt: "Jane", width: 110, height: 112 }),
+      h("span", { class: "try-chip" }, "Free · no card needed"),
+      h("h1", {}, "Try Jane on one search"),
+      h("p", { class: "lead" }, "Upload your résumé. Jane tells you what to fix and finds the jobs you're most qualified for.")),
+    form);
+}
+
+function trialRing(percent, size) {
+  return h("span", { class: `hd-ring hd-ring-white ${size || "hd-ring-md"}` }, `${percent}%`);
+}
+
+function renderTrialResults(body, request, result) {
+  const total = result.total || 0;
+  const matches = result.matches || [];
+  const fixes = result.fixes || [];
+  const strengths = result.strengths || [];
+  const monthly = planFor("monthly") || { displayPrice: "$14.99" };
+
+  if (!total) {
+    body.replaceChildren(h("div", { class: "try-head" },
+      h("img", { src: "/jane-mini.png", alt: "Jane", width: 110, height: 112 }),
+      h("h1", {}, "No matches yet"),
+      h("p", { class: "lead" }, `Jane didn't find ${request.targetRole} openings she could score near ${request.location} today. Try a broader job title or a nearby city.`),
+      h("button", { class: "btn btn-primary btn-lg", onclick: () => renderTrialForm(body, { role: request.targetRole, place: request.location }) }, "Search again")));
+    try { localStorage.removeItem(TRIAL_USED_KEY); } catch { /* ignore */ }
+    return;
+  }
+
+  const feedback = h("section", { class: "card try-card" },
+    h("div", { class: "try-bubble-row" },
+      h("img", { src: "/jane-mini.png", alt: "Jane", width: 52, height: 53 }),
+      h("p", { class: "try-bubble" }, `I read your résumé against ${request.targetRole} jobs near ${request.location}. Here's what I'd fix first.`)),
+    h("div", { class: "try-score" },
+      trialRing(result.averageMatch, "hd-ring-lg"),
+      h("div", {},
+        h("p", { class: "try-kicker" }, "Your average match"),
+        h("p", { class: "try-score-line" }, `On the top ${request.targetRole} jobs near you`))),
+    fixes.length ? h("div", { class: "stack-sm" },
+      h("h2", { class: "try-h2 try-fix" }, "Fix these"),
+      h("ol", { class: "try-fixes" }, fixes.map((fix) => {
+        const advice = classifyGapClient({ text: fix.text, category: fix.category || "other", importance: "required" }, false).advice;
+        return h("li", {},
+          h("b", {}, fix.text),
+          h("span", { class: "muted small" }, `${fix.jobs > 1 ? `Asked for by ${fix.jobs} of your top jobs. ` : ""}${advice}`));
+      }))) : null,
+    strengths.length ? h("p", { class: "try-strong" }, h("b", {}, "Already strong: "), strengths.join(" · ")) : null,
+  );
+
+  const cards = matches.map((match) => {
+    const applyURL = safeUrl(match.applyURL || "");
+    const meta = [match.company, match.location, distanceText(match)].filter(Boolean).join(" · ");
+    return h("article", { class: "card try-job" },
+      h("div", { class: "try-job-head" },
+        trialRing(match.matchPercentage),
+        h("div", { class: "stack-xs" },
+          h("h3", {}, match.title),
+          h("p", { class: "muted small" }, meta),
+          match.missing && match.missing.length
+            ? h("p", { class: "small try-missing" }, `Missing: ${match.missing.join(", ")}`)
+            : h("p", { class: "small try-good" }, match.matchLevel || "Good match"))),
+      applyURL ? h("a", { class: "btn btn-primary btn-block", href: applyURL, target: "_blank", rel: "noopener noreferrer" }, "Apply on employer's site ↗") : null);
+  });
+
+  const more = total - matches.length;
+  const unlock = h("section", { class: "card try-unlock" },
+    h("h2", {}, more > 0 ? `I found ${total} jobs that fit you` : "Let Jane do the rest"),
+    h("p", { class: "muted" }, "Let me fix your résumé for each one and get you ready for the interview."),
+    h("ul", { class: "check-list" },
+      h("li", {}, more > 0 ? `All ${total} matches, plus new ones as they post` : "Every match near you, plus new ones as they post"),
+      h("li", {}, "Upload all your résumés. Jane picks the best one for each job and tailors it"),
+      h("li", {}, "Application tracker"),
+      h("li", {}, h("b", {}, "Interview Prep included"))),
+    h("button", { class: "btn btn-primary btn-lg btn-block", onclick: () => startCheckout("monthly") }, `Get Pro · ${monthly.displayPrice}/month`),
+    h("p", { class: "faint small center" }, "Cancel anytime · 3-day money-back guarantee"),
+    h("p", { class: "small center" }, "Not ready? ", link("/signup", {}, "Create a free account")),
+  );
+
+  body.replaceChildren(
+    h("div", { class: "try-head try-head-sm" }, h("h1", {}, matches.length === 1 ? "Your best match" : `Your ${matches.length} best matches`), h("p", { class: "muted" }, `${request.targetRole} · near ${request.location}`)),
+    feedback,
+    h("div", { class: "stack" }, cards),
+    more > 0 ? h("div", { class: "card try-locked" },
+      svgIcon('<svg aria-hidden="true" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>'),
+      h("div", {}, h("b", {}, `${more} more ${more === 1 ? "match" : "matches"} near you`), h("p", { class: "muted small" }, "Unlock all of them, plus a tailored résumé for each."))) : null,
+    unlock,
+    h("p", { class: "faint small center" }, "Every apply link goes straight to the employer, never a job board."),
+  );
+  window.scrollTo(0, 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -673,7 +959,7 @@ function checkoutNote() {
     monthly && monthly.trialDays
       ? `Pro Monthly is free for ${monthly.trialDays} days, then ${monthly.displayPrice}/month until you cancel. Cancel before the trial ends and you won't be charged. `
       : "Subscriptions renew automatically until you cancel. ",
-    "7-day money-back guarantee on your first payment. See our ",
+    "3-day money-back guarantee on your first payment. See our ",
     h("a", { href: "/terms" }, "Terms"), " and ", h("a", { href: "/refunds" }, "Refund Policy"), ".");
 }
 
@@ -748,10 +1034,11 @@ function pricingSection(plansInfo) {
   return h("section", { class: "section", id: "pricing" },
     h("div", { class: "container" },
       h("h2", { class: "section-title" }, "Simple pricing"),
-      h("p", { class: "section-sub" }, "Cancel anytime, with a 7-day money-back guarantee."),
+      h("p", { class: "section-sub" }, "Cancel anytime, with a 3-day money-back guarantee."),
       h("div", { class: "grid-2 pricing-two" }, planCards(plansInfo, { include: ["monthly", "interview"] })),
-      h("p", { class: "school-line" }, "Schools & career programs: Pro for every student, ", `${school.displayPrice}/${school.interval}, free 2-week pilot. `,
+      h("p", { class: "school-line", id: "schools" }, "Schools & career programs: Pro for every student, ", `${school.displayPrice}/${school.interval}, free 2-week pilot. `,
         link(state.user ? "/app/billing" : "/signup", {}, "Get a school license →")),
+      state.user ? null : h("p", { class: "try-line" }, "Not sure yet? ", link("/try", {}, "Try one search free")),
       h("div", { class: "section-gap" }, checkoutNote()),
     ),
   );
@@ -905,7 +1192,7 @@ async function viewAuth(mode) {
       h("div", { class: "card auth-card stack" },
         h("div", { class: "stack-sm" },
           h("h1", {}, isSignup ? "Create your account" : "Welcome back"),
-          h("p", { class: "muted" }, isSignup ? "Create your account, then pick a plan to start. 7-day money-back guarantee." : "Sign in to continue your search."),
+          h("p", { class: "muted" }, isSignup ? "Create your account, then pick a plan to start. 3-day money-back guarantee." : "Sign in to continue your search."),
         ),
         form,
         h("p", { class: "muted small" },
@@ -2539,7 +2826,7 @@ async function viewActivate() {
       h("p", { class: "muted lead-sm" },
         trialAvailable() && monthly && monthly.trialDays
           ? `Start your ${monthly.trialDays}-day free trial. You won't be charged until ${formatDate(trialEnd.toISOString())}, and you can cancel in two clicks before then.`
-          : "Choose a plan and Jane starts finding and scoring jobs for you right away. Cancel anytime, with a 7-day money-back guarantee."),
+          : "Choose a plan and Jane starts finding and scoring jobs for you right away. Cancel anytime, with a 3-day money-back guarantee."),
     ),
     plansInfo.billingEnabled ? h("div", { class: "grid-2 pricing-two" }, planCards(plansInfo, { compact: true })) : null,
     h("ul", { class: "ticks activate-ticks" },
