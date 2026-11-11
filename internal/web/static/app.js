@@ -414,11 +414,11 @@ const NAV_MENUS = [
     { title: "Résumé check", text: "What you're missing and how to fix it", href: "/try" },
     { title: "Tailored résumés", text: "Your best résumé, fitted to each job", href: "/#how" },
     { title: "Apply direct", text: "Straight to the employer's own site", href: "/#how" },
-    { title: "Application tracker", text: "Every application in one place", href: "/pricing" },
+    { title: "Try it free", text: "One search, no card needed", href: "/try" },
     { title: "How Jane works", text: "Find the jobs, fix your résumé, apply", href: "/#how" },
   ] },
   { label: "Interview Prep", items: [
-    { title: "Practice out loud", text: "Jane asks, you answer, she coaches you", href: "/#interview" },
+    { title: "Practice out loud", text: "Speak your answers. Jane listens and coaches you", href: "/#interview" },
     { title: "Interview questions by job", text: "Likely questions and sample answers", href: "/interview-questions", plain: true },
     { title: "Tell me about yourself", text: "How to answer the first question", href: "/interview-tips/tell-me-about-yourself", plain: true },
     { title: "Your greatest weakness", text: "An honest answer that still lands", href: "/interview-tips/what-is-your-greatest-weakness", plain: true },
@@ -602,14 +602,16 @@ function hdStep(num, title, text, visual) {
 
 function hdFindVisual() {
   return h("div", {},
-    h("div", { class: "hd-search" }, svgIcon(HD_SEARCH), h("span", {}, "Office manager"), h("span", { class: "hd-dot" }, "·"), h("span", {}, "Tampa, FL")),
+    h("div", { class: "hd-search" }, svgIcon(HD_SEARCH), h("span", {}, "Software engineer"), h("span", { class: "hd-dot" }, "·"), h("span", {}, "New York, NY")),
     h("div", { class: "hd-job" },
       hdRing("88%", "white", "hd-ring-lg"),
       h("div", {},
-        h("div", { class: "hd-job-title" }, "Office Manager"),
-        h("div", { class: "hd-muted" }, "Company · 5 miles away"),
+        h("div", { class: "hd-job-title" }, "Software Engineer"),
+        h("div", { class: "hd-muted" }, "Company · 3 miles away"),
         h("span", { class: "hd-pill-good" }, "Great match · Apply"))),
-    h("p", { class: "hd-caption" }, "Your match score for every job near you"));
+    h("p", { class: "hd-caption" }, "Your match score for every job near you"),
+    h("div", { class: "hd-roles", "aria-label": "Jobs Jane searches" },
+      ["Software engineer", "Registered nurse", "Teacher", "Office manager", "Sales", "Dental assistant", "Customer service"].map((role) => h("span", {}, role))));
 }
 
 function hdResume(label, score, tone, mark, good) {
@@ -621,11 +623,11 @@ function hdResume(label, score, tone, mark, good) {
 
 function hdFixVisual() {
   return h("div", {},
-    h("p", { class: "hd-lead" }, "The job asks for ", h("b", {}, "Excel"), ". You know it, but it's not on your résumé."),
+    h("p", { class: "hd-lead" }, "The job asks for ", h("b", {}, "SQL"), ". You know it, but it's not on your résumé."),
     h("div", { class: "hd-compare" },
-      hdResume("Before", "72%", "gray", "✗ Missing: Excel", false),
+      hdResume("Before", "72%", "gray", "✗ Missing: SQL", false),
       svgIcon(HD_ARROW),
-      hdResume("After", "86%", "white", "✓ Added: Excel", true)));
+      hdResume("After", "86%", "white", "✓ Added: SQL", true)));
 }
 
 function hdApplyVisual() {
@@ -679,12 +681,14 @@ function janeHomeSections() {
 
   const practice = h("section", { class: "hd-section hd-border", id: "interview" },
     h("div", { class: "container hd-wrap" },
+      h("p", { class: "hd-eyebrow" }, "Interview Prep · Practice out loud"),
       h("h2", { class: "hd-h2" }, "Walk into every interview ready."),
+      h("p", { class: "hd-sub" }, "Reading a list of questions isn't practice. With Jane you speak your answers out loud, like the real interview. She listens and coaches how you say it: your pace, your filler words, how long you talk, and how to make the answer stronger."),
       h("div", { class: "hd-split" },
         h("div", { class: "hd-points" },
           h("div", {}, h("span", { class: "hd-num" }, "1"), h("div", {}, h("h3", {}, "Pick your stage"), h("p", {}, "Phone screen, first round, final round and more."))),
-          h("div", {}, h("span", { class: "hd-num" }, "2"), h("div", {}, h("h3", {}, "Answer out loud"), h("p", {}, "Jane asks the questions they're likely to ask."))),
-          h("div", {}, h("span", { class: "hd-num" }, "3"), h("div", {}, h("h3", {}, "Get coached"), h("p", {}, "Pace, filler words and how to improve. Then try again.")))),
+          h("div", {}, h("span", { class: "hd-num" }, "2"), h("div", {}, h("h3", {}, "Speak your answer out loud"), h("p", {}, "Jane asks the questions they're likely to ask, and you answer like it's the real thing."))),
+          h("div", {}, h("span", { class: "hd-num" }, "3"), h("div", {}, h("h3", {}, "Get coached on how you sound"), h("p", {}, "Pace, filler words, length and how to improve. Then say it again, better.")))),
         h("div", { class: "hd-card" }, hdInterviewVisual())),
     ));
 
@@ -700,7 +704,7 @@ function janeHomeSections() {
             row("Which jobs to apply to", "Endless scrolling", "Match scores on jobs near you"),
             row("Your résumé", "Same one for every job", "Your best one, tailored to each job"),
             row("Where you apply", "Lost in the pile", "The employer's own site"),
-            row("The interview", "You're on your own", "Interview Prep included")))),
+            row("The interview", "A list of questions to read", "Speak your answers out loud, get coached")))),
     ));
 
   const founder = h("section", { class: "hd-section hd-border" },
@@ -789,8 +793,8 @@ function trialUsedNote() {
 }
 
 function renderTrialForm(body, saved = {}) {
-  const role = h("input", { id: "try-role", type: "text", required: true, maxlength: 100, autocomplete: "organization-title", placeholder: "Office manager", value: saved.role || "" });
-  const place = h("input", { id: "try-place", type: "text", required: true, maxlength: 100, placeholder: "Gainesville, FL or 32601", value: saved.place || "" });
+  const role = h("input", { id: "try-role", type: "text", required: true, maxlength: 100, autocomplete: "organization-title", placeholder: "Software engineer, nurse, teacher…", value: saved.role || "" });
+  const place = h("input", { id: "try-place", type: "text", required: true, maxlength: 100, placeholder: "New York, NY or 10001", value: saved.place || "" });
   const file = h("input", { id: "try-resume", type: "file", accept: ".pdf,.txt,application/pdf,text/plain", class: "try-file-input" });
   const fileName = h("span", { class: "try-file-name" }, "Upload your résumé");
   const fileHint = h("span", { class: "try-file-hint" }, "PDF, up to 10 MB");
