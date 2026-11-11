@@ -157,7 +157,7 @@ func (s *Server) handleTrialSearch(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	sortJobMatches(scored)
-	scored = nearbyTrialMatches(scored)
+	scored = nearbyTrialMatches(scored, jobs.StateOfPlace(request.Location))
 
 	log.Printf("[trial] role=%q location=%q jobs=%d scored=%d in %s", request.TargetRole, request.Location, len(result.Jobs), len(scored), time.Since(started))
 
@@ -289,14 +289,19 @@ func trialKey(text string) string {
 	return strings.Join(strings.Fields(strings.ToLower(text)), " ")
 }
 
-// Trial results stay near the searched place: a job counts when Jane knows
-// how far it is and it is within 60 miles, widening to 150 miles when fewer
-// than three are that close. Jobs whose distance is unknown are left out, so
-// a Gainesville search never shows a job in another state.
-func nearbyTrialMatches(ranked []jobs.JobMatch) []jobs.JobMatch {
+// Trial results stay near the searched place: a job counts when its
+// location names the searched state, Jane knows how far it is, and it is
+// within 60 miles, widening to 150 miles when fewer than three are that
+// close. So a Gainesville, FL search never shows a job in another state.
+func nearbyTrialMatches(ranked []jobs.JobMatch, state string) []jobs.JobMatch {
 	within := func(limit float64) []jobs.JobMatch {
 		kept := []jobs.JobMatch{}
 		for _, match := range ranked {
+			// The job must also name the searched state: a place name
+			// alone ("University Park") can be matched to the wrong town.
+			if state != "" && !jobs.LocationNamesState(match.Location, state) {
+				continue
+			}
 			if match.DistanceMiles != nil && *match.DistanceMiles <= limit {
 				kept = append(kept, match)
 			}

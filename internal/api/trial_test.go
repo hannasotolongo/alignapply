@@ -48,3 +48,15 @@ func TestTrialUseful(t *testing.T) {
 		}
 	}
 }
+
+func TestNearbyTrialMatchesNeedsTheState(t *testing.T) {
+	near := 20.0
+	ranked := []jobs.JobMatch{
+		{Title: "Wrong state", Location: "Penn State University Park", DistanceMiles: &near},
+		{Title: "Right", Location: "Gainesville, FL", DistanceMiles: &near},
+	}
+	got := nearbyTrialMatches(ranked, jobs.StateOfPlace("Gainesville, FL"))
+	if len(got) != 1 || got[0].Title != "Right" {
+		t.Fatalf("got %+v, want only the Florida job", got)
+	}
+}
