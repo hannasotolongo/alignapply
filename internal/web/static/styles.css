@@ -87,7 +87,7 @@ p { margin: 0; }
 
 label.field { display: grid; gap: 6px; font-size: 13px; color: var(--text-2); font-weight: 500; }
 
-input[type="text"], input[type="email"], input[type="password"], input[type="number"], textarea, select {
+input[type="text"], input[type="email"], input[type="tel"], input[type="password"], input[type="number"], textarea, select {
   width: 100%;
   min-height: 46px;
   padding: 11px 14px;
@@ -666,7 +666,7 @@ body {
 .btn-danger { background: rgba(248, 113, 113, 0.06); }
 
 /* Inputs */
-input[type="text"], input[type="email"], input[type="password"], input[type="number"], textarea, select {
+input[type="text"], input[type="email"], input[type="tel"], input[type="password"], input[type="number"], textarea, select {
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35);
