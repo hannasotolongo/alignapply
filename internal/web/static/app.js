@@ -669,19 +669,17 @@ function subscribeLabel(plan) {
 
 function checkoutNote() {
   const monthly = planFor("monthly");
-  const sprint = planFor("sprint");
   return h("p", { class: "legal-note" },
     monthly && monthly.trialDays
       ? `Pro Monthly is free for ${monthly.trialDays} days, then ${monthly.displayPrice}/month until you cancel. Cancel before the trial ends and you won't be charged. `
       : "Subscriptions renew automatically until you cancel. ",
-    sprint ? `The ${sprint.name} is a one-time ${sprint.displayPrice} payment for ${sprint.interval} and doesn't renew. ` : "",
     "7-day money-back guarantee on your first payment. See our ",
     h("a", { href: "/terms" }, "Terms"), " and ", h("a", { href: "/refunds" }, "Refund Policy"), ".");
 }
 
 // planCards renders the personal plans (Interview Prep, Pro Monthly,
 // Sprint), plus the school license on the full pricing page.
-function planCards(plansInfo, { compact = false, include = ["interview", "monthly", "sprint"] } = {}) {
+function planCards(plansInfo, { compact = false, include = ["monthly", "interview"] } = {}) {
   const enabled = plansInfo.billingEnabled;
   const interview = planFor("interview");
   const monthly = planFor("monthly") || { key: "monthly", name: "Pro Monthly", displayPrice: "$14.99", interval: "month" };
@@ -697,10 +695,11 @@ function planCards(plansInfo, { compact = false, include = ["interview", "monthl
   ];
   const ticks = (items) => h("ul", { class: "ticks" }, items.map((f) => h("li", {}, f)));
 
-  const cards = [];
+  // Built by key, then returned in the order `include` lists them.
+  const byKey = {};
   if (include.includes("interview")) {
     const plan = interview || { key: "interview", name: "Interview Prep", displayPrice: "$8.99", interval: "month" };
-    cards.push(h("div", { class: "card price-card" },
+    byKey.interview = (h("div", { class: "card price-card" },
       h("div", {}, h("span", { class: "pill pill-new" }, "New"), h("h3", {}, plan.name), h("p", { class: "muted small" }, "Just the interview practice")),
       h("div", { class: "price" }, plan.displayPrice, " ", h("small", {}, `/ ${plan.interval}`)),
       compact ? null : ticks(["Practice for any job and company", "Likely interview questions", "Speak your answers out loud", "Pace, filler words and length checks", "Coaching and stronger answers"]),
@@ -709,7 +708,7 @@ function planCards(plansInfo, { compact = false, include = ["interview", "monthl
     ));
   }
   if (include.includes("monthly")) {
-    cards.push(h("div", { class: "card price-card featured" },
+    byKey.monthly = (h("div", { class: "card price-card featured" },
       h("div", { class: "row-between" },
         h("div", {}, h("h3", {}, monthly.name), h("p", { class: "muted small" }, "Everything Jane does")),
         h("span", { class: "pill pill-pro" }, "Most popular")),
@@ -720,7 +719,7 @@ function planCards(plansInfo, { compact = false, include = ["interview", "monthl
     ));
   }
   if (include.includes("sprint")) {
-    cards.push(h("div", { class: "card price-card" },
+    byKey.sprint = (h("div", { class: "card price-card" },
       h("div", { class: "row-between" },
         h("div", {}, h("h3", {}, sprint.name), h("p", { class: "muted small" }, `One payment, ${sprint.interval} of Pro`)),
         h("span", { class: "pill pill-pro" }, "Best value")),
@@ -732,7 +731,7 @@ function planCards(plansInfo, { compact = false, include = ["interview", "monthl
   }
 
   if (!compact && include.includes("school")) {
-    cards.push(h("div", { class: "card school-row" },
+    byKey.school = (h("div", { class: "card school-row" },
       h("div", {}, h("h3", {}, "Schools & career programs"),
         h("p", { class: "muted small" }, `Pro for every student with a school email · ${school.displayPrice}/${school.interval} · free 2-week pilot`)),
       state.user
@@ -741,18 +740,18 @@ function planCards(plansInfo, { compact = false, include = ["interview", "monthl
     ));
   }
 
-  return cards;
+  return include.filter((key) => byKey[key]).map((key) => byKey[key]);
 }
 
 function pricingSection(plansInfo) {
-  const cards = planCards(plansInfo, { include: ["interview", "monthly", "sprint", "school"] });
-  const school = cards.pop();
+  const school = planFor("school") || { displayPrice: "$1,000", interval: "year" };
   return h("section", { class: "section", id: "pricing" },
     h("div", { class: "container" },
-      h("h2", { class: "section-title" }, "Pick what you need"),
+      h("h2", { class: "section-title" }, "Simple pricing"),
       h("p", { class: "section-sub" }, "Cancel anytime, with a 7-day money-back guarantee."),
-      h("div", { class: "grid-3" }, cards),
-      h("div", { class: "section-gap" }, school),
+      h("div", { class: "grid-2 pricing-two" }, planCards(plansInfo, { include: ["monthly", "interview"] })),
+      h("p", { class: "school-line" }, "Schools & career programs: Pro for every student, ", `${school.displayPrice}/${school.interval}, free 2-week pilot. `,
+        link(state.user ? "/app/billing" : "/signup", {}, "Get a school license →")),
       h("div", { class: "section-gap" }, checkoutNote()),
     ),
   );
@@ -764,7 +763,7 @@ function paywall(title, body) {
   if (isInterviewOnly()) return upgradeFromInterview(title, body);
   return h("div", { class: "card stack paywall" },
     h("div", { class: "stack-sm" }, h("h3", {}, title), h("p", { class: "muted" }, body)),
-    h("div", { class: "grid-2" }, planCards(plansInfo, { compact: true, include: ["monthly", "sprint"] })),
+    h("div", { class: "pricing-one" }, planCards(plansInfo, { compact: true, include: ["monthly"] })),
     plansInfo.billingEnabled ? checkoutNote() : null,
   );
 }
@@ -2542,7 +2541,7 @@ async function viewActivate() {
           ? `Start your ${monthly.trialDays}-day free trial. You won't be charged until ${formatDate(trialEnd.toISOString())}, and you can cancel in two clicks before then.`
           : "Choose a plan and Jane starts finding and scoring jobs for you right away. Cancel anytime, with a 7-day money-back guarantee."),
     ),
-    plansInfo.billingEnabled ? h("div", { class: "grid-3" }, planCards(plansInfo, { compact: true })) : null,
+    plansInfo.billingEnabled ? h("div", { class: "grid-2 pricing-two" }, planCards(plansInfo, { compact: true })) : null,
     h("ul", { class: "ticks activate-ticks" },
       h("li", {}, "Every requirement checked against your real experience"),
       h("li", {}, "Gap Closer: what to add, what to learn, what to skip"),
