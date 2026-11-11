@@ -64,7 +64,10 @@ func (r *CrawledJobsRepository) DueBoards(ctx context.Context, limit int, olderT
 		WHERE active AND (last_crawled_at IS NULL OR last_crawled_at < NOW() - make_interval(secs => $1)
 			-- A board read only partly (big Workday boards save a batch per
 			-- read) comes back after 15 minutes until all its jobs are saved.
-			OR (last_status = 'partial' AND last_crawled_at < NOW() - INTERVAL '15 minutes'))
+			OR (last_status = 'partial' AND last_crawled_at < NOW() - INTERVAL '15 minutes')
+			-- A failed read is retried sooner, waiting 2, 4, 8 then 16 hours.
+			OR (consecutive_failures BETWEEN 1 AND 4
+				AND last_crawled_at < NOW() - make_interval(hours => (2 ^ consecutive_failures)::int)))
 		ORDER BY last_crawled_at NULLS FIRST
 		LIMIT $2`, olderThan.Seconds(), limit)
 	if err != nil {
