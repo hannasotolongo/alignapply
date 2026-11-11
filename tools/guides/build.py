@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from content_questions import QUESTIONS  # noqa: E402
 from content_roles import ROLES  # noqa: E402
 
-SITE = "https://janecareers.com"
+SITE = "https://www.janecareers.com"
 TODAY = date.today().isoformat()
 E = html.escape
 
@@ -45,7 +45,9 @@ def page(path, title, description, body):
   <meta property="og:title" content="{E(title)}">
   <meta property="og:description" content="{E(description)}">
   <meta property="og:url" content="{url}">
+  <link rel="icon" href="/favicon.ico" sizes="48x48">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">

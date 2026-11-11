@@ -167,7 +167,7 @@ func (s *Server) handlePasswordLogin(
 	}
 
 	// Also limit by account, so spreading guesses across IPs doesn't help.
-	if !s.authLimiter.Allow("login-email:" + strings.ToLower(strings.TrimSpace(request.Email))) {
+	if !s.accountLimiter.Allow("login-email:" + strings.ToLower(strings.TrimSpace(request.Email))) {
 		writeError(w, http.StatusTooManyRequests, "Too many sign-in attempts for this account. Wait a few minutes, or reset your password.")
 		return
 	}

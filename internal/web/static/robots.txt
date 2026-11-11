@@ -3,4 +3,4 @@ Allow: /
 Disallow: /app
 Disallow: /api/
 
-Sitemap: https://janecareers.com/sitemap.xml
+Sitemap: https://www.janecareers.com/sitemap.xml

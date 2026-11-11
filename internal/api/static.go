@@ -1,11 +1,33 @@
 package api
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"io/fs"
 	"net/http"
 	"path"
 	"strings"
+	"sync"
 )
+
+// staticETags caches a content hash per embedded file. Embedded files have
+// no modification time, so without an ETag browsers re-download app.js and
+// styles.css on every visit; with one they get a tiny 304 instead.
+var staticETags sync.Map
+
+func staticETag(static fs.FS, name string) string {
+	if v, ok := staticETags.Load(name); ok {
+		return v.(string)
+	}
+	data, err := fs.ReadFile(static, name)
+	if err != nil {
+		return ""
+	}
+	sum := sha256.Sum256(data)
+	tag := `"` + hex.EncodeToString(sum[:8]) + `"`
+	staticETags.Store(name, tag)
+	return tag
+}
 
 // newStaticHandler serves the embedded web app. Paths that are not real
 // files (e.g. /app/jobs) fall back to index.html so client-side routing works.
@@ -31,8 +53,15 @@ func newStaticHandler(static fs.FS) http.Handler {
 		}
 
 		if info, err := fs.Stat(static, name); err == nil && !info.IsDir() {
+			if tag := staticETag(static, name); tag != "" {
+				w.Header().Set("ETag", tag)
+			}
 			if name == "index.html" {
 				w.Header().Set("Cache-Control", "no-cache")
+			} else {
+				// Short cache: new deploys show up within minutes, and the
+				// ETag makes the re-check after that almost free.
+				w.Header().Set("Cache-Control", "public, max-age=300")
 			}
 			files.ServeHTTP(w, r)
 			return
@@ -59,6 +88,9 @@ func newStaticHandler(static fs.FS) http.Handler {
 		}
 
 		w.Header().Set("Cache-Control", "no-cache")
+		if tag := staticETag(static, "index.html"); tag != "" {
+			w.Header().Set("ETag", tag)
+		}
 		r2 := r.Clone(r.Context())
 		r2.URL.Path = "/"
 		files.ServeHTTP(w, r2)

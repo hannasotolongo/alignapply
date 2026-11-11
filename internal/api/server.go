@@ -40,14 +40,15 @@ type Server struct {
 	appleClient    *auth.AppleClient
 	sessionManager *auth.SessionManager
 
-	billingRepo   *repository.BillingRepository
-	accountsRepo  *repository.AccountsRepository
-	crawledJobs   *repository.CrawledJobsRepository
-	mailer        *mailer.Client
-	stripe        *billing.Client
-	billingConfig BillingConfig
-	web           WebConfig
-	authLimiter   *attemptLimiter
+	billingRepo    *repository.BillingRepository
+	accountsRepo   *repository.AccountsRepository
+	crawledJobs    *repository.CrawledJobsRepository
+	mailer         *mailer.Client
+	stripe         *billing.Client
+	billingConfig  BillingConfig
+	web            WebConfig
+	authLimiter    *attemptLimiter
+	accountLimiter *attemptLimiter
 
 	applicationKit *tailor.Client
 	kitLimiter     *attemptLimiter
@@ -118,7 +119,8 @@ func NewServer(
 		mux:      http.NewServeMux(),
 		pipeline: jobs.NewPipeline(),
 
-		authLimiter: newAttemptLimiter(20, 15*time.Minute),
+		authLimiter:    newAttemptLimiter(60, 15*time.Minute), // roomy: campus and office Wi-Fi share one IP
+		accountLimiter: newAttemptLimiter(20, 15*time.Minute),
 
 		kitLimiter:          newAttemptLimiter(20, time.Hour),
 		fitCheckUserLimiter: newAttemptLimiter(ProJobMatchesPerHour, time.Hour),
