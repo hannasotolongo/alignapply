@@ -129,7 +129,9 @@ func (s *Server) handleTrialSearch(w http.ResponseWriter, r *http.Request) {
 
 	started := time.Now()
 	result := s.jobProvider.Search(ctx, search)
+	searched := time.Now()
 	processed := s.pipeline.Process(search, result.Jobs)
+	piped := time.Now()
 
 	matches := make([]jobs.JobMatch, len(processed))
 	work := make(chan int)
@@ -158,6 +160,7 @@ func (s *Server) handleTrialSearch(w http.ResponseWriter, r *http.Request) {
 	}
 	sortJobMatches(scored)
 	scored = nearbyTrialMatches(scored, jobs.StateOfPlace(request.Location))
+	setServerTiming(w, started, searched, piped, time.Now())
 
 	log.Printf("[trial] role=%q location=%q jobs=%d scored=%d in %s", request.TargetRole, request.Location, len(result.Jobs), len(scored), time.Since(started))
 

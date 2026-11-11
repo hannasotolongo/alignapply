@@ -34,7 +34,7 @@ type StoredJobsProvider struct {
 // after the provider is built.
 func NewStoredJobsProvider(store func() BoardStore) *StoredJobsProvider {
 	return &StoredJobsProvider{store: store, limit: 1500, client: newCrawlClient(),
-		readMax: 60, readPerHost: 10, readBudget: 7 * time.Second, readAtOnce: 16}
+		readMax: 40, readPerHost: 10, readBudget: 3 * time.Second, readAtOnce: 16}
 }
 
 func (p *StoredJobsProvider) Name() string { return "jane-crawler" }

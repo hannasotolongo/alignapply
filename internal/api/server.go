@@ -1271,6 +1271,7 @@ func (s *Server) handleJobMatches(
 	sortStarted := time.Now()
 
 	sortJobMatches(matches)
+	setServerTiming(w, searchStarted, pipelineStarted, matchingStarted, time.Now())
 
 	// Pages: keep the whole ranked list so "Load more" is instant.
 	if request.PageSize > 0 {
@@ -1580,19 +1581,33 @@ func newJobProvider(server *Server) *jobs.MultiProvider {
 				return server.crawledJobs
 			}),
 			// Every Workday employer's own job search, asked at search time.
-			jobs.NewCachedProvider(jobs.NewWorkdayLiveProvider(jobs.CrawlSeedBoards()), 3*time.Hour),
-			jobs.NewGreenhouseProvider(jobs.GreenhouseBoards()),
+			// Live sources answer within liveSourceWait or finish in the
+			// background for the next search; Jane's saved jobs don't wait.
+			jobs.NewQuickProvider(jobs.NewWorkdayLiveProvider(jobs.CrawlSeedBoards()), liveSourceWait, 3*time.Hour),
+			jobs.NewQuickProvider(jobs.NewGreenhouseProvider(jobs.GreenhouseBoards()), liveSourceWait, 3*time.Hour),
 		// Every source above links straight to the employer's own job
 		// posting. Job boards that send people to their own site first
 		// (Remotive, Jooble) are no longer used. Federal jobs, whose
 		// official application site is USAJobs, only fill in when the
 		// employer sources don't have enough matching jobs for the search.
 		).WithLastResort(usaJobsBackup()),
-		jobs.NewLeverProvider(
+		jobs.NewQuickProvider(jobs.NewLeverProvider(
 			jobs.DefaultATSEmployers(),
-		),
+		), liveSourceWait, 3*time.Hour),
 	)
 }
+
+// setServerTiming reports how long each step of a search took, in the
+// standard Server-Timing header, so slow searches can be measured from a
+// browser.
+func setServerTiming(w http.ResponseWriter, started, searched, processed, scored time.Time) {
+	ms := func(from, to time.Time) string { return strconv.FormatInt(to.Sub(from).Milliseconds(), 10) }
+	w.Header().Set("Server-Timing", "search;dur="+ms(started, searched)+", pipeline;dur="+ms(searched, processed)+", score;dur="+ms(processed, scored))
+}
+
+// liveSourceWait is how long a search waits for employers' live job
+// searches before answering from the jobs Jane has already saved.
+const liveSourceWait = 3 * time.Second
 
 // joobleSource is Jooble when JOOBLE_API_KEY is set. Results are cached for
 // 24 hours, and calls are capped at JOOBLE_REQUEST_LIMIT (default 450) per
@@ -1646,5 +1661,5 @@ func usaJobsBackup() jobs.Provider {
 		return nil
 	}
 	log.Printf("USAJobs backup source configured")
-	return jobs.NewCachedProvider(provider, 6*time.Hour)
+	return jobs.NewQuickProvider(provider, liveSourceWait, 6*time.Hour)
 }
