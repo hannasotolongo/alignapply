@@ -35,3 +35,16 @@ func TestBuildTrialResponse(t *testing.T) {
 		t.Errorf("empty = %+v", empty)
 	}
 }
+
+func TestTrialUseful(t *testing.T) {
+	for _, text := range []string{"BACKGROUND CHECKS/CLEARANCES", "Employment will require successful completion of background check(s) in accordance with University policies", "MINIMUM EDUCATION, WORK EXPERIENCE & REQUIRED", "Requirements:"} {
+		if trialUseful(text) {
+			t.Errorf("%q should be left out", text)
+		}
+	}
+	for _, text := range []string{"Proficiency in Microsoft Excel", "3+ years of office management experience", "Associate Degree"} {
+		if !trialUseful(text) {
+			t.Errorf("%q should be kept", text)
+		}
+	}
+}

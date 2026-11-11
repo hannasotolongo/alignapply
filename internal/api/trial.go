@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/hannasotolongo/casemade-backend/internal/jobs"
@@ -156,6 +157,7 @@ func (s *Server) handleTrialSearch(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	sortJobMatches(scored)
+	scored = nearbyTrialMatches(scored)
 
 	log.Printf("[trial] role=%q location=%q jobs=%d scored=%d in %s", request.TargetRole, request.Location, len(result.Jobs), len(scored), time.Since(started))
 
@@ -195,7 +197,7 @@ func buildTrialResponse(ranked []jobs.JobMatch) trialResponse {
 		seen := map[string]bool{}
 		for _, text := range append(append([]string{}, match.MissingRequirements...), match.PartialRequirements...) {
 			key := trialKey(text)
-			if key == "" || seen[key] || len(text) > trialMaxRequirement {
+			if key == "" || seen[key] || len(text) > trialMaxRequirement || !trialUseful(text) {
 				continue
 			}
 			seen[key] = true
@@ -210,7 +212,7 @@ func buildTrialResponse(ranked []jobs.JobMatch) trialResponse {
 		}
 		for _, text := range match.SupportedRequirements {
 			key := trialKey(text)
-			if key == "" || seen[key] || len(text) > trialMaxRequirement {
+			if key == "" || seen[key] || len(text) > trialMaxRequirement || !trialUseful(text) {
 				continue
 			}
 			seen[key] = true
@@ -260,7 +262,7 @@ func buildTrialResponse(ranked []jobs.JobMatch) trialResponse {
 		}
 		missingTexts := []string{}
 		for _, text := range match.MissingRequirements {
-			if len(text) <= trialMaxRequirement && len(missingTexts) < 2 {
+			if len(text) <= trialMaxRequirement && len(missingTexts) < 2 && trialUseful(text) {
 				missingTexts = append(missingTexts, strings.TrimSpace(text))
 			}
 		}
@@ -285,4 +287,56 @@ func buildTrialResponse(ranked []jobs.JobMatch) trialResponse {
 
 func trialKey(text string) string {
 	return strings.Join(strings.Fields(strings.ToLower(text)), " ")
+}
+
+// Trial results stay near the searched place: a job counts when Jane knows
+// how far it is and it is within 60 miles, widening to 150 miles when fewer
+// than three are that close. Jobs whose distance is unknown are left out, so
+// a Gainesville search never shows a job in another state.
+func nearbyTrialMatches(ranked []jobs.JobMatch) []jobs.JobMatch {
+	within := func(limit float64) []jobs.JobMatch {
+		kept := []jobs.JobMatch{}
+		for _, match := range ranked {
+			if match.DistanceMiles != nil && *match.DistanceMiles <= limit {
+				kept = append(kept, match)
+			}
+		}
+		return kept
+	}
+	if near := within(60); len(near) >= trialMatchesShown {
+		return near
+	}
+	return within(150)
+}
+
+// trialUseful leaves out posting boilerplate (background checks, legal
+// notices, section headings) so the feedback is about the résumé.
+func trialUseful(text string) bool {
+	trimmed := strings.TrimSpace(text)
+	if trimmed == "" || strings.HasSuffix(trimmed, ":") {
+		return false
+	}
+	letters, upper := 0, 0
+	for _, r := range trimmed {
+		if unicode.IsLetter(r) {
+			letters++
+			if unicode.IsUpper(r) {
+				upper++
+			}
+		}
+	}
+	if letters > 0 && upper*10 >= letters*8 {
+		return false // a heading in capitals, like "MINIMUM QUALIFICATIONS"
+	}
+	lower := strings.ToLower(trimmed)
+	for _, phrase := range []string{
+		"background check", "background screen", "clearance", "drug", "equal opportunity",
+		"eoe", "years of age", "18 years", "authorized to work", "sponsorship", "vaccin",
+		"in accordance with", "policies", "policy", "pre-employment", "e-verify",
+	} {
+		if strings.Contains(lower, phrase) {
+			return false
+		}
+	}
+	return true
 }
