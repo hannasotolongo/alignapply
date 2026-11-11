@@ -921,7 +921,6 @@ function renderTrialResults(body, request, result) {
     h("ul", { class: "check-list" },
       h("li", {}, more > 0 ? `All ${total} matches, plus new ones as they post` : "Every match near you, plus new ones as they post"),
       h("li", {}, "Upload all your résumés. Jane picks the best one for each job and tailors it"),
-      h("li", {}, "Application tracker"),
       h("li", {}, h("b", {}, "Interview Prep included"))),
     h("button", { class: "btn btn-primary btn-lg btn-block", onclick: () => startCheckout("monthly") }, `Get Pro · ${monthly.displayPrice}/month`),
     h("p", { class: "faint small center" }, "Cancel anytime · 3-day money-back guarantee"),
@@ -980,7 +979,6 @@ function planCards(plansInfo, { compact = false, include = ["monthly", "intervie
     "Job search with match scores",
     "What your résumé is missing and how to fix it",
     "Upload all your résumés. Jane picks the best one for each job and tailors it",
-    plansInfo.gmailEnabled ? "Application tracker with Gmail sync" : "Application tracker",
     h("strong", {}, "Interview Prep included"),
   ];
   const ticks = (items) => h("ul", { class: "ticks" }, items.map((f) => h("li", {}, f)));
@@ -1082,7 +1080,7 @@ function upgradeFromInterview(title, body) {
       h("span", { class: "pill pill-pro" }, "Part of Pro"),
       h("h3", {}, title || "This is part of Pro"),
       h("p", { class: "muted" }, body || "Your Interview Prep plan covers interview practice."),
-      h("p", { class: "muted small" }, `Switch to Pro${monthly ? ` (${monthly.displayPrice}/${monthly.interval})` : ""} to add job search with match scores, Fit Check, résumé tailoring and the application tracker. Interview practice stays included.`)),
+      h("p", { class: "muted small" }, `Switch to Pro${monthly ? ` (${monthly.displayPrice}/${monthly.interval})` : ""} to add job search with match scores, Fit Check, and résumé tailoring. Interview practice stays included.`)),
     h("div", { class: "row" }, button, link("/app/interview", { class: "btn" }, "Back to interview practice")),
   );
 }
@@ -2837,7 +2835,6 @@ async function viewActivate() {
       h("li", {}, "Every requirement checked against your real experience"),
       h("li", {}, "Gap Closer: what to add, what to learn, what to skip"),
       h("li", {}, "Direct links to the employer's own application page"),
-      h("li", {}, plansInfo.gmailEnabled ? "Application tracker with Gmail sync" : "Application tracker, from saved to offer"),
     ),
     checkoutNote(),
     h("div", { class: "card inset" }, school),
