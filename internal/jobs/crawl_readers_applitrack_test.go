@@ -60,3 +60,13 @@ func TestAppliTrackBoardParts(t *testing.T) {
 		t.Errorf("posting url = %s", got)
 	}
 }
+
+func TestDecodeLegacyText(t *testing.T) {
+	got := decodeLegacyText([]byte("Caf\xe9 \x96 teacher\x92s aide"))
+	if got != "Café – teacher’s aide" {
+		t.Errorf("decoded = %q", got)
+	}
+	if decodeLegacyText([]byte("Café")) != "Café" {
+		t.Error("valid UTF-8 should be left alone")
+	}
+}

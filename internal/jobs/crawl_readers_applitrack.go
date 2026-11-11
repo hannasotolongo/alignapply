@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 // ---------------------------------------------------------------------------
@@ -348,5 +349,38 @@ func (c *crawlClient) getText(ctx context.Context, rawURL string) (string, error
 		return "", fmt.Errorf("HTTP %d from %s", response.StatusCode, target.Host)
 	}
 	body, err := io.ReadAll(io.LimitReader(response.Body, 16<<20))
-	return string(body), err
+	if err != nil {
+		return "", err
+	}
+	return decodeLegacyText(body), nil
+}
+
+// cp1252High maps bytes 0x80-0x9F in Windows-1252 to their characters
+// (curly quotes, dashes and so on). 0 marks unused bytes.
+var cp1252High = [32]rune{
+	0x20AC, 0, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021, 0x02C6, 0x2030, 0x0160, 0x2039, 0x0152, 0, 0x017D, 0,
+	0, 0x2018, 0x2019, 0x201C, 0x201D, 0x2022, 0x2013, 0x2014, 0x02DC, 0x2122, 0x0161, 0x203A, 0x0153, 0, 0x017E, 0x0178,
+}
+
+// decodeLegacyText returns body as UTF-8. Many older hiring sites (like
+// AppliTrack) send Windows-1252 text; the database only accepts UTF-8.
+func decodeLegacyText(body []byte) string {
+	if utf8.Valid(body) {
+		return string(body)
+	}
+	var out strings.Builder
+	out.Grow(len(body) + len(body)/8)
+	for _, b := range body {
+		switch {
+		case b < 0x80:
+			out.WriteByte(b)
+		case b < 0xA0:
+			if r := cp1252High[b-0x80]; r != 0 {
+				out.WriteRune(r)
+			}
+		default:
+			out.WriteRune(rune(b)) // Latin-1 range matches Unicode
+		}
+	}
+	return out.String()
 }
