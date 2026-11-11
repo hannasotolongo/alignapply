@@ -513,7 +513,9 @@ func (f *FallbackProvider) Search(ctx context.Context, request SearchRequest) ([
 			wg.Add(1)
 			go func(backup Provider) {
 				defer wg.Done()
+				started := time.Now()
 				jobs, err := backup.Search(backupCtx, request)
+				RecordTiming(ctx, "src-"+backup.Name(), time.Since(started))
 				log.Printf("[job-backups] %s returned %d jobs (err=%v)", backup.Name(), len(jobs), err)
 				if err != nil {
 					return
@@ -530,7 +532,10 @@ func (f *FallbackProvider) Search(ctx context.Context, request SearchRequest) ([
 		// Count only jobs that survive the location, title and other
 		// filters: remote and federal backups return plenty of jobs that
 		// don't match the search and would otherwise hide a thin result.
-		if usable := usableJobCount(request, all); usable < f.minimum {
+		countStarted := time.Now()
+		usable := usableJobCount(request, all)
+		RecordTiming(ctx, "usable-count", time.Since(countStarted))
+		if usable < f.minimum {
 			log.Printf("[job-backups] %d matching jobs so far (of %d); asking %d last-resort sources", usable, len(all), len(f.lastResort))
 			searchAll(f.lastResort)
 		}

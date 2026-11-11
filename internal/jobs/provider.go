@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 )
 
 // Provider is the common interface for every live job source Jane Careers uses.
@@ -84,7 +85,9 @@ func (m *MultiProvider) Search(
 		go func(p Provider) {
 			defer wg.Done()
 
+			started := time.Now()
 			jobsFound, err := p.Search(ctx, request)
+			RecordTiming(ctx, "src-"+p.Name(), time.Since(started))
 
 			results <- providerResult{
 				name: p.Name(),

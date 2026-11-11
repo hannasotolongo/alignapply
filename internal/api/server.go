@@ -1169,6 +1169,7 @@ func (s *Server) handleJobMatches(
 		)
 	defer cancel()
 
+	ctx, timings := jobs.WithTimings(ctx)
 	searchStarted := time.Now()
 
 	log.Printf(
@@ -1271,7 +1272,7 @@ func (s *Server) handleJobMatches(
 	sortStarted := time.Now()
 
 	sortJobMatches(matches)
-	setServerTiming(w, searchStarted, pipelineStarted, matchingStarted, time.Now())
+	setServerTiming(w, searchStarted, pipelineStarted, matchingStarted, time.Now(), timings)
 
 	// Pages: keep the whole ranked list so "Load more" is instant.
 	if request.PageSize > 0 {
@@ -1600,9 +1601,13 @@ func newJobProvider(server *Server) *jobs.MultiProvider {
 // setServerTiming reports how long each step of a search took, in the
 // standard Server-Timing header, so slow searches can be measured from a
 // browser.
-func setServerTiming(w http.ResponseWriter, started, searched, processed, scored time.Time) {
+func setServerTiming(w http.ResponseWriter, started, searched, processed, scored time.Time, parts *jobs.Timings) {
 	ms := func(from, to time.Time) string { return strconv.FormatInt(to.Sub(from).Milliseconds(), 10) }
-	w.Header().Set("Server-Timing", "search;dur="+ms(started, searched)+", pipeline;dur="+ms(searched, processed)+", score;dur="+ms(processed, scored))
+	header := "search;dur=" + ms(started, searched) + ", pipeline;dur=" + ms(searched, processed) + ", score;dur=" + ms(processed, scored)
+	if more := parts.Header(); more != "" {
+		header += ", " + more
+	}
+	w.Header().Set("Server-Timing", header)
 }
 
 // liveSourceWait is how long a search waits for employers' live job

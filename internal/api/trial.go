@@ -127,6 +127,7 @@ func (s *Server) handleTrialSearch(w http.ResponseWriter, r *http.Request) {
 	}
 	normalizeSearchRequest(&search)
 
+	ctx, timings := jobs.WithTimings(ctx)
 	started := time.Now()
 	result := s.jobProvider.Search(ctx, search)
 	searched := time.Now()
@@ -160,7 +161,7 @@ func (s *Server) handleTrialSearch(w http.ResponseWriter, r *http.Request) {
 	}
 	sortJobMatches(scored)
 	scored = nearbyTrialMatches(scored, jobs.StateOfPlace(request.Location))
-	setServerTiming(w, started, searched, piped, time.Now())
+	setServerTiming(w, started, searched, piped, time.Now(), timings)
 
 	log.Printf("[trial] role=%q location=%q jobs=%d scored=%d in %s", request.TargetRole, request.Location, len(result.Jobs), len(scored), time.Since(started))
 

@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -51,7 +52,10 @@ func (p *StoredJobsProvider) Search(ctx context.Context, request SearchRequest) 
 	if pattern == "" {
 		return nil, nil
 	}
+	queryStarted := time.Now()
 	found, err := store.SearchJobs(ctx, pattern, NearSearchPattern(request.Location), p.limit)
+	RecordTiming(ctx, "db-query", time.Since(queryStarted))
+	RecordTiming(ctx, "db-rows-"+strconv.Itoa(len(found)), 0)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +67,10 @@ func (p *StoredJobsProvider) Search(ctx context.Context, request SearchRequest) 
 			unread = append(unread, job)
 		}
 	}
-	return append(ready, p.readNearest(ctx, store, request, unread)...), nil
+	readStarted := time.Now()
+	read := p.readNearest(ctx, store, request, unread)
+	RecordTiming(ctx, "read-details", time.Since(readStarted))
+	return append(ready, read...), nil
 }
 
 // readNearest reads the details of the unread jobs that fit the search,
