@@ -468,7 +468,7 @@ func main() {
 
 	httpServer := &http.Server{
 		Addr:              ":" + port,
-		Handler:           api.WithCanonicalHost(server.Handler()),
+		Handler:           server.Handler(),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
