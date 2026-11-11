@@ -429,7 +429,9 @@ function legalLinks(className) {
 function siteFooter() {
   return h("footer", { class: "site-footer" },
     h("div", { class: "container row-between" },
-      h("span", {}, `© ${new Date().getFullYear()} ${BRAND} · Payments secured by Stripe · Customer service: `, h("a", { href: "tel:+16468212027" }, "646-821-2027")),
+      h("span", {}, `© ${new Date().getFullYear()} ${BRAND} · Payments secured by Stripe · Customer service: `, h("a", { href: "tel:+16468212027" }, "646-821-2027"),
+        // A plain link (not the app router) so it loads the static guide pages.
+        " · ", h("a", { href: "/interview-questions" }, "Interview questions")),
       legalLinks("footer-links"),
     ),
   );

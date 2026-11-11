@@ -38,6 +38,20 @@ func newStaticHandler(static fs.FS) http.Handler {
 			return
 		}
 
+		// Guide pages live in folders as index.html, so search engines get
+		// real HTML at clean URLs like /interview-questions/office-manager.
+		if path.Ext(name) == "" {
+			page := path.Join(name, "index.html")
+			if data, err := fs.ReadFile(static, page); err == nil {
+				w.Header().Set("Content-Type", "text/html; charset=utf-8")
+				w.Header().Set("Cache-Control", "public, max-age=3600")
+				if r.Method == http.MethodGet {
+					_, _ = w.Write(data)
+				}
+				return
+			}
+		}
+
 		// Missing asset files should 404, not return the HTML shell.
 		if path.Ext(name) != "" {
 			http.NotFound(w, r)
