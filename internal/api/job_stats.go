@@ -14,7 +14,7 @@ import (
 
 // Live job numbers for the homepage, from Jane's own saved jobs: how many
 // are open, and how many were posted (by the employer's own date) in the
-// last 7 days and the last day, everywhere and per state. The server counts
+// last 7 days and the last 2 days, everywhere and per state. The server counts
 // everything in the background every half hour, so a visitor's lookup is
 // instant and never touches the database.
 
@@ -23,7 +23,7 @@ const jobStatsRefresh = 30 * time.Minute
 type jobCounts struct {
 	Open        int `json:"open"`
 	NewThisWeek int `json:"newThisWeek"`
-	NewToday    int `json:"newToday"`
+	NewToday    int `json:"newToday"` // last 2 days: employers give dates, not times
 }
 
 func (c *jobCounts) add(posted *time.Time, now time.Time) {
@@ -34,7 +34,7 @@ func (c *jobCounts) add(posted *time.Time, now time.Time) {
 	if posted.After(now.Add(-7 * 24 * time.Hour)) {
 		c.NewThisWeek++
 	}
-	if posted.After(now.Add(-24 * time.Hour)) {
+	if posted.After(now.Add(-48 * time.Hour)) {
 		c.NewToday++
 	}
 }

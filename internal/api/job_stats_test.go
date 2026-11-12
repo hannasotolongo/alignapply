@@ -13,9 +13,10 @@ func TestJobCountsUsePostingDates(t *testing.T) {
 	var counts jobCounts
 	counts.add(ago(2*time.Hour), now)    // today and this week
 	counts.add(ago(3*24*time.Hour), now) // this week
+	counts.add(ago(36*time.Hour), now)   // last 2 days and this week
 	counts.add(ago(30*24*time.Hour), now)
 	counts.add(nil, now) // no posting date: open only
-	if counts != (jobCounts{Open: 4, NewThisWeek: 2, NewToday: 1}) {
+	if counts != (jobCounts{Open: 5, NewThisWeek: 3, NewToday: 2}) {
 		t.Fatalf("counts = %+v", counts)
 	}
 }

@@ -194,6 +194,9 @@ func geoLocateUncached(text, hintState string, anyState bool) (geoPoint, string,
 				state = code
 			}
 			if state == "" {
+				state = zipState(match[1])
+			}
+			if state == "" {
 				state = geoNearestState(point)
 			}
 			return point, state, true

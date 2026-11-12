@@ -738,7 +738,7 @@ function liveJobsStrip() {
       h("p", { class: "live-label" }, h("span", { class: "live-dot", "aria-hidden": "true" }), "Live from Jane's job database"),
       h("div", { class: "live-nums" },
         h("div", {}, week, h("span", {}, "jobs posted this week")),
-        h("div", {}, today, h("span", {}, "posted in the last day")),
+        h("div", {}, today, h("span", {}, "posted in the last 2 days")),
         h("div", {}, open, h("span", {}, "open jobs right now"))),
       h("form", { class: "live-form", onsubmit: async (event) => {
         event.preventDefault();
@@ -756,7 +756,7 @@ function liveJobsStrip() {
             result.replaceChildren(
               h("p", { class: "live-answer" },
                 h("b", {}, fmt(n.open)), ` open jobs in ${data.state}`,
-                n.newToday > 0 ? [" · ", h("b", {}, fmt(n.newToday)), " posted in the last day"] : n.newThisWeek > 0 ? [" · ", h("b", {}, fmt(n.newThisWeek)), " posted this week"] : null),
+                n.newToday > 0 ? [" · ", h("b", {}, fmt(n.newToday)), " posted in the last 2 days"] : n.newThisWeek > 0 ? [" · ", h("b", {}, fmt(n.newThisWeek)), " posted this week"] : null),
               state.user
                 ? link("/app", { class: "btn btn-ghost" }, "See your matches →")
                 : link("/try", { class: "btn btn-ghost" }, "See which ones you qualify for →"));
