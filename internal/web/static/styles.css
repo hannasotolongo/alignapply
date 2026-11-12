@@ -1462,3 +1462,44 @@ body { background: #0b0b0c; background-image: none; }
 
 /* Pricing: a little more room above "Not sure yet? Try one search free" */
 .try-line { margin-top: 28px; text-align: center; }
+
+/* Job, step by step (Nov 2026) */
+.dialog-job { width: min(1100px, calc(100vw - 32px)); height: min(860px, calc(100vh - 48px)); max-height: none; display: flex; flex-direction: column; overflow: hidden; }
+.dialog-job[open] { display: flex; }
+.dialog-job .dialog-head { flex: none; }
+.js-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.js-title h2 { margin: 0; }
+.js-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 16px; padding: 18px 22px 22px; }
+.js-nav { display: flex; flex-direction: column; gap: 6px; padding: 16px; border-radius: 20px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.09); overflow-y: auto; }
+.js-score { display: flex; align-items: center; gap: 12px; padding: 2px 4px 14px; }
+.js-score > div:last-child { display: flex; flex-direction: column; gap: 2px; }
+.js-score small { color: var(--text-2); font-size: 13px; }
+.text-mid { color: var(--mid); }
+.text-low { color: var(--low); }
+.js-step { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 12px; border-radius: 14px; border: 1px solid transparent; background: transparent; color: var(--text-2); font: inherit; text-align: left; cursor: pointer; }
+.js-step:hover { background: rgba(255, 255, 255, 0.05); }
+.js-step.on { background: rgba(255, 255, 255, 0.10); border-color: rgba(255, 255, 255, 0.22); color: var(--text); }
+.js-num { flex: none; width: 26px; height: 26px; border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.3); display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; }
+.js-step.on .js-num { background: #fff; color: #050506; border-color: #fff; }
+.js-step-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.js-step-text b { font-size: 15px; }
+.js-step-text small { font-size: 12px; color: var(--text-3); }
+.js-panel { min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; padding: 22px 24px; border-radius: 20px; background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.035)); border: 1px solid rgba(255, 255, 255, 0.10); }
+.js-kicker { margin: 0; font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-3); }
+.js-h2 { margin: -6px 0 0; font-size: 24px; letter-spacing: -0.02em; }
+.js-strong { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.js-strong li { display: flex; gap: 8px; color: var(--text-2); font-size: 14px; }
+.js-strong li::before { content: "✓"; color: var(--good); font-weight: 800; }
+.js-foot { margin-top: auto; padding-top: 16px; border-top: 1px solid rgba(255, 255, 255, 0.08); display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.js-posting summary { cursor: pointer; font-weight: 600; }
+.js-posting .description { margin-top: 10px; }
+@media (max-width: 760px) {
+  .dialog-job { height: calc(100vh - 24px); width: calc(100vw - 16px); }
+  .js-body { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); padding: 12px; gap: 10px; }
+  .js-nav { flex-direction: row; overflow-x: auto; padding: 8px; gap: 4px; }
+  .js-score { display: none; }
+  .js-step { flex: none; width: auto; padding: 8px 10px; }
+  .js-step-text small { display: none; }
+  .js-step-text b { font-size: 13px; white-space: nowrap; }
+  .js-panel { padding: 16px; }
+}

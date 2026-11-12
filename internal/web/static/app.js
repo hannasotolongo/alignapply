@@ -2284,7 +2284,151 @@ function jobCard(match) {
   );
 }
 
+// openJobDetail: one job, step by step (Nov 2026). The left side shows the
+// match and five steps; the right side shows one step at a time:
+// what to change, your résumé, cover letter, apply, practice the interview.
+// Preview-only postings (no full description) keep the simple view.
 function openJobDetail(match) {
+  if (isPreview(match)) return openJobDetailSimple(match);
+
+  const applyURL = safeUrl(match.applyURL || match.sourceURL || "");
+  const company = match.company || "the employer";
+  const norm = (text) => (text || "").toLowerCase().replace(/\s+/g, " ").trim();
+  const required = new Set((match.requirements || []).filter((r) => r.importance === "required").map((r) => norm(r.text)));
+  const supported = match.supportedRequirements || [];
+  const mustMet = supported.filter((t) => required.has(norm(t))).length;
+  const gaps = gapsFromMatch(match);
+  const level = match.matchLevel || "Fit";
+  const levelTone = fitClass(match);
+
+  const getInput = async () => {
+    const resumes = state.resumes || await loadResumes();
+    const chosen = (state.lastSearch && state.lastSearch.resumeId) || ((resumes.find((r) => r.isPrimary) || resumes[0] || {}).id);
+    if (!chosen) throw new Error("Upload a résumé first, then Jane can tailor it.");
+    return {
+      resumeText: await resumeText(chosen),
+      jobDescription: (match.description || "").slice(0, 30000),
+      jobTitle: match.title,
+      company: match.company,
+      gaps: gaps.map((g) => g.requirement),
+    };
+  };
+
+  const steps = [
+    { title: "What to change", note: gaps.length ? `${gaps.length} ${gaps.length === 1 ? "thing" : "things"}` : "Nothing to fix", render: stepChange },
+    { title: "Your résumé", note: "Tailored for this job", render: stepResume },
+    { title: "Cover letter", note: `For ${company}`, render: stepLetter },
+    { title: "Apply", note: `On ${company}'s site`, render: stepApply },
+    { title: "Practice the interview", note: "Out loud", render: stepPractice },
+  ];
+  const rendered = new Map();
+  let current = 0;
+
+  const navButtons = steps.map((step, index) => h("button", { type: "button", class: "js-step", onclick: () => show(index) },
+    h("span", { class: "js-num" }, String(index + 1)),
+    h("span", { class: "js-step-text" }, h("b", {}, step.title), h("small", {}, step.note))));
+  const panel = h("section", { class: "js-panel", "aria-live": "polite" });
+
+  function show(index) {
+    current = index;
+    navButtons.forEach((button, i) => {
+      button.classList.toggle("on", i === index);
+      if (i === index) button.setAttribute("aria-current", "step"); else button.removeAttribute("aria-current");
+    });
+    if (!rendered.has(index)) rendered.set(index, steps[index].render());
+    const back = index > 0 ? h("button", { type: "button", class: "btn btn-ghost", onclick: () => show(index - 1) }, "← Back") : h("span", {});
+    const next = index < steps.length - 1
+      ? h("button", { type: "button", class: "btn btn-primary", onclick: () => show(index + 1) }, `Next: ${steps[index + 1].title.toLowerCase()} →`)
+      : h("button", { type: "button", class: "btn", onclick: () => dialog.close() }, "Done");
+    panel.replaceChildren(
+      h("p", { class: "js-kicker" }, `Step ${index + 1} of ${steps.length}`),
+      h("h2", { class: "js-h2" }, steps[index].title),
+      rendered.get(index),
+      h("div", { class: "js-foot" }, back, next));
+    panel.scrollTop = 0;
+  }
+
+  function stepChange() {
+    const missingMust = gaps.filter((g) => g.kind !== "strengthen" && g.importance === "required");
+    const clearer = gaps.filter((g) => g.kind === "strengthen");
+    const niceToHave = gaps.filter((g) => g.kind !== "strengthen" && g.importance !== "required");
+    const group = (title, hint, items) => items.length ? h("div", { class: "stack-sm" },
+      h("span", { class: "section-label" }, title),
+      hint ? h("p", { class: "faint small" }, hint) : null,
+      h("ul", { class: "gap-list" }, items.map((gap) => gapItem(gap)))) : null;
+    return h("div", { class: "stack" },
+      h("p", { class: "muted" }, required.size
+        ? `You meet ${mustMet} of ${required.size} must-haves.${gaps.length ? " Tell Jane what you have and your score goes up." : ""}`
+        : (match.explanation || "")),
+      gaps.length ? null : h("p", {}, "Jane found everything this job asks for on your résumé. Apply early."),
+      group("Missing must-haves", "Not on your résumé. If you've done it, add it with one real example. If you haven't, don't.", missingMust),
+      group("Say these more clearly", "Your résumé hints at these. One specific example makes them count.", clearer),
+      group("Nice to have", "", niceToHave),
+      supported.length ? h("div", { class: "stack-sm" },
+        h("span", { class: "section-label" }, "Already strong"),
+        h("ul", { class: "js-strong" }, supported.slice(0, 8).map((text) => h("li", {}, text)))) : null);
+  }
+
+  function stepResume() {
+    const slot = h("div", {});
+    return h("div", { class: "stack" },
+      h("p", { class: "muted" }, "Jane picks your best résumé for this job and rewrites it in the job's language, using only what's true."),
+      recommendationCard(match, slot),
+      applicationKitSection(getInput, `${match.title}${match.company ? ` at ${match.company}` : ""}`, { withLetter: false }));
+  }
+
+  function stepLetter() {
+    return h("div", { class: "stack" },
+      h("p", { class: "muted" }, `Three short paragraphs for ${company}, written from your real experience. Nothing made up.`),
+      coverLetterSection(getInput));
+  }
+
+  function stepApply() {
+    const details = h("details", { class: "js-posting" },
+      h("summary", {}, "Read the full posting"),
+      h("div", { class: "description" }, match.description || ""));
+    return h("div", { class: "stack" },
+      h("p", { class: "muted" }, `Apply on ${company}'s own site, not a job board. Your application goes straight to them.`),
+      applyURL ? h("a", { class: "btn btn-primary btn-lg", href: applyURL, target: "_blank", rel: "noopener noreferrer" }, `Apply on ${company}'s site ↗`) : null,
+      h("div", { class: "row" }, trackButton(match), h("span", { class: "faint small" }, "Save it to keep track of where you applied.")),
+      match.description ? details : null);
+  }
+
+  function stepPractice() {
+    return h("div", { class: "stack" },
+      h("p", { class: "muted" }, "Jane asks the questions this employer is likely to ask. You answer out loud, and she coaches how you sound."),
+      h("button", { class: "btn btn-primary btn-lg", type: "button", onclick: () => {
+        state.practiceJob = { title: match.title, company: match.company, description: (match.description || "").slice(0, 30000) };
+        dialog.close();
+        startInterviewPrep();
+      } }, "Practice this interview"));
+  }
+
+  const dialog = h("dialog", { class: "dialog dialog-job", "aria-label": match.title },
+    h("div", { class: "dialog-head" },
+      h("div", { class: "js-title" },
+        h("h2", {}, match.title),
+        h("span", { class: "muted small" }, [match.company, match.location, distanceText(match), salaryText(match)].filter(Boolean).join(" · "))),
+      h("div", { class: "row" },
+        trackButton(match),
+        h("button", { class: "btn btn-ghost btn-sm", "aria-label": "Close", onclick: () => dialog.close() }, "✕"))),
+    h("div", { class: "js-body" },
+      h("nav", { class: "js-nav", "aria-label": "Steps" },
+        h("div", { class: "js-score" },
+          h("div", { class: `score ${levelTone}` }, `${match.matchPercentage}%`),
+          h("div", {}, h("b", { class: `text-${levelTone}` }, level),
+            h("small", {}, required.size ? `${mustMet} of ${required.size} must-haves` : `${supported.length} requirements met`))),
+        navButtons),
+      panel));
+  dialog.addEventListener("close", () => dialog.remove());
+  dialog.addEventListener("click", (event) => { if (event.target === dialog) dialog.close(); });
+  document.body.append(dialog);
+  show(0);
+  dialog.showModal();
+  return dialog;
+}
+
+function openJobDetailSimple(match) {
   const applyURL = safeUrl(match.applyURL || match.sourceURL || "");
   const cls = fitClass(match);
   const required = (match.requirements || []).filter((r) => r.importance === "required").map((r) => r.text);
@@ -3456,7 +3600,7 @@ function renderKit(kit, title, input) {
 
 // applicationKitSection returns a card with a "Build my Application Kit"
 // button. getInput resolves { resumeText, jobDescription, jobTitle, company, gaps }.
-function applicationKitSection(getInput, title) {
+function applicationKitSection(getInput, title, { withLetter = true } = {}) {
   const slot = h("div", {});
   const start = h("button", { class: "btn btn-primary", type: "button", onclick: async () => {
     start.disabled = true;
@@ -3476,7 +3620,7 @@ function applicationKitSection(getInput, title) {
     h("h3", {}, "Ready to apply? Let Jane tailor your résumé"),
     h("p", { class: "muted small" }, "A résumé summary, bullets and keywords rewritten for this job, plus interview prep for your gaps. Truth-locked: every line traces back to your real résumé, and nothing gets made up."),
     h("div", { class: "row" }, start));
-  return h("div", { class: "stack-sm" }, intro, slot, coverLetterSection(getInput));
+  return h("div", { class: "stack-sm" }, intro, slot, withLetter ? coverLetterSection(getInput) : null);
 }
 
 // coverLetterSection writes a short, truth-locked cover letter for the job.
@@ -3912,6 +4056,14 @@ async function viewInterviewPractice() {
       h("label", { class: "field" }, "Job title", pasteTitle),
       h("label", { class: "field" }, "Company you're interviewing with", pasteCompany)),
     h("label", { class: "field" }, "Job posting", pasteBody));
+  // "Practice this interview" from a job's steps opens this page with the job filled in.
+  if (state.practiceJob) {
+    jobSelect.value = "";
+    pasteTitle.value = state.practiceJob.title || "";
+    pasteCompany.value = state.practiceJob.company || "";
+    pasteBody.value = state.practiceJob.description || "";
+    state.practiceJob = null;
+  }
   const syncPaste = () => pasteArea.classList.toggle("hidden", jobSelect.value !== "");
   jobSelect.addEventListener("change", syncPaste);
   syncPaste();
