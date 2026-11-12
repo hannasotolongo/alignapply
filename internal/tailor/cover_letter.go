@@ -31,7 +31,7 @@ type CoverLetterRequest struct {
 // available on the account, the client's default model is used instead.
 const (
 	coverLetterModel  = "gpt-5"
-	coverLetterEffort = "medium"
+	coverLetterEffort = "low"
 )
 
 // The model plans before it writes: what this job needs most, and which
@@ -71,9 +71,9 @@ First, plan (these two fields are never shown to anyone):
 - proof: for each need the résumé can actually back up, one line pairing the need with the specific résumé fact that proves it (with any number the résumé gives). Skip needs the résumé doesn't show.
 
 Then write the letter from that plan:
-- Paragraph 1 (2 sentences): open with what this team or role needs, in the posting's own terms, and connect it to who the candidate is and their single strongest match. Don't open with "I am applying for" or "I am writing to".
+- Paragraph 1 (2 sentences): name the role and company, and connect the candidate's single strongest matching experience to the main work this role does. Make the first sentence specific to this job; don't open with "I am applying for", "I am writing to" or "Your team needs".
 - Paragraph 2 (2 to 3 sentences): the two strongest proofs. Each one says what the candidate did and what came of it, and makes clear why it matters for THIS job. Use the résumé's numbers when it has them.
-- Paragraph 3 (1 to 2 sentences): one specific reason this role or company fits the candidate, taken from the posting, then a short thank-you.
+- Paragraph 3 (1 to 2 sentences): one specific, plain-English reason this role fits the candidate, based on the work the posting describes (not internal team names, codenames or acronyms), then a short thank-you.
 - 110 to 160 words in the three paragraphs. Every sentence under 28 words.
 - Say each fact once. Never repeat a résumé line or copy it word for word; rephrase it as a sentence a person would say.
 - Plain, confident, professional English, like a strong candidate writing their own letter. Vary how sentences start. Contractions are fine.
@@ -82,8 +82,9 @@ Then write the letter from that plan:
 Never:
 - Invent anything: no employer, title, project, result, number, date, degree, tool or skill the résumé doesn't state. If the résumé doesn't show something the job wants, leave it out.
 - Claim to know the company beyond what the posting says.
-- List tools or skills in a row. Name at most three tools in the whole letter.
-- Use these words or phrases, or anything like them: "I am excited", "thrilled", "passionate", "from day one", "I look forward to hearing from you", "dynamic", "fast-paced", "leverage", "synergy", "proven track record", "team player", "perfect fit", "great asset", "hands-on", "I am confident", "align with", "contribute to".
+- List tools or skills in a row. Name at most four tools in the whole letter, written exactly as the résumé writes them (never swap a named tool for a vague one like "a relational database").
+- Tack on a second "which" clause, or end a sentence with a claim about what the job "demands".
+- Use these words or phrases, or anything like them: "I am excited", "thrilled", "passionate", "from day one", "I look forward to hearing from you", "dynamic", "fast-paced", "leverage", "synergy", "proven track record", "team player", "perfect fit", "great asset", "hands-on", "I am confident", "align with", "contribute", "immediately", "exactly what", "robust", "end-to-end", "drive impact".
 - Use bullet points, exclamation marks, em dashes or headings.
 
 Before you answer, check the letter against every rule above and fix it.
