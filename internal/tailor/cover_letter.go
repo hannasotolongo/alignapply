@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"regexp"
 	"strings"
 )
@@ -25,11 +26,24 @@ type CoverLetterRequest struct {
 	Company        string
 }
 
+// Cover letters use a stronger model than the rest of the kit: the letter is
+// the one thing a hiring manager reads word for word. If that model isn't
+// available on the account, the client's default model is used instead.
+const (
+	coverLetterModel  = "gpt-5"
+	coverLetterEffort = "medium"
+)
+
+// The model plans before it writes: what this job needs most, and which
+// résumé facts prove the candidate has it. The plan is not shown to anyone;
+// it keeps the letter about this job instead of a summary of the résumé.
 const coverLetterSchema = `{
   "type": "object",
   "additionalProperties": false,
-  "required": ["greeting", "paragraphs", "closing", "name"],
+  "required": ["whatTheyNeed", "proof", "greeting", "paragraphs", "closing", "name"],
   "properties": {
+    "whatTheyNeed": {"type": "array", "items": {"type": "string"}},
+    "proof": {"type": "array", "items": {"type": "string"}},
     "greeting": {"type": "string"},
     "paragraphs": {"type": "array", "items": {"type": "string"}},
     "closing": {"type": "string"},
@@ -37,26 +51,49 @@ const coverLetterSchema = `{
   }
 }`
 
+const coverLetterExample = `Dear Riverside Health Hiring Team,
+
+Your posting for a Patient Access Coordinator puts accuracy at the front desk first, and that is the part of the job I know best. For the last three years I have handled check-in, insurance verification and scheduling for a 12-provider family practice in Orlando.
+
+The clinic sees about 90 patients a day, and I cut insurance denials from front-desk errors by building a simple pre-visit checklist the whole team now uses. When we moved to Epic last spring, I trained the other four front-desk staff on registration and scheduling, which is the same system your team uses.
+
+I'd like to bring that same steadiness to Riverside's new outpatient center. Thank you for your time.
+
+Sincerely,
+Dana Brooks`
+
 func buildCoverLetterPrompt(request CoverLetterRequest) string {
 	var b strings.Builder
-	b.WriteString(`Write a cover letter for this job, using ONLY facts from the candidate's résumé.
+	b.WriteString(`You are an experienced recruiter writing a cover letter for a candidate. A busy hiring manager will read it in 30 seconds. Use ONLY facts from the candidate's résumé.
 
-How it must read:
-- Professional, plain and to the point. It should sound like a capable person wrote it, not an AI.
-- Exactly 3 short paragraphs, 120 to 170 words in total.
-  1. The role and company by name, and in one sentence who the candidate is and their strongest relevant experience.
-  2. The best proof: one or two concrete things from their résumé that match what this job asks for most. Write them as sentences about the work, not a list of tools or skills. Mention at most two tools by name.
-  3. One short sentence on why they'd do well in this role, then a brief thank-you.
-- Greeting: "Dear Hiring Manager," (or "Dear <Company> Hiring Team," if the company is known).
-- Closing: "Sincerely,". Name: the candidate's name from the top of the résumé, or "" if none.
+First, plan (these two fields are never shown to anyone):
+- whatTheyNeed: the 3 things this posting cares about most, in plain words. Read the duties and requirements, not the company boilerplate.
+- proof: for each need the résumé can actually back up, one line pairing the need with the specific résumé fact that proves it (with any number the résumé gives). Skip needs the résumé doesn't show.
+
+Then write the letter from that plan:
+- Paragraph 1 (2 sentences): open with what this team or role needs, in the posting's own terms, and connect it to who the candidate is and their single strongest match. Don't open with "I am applying for" or "I am writing to".
+- Paragraph 2 (2 to 3 sentences): the two strongest proofs. Each one says what the candidate did and what came of it, and makes clear why it matters for THIS job. Use the résumé's numbers when it has them.
+- Paragraph 3 (1 to 2 sentences): one specific reason this role or company fits the candidate, taken from the posting, then a short thank-you.
+- 110 to 160 words in the three paragraphs. Every sentence under 28 words.
+- Say each fact once. Never repeat a résumé line or copy it word for word; rephrase it as a sentence a person would say.
+- Plain, confident, professional English, like a strong candidate writing their own letter. Vary how sentences start. Contractions are fine.
+- Greeting: "Dear <Company> Hiring Team," when the company is known, otherwise "Dear Hiring Manager,". Closing: "Sincerely,". Name: the candidate's name from the top of the résumé, or "" if none.
 
 Never:
-- Invent anything: no employer, title, project, result, number, date, degree or skill the résumé doesn't state. If the résumé doesn't show something the job wants, leave it out; don't claim it.
-- Use these phrases or anything like them: "I am excited", "I'm thrilled", "passionate", "I am confident I can contribute from day one", "I look forward to hearing from you", "dynamic", "fast-paced", "leverage", "synergy", "proven track record", "team player", "perfect fit", "I believe I would be a great asset".
-- Use bullet points, lists, exclamation marks, em dashes or headings.
+- Invent anything: no employer, title, project, result, number, date, degree, tool or skill the résumé doesn't state. If the résumé doesn't show something the job wants, leave it out.
+- Claim to know the company beyond what the posting says.
+- List tools or skills in a row. Name at most three tools in the whole letter.
+- Use these words or phrases, or anything like them: "I am excited", "thrilled", "passionate", "from day one", "I look forward to hearing from you", "dynamic", "fast-paced", "leverage", "synergy", "proven track record", "team player", "perfect fit", "great asset", "hands-on", "I am confident", "align with", "contribute to".
+- Use bullet points, exclamation marks, em dashes or headings.
+
+Before you answer, check the letter against every rule above and fix it.
+
+Here is an example of the tone and shape to aim for (a different job and person; don't reuse its facts or sentences):
+
 `)
+	b.WriteString(coverLetterExample)
 	if request.JobTitle != "" {
-		fmt.Fprintf(&b, "\nJOB TITLE: %s", request.JobTitle)
+		fmt.Fprintf(&b, "\n\nJOB TITLE: %s", request.JobTitle)
 	}
 	if request.Company != "" {
 		fmt.Fprintf(&b, "\nCOMPANY: %s", request.Company)
@@ -80,7 +117,12 @@ func (c *Client) WriteCoverLetter(ctx context.Context, request CoverLetterReques
 	if c == nil {
 		return CoverLetter{}, ErrUnavailable
 	}
-	text, err := c.structured(ctx, buildCoverLetterPrompt(request), "cover_letter", coverLetterSchema)
+	prompt := buildCoverLetterPrompt(request)
+	text, err := c.structuredWith(ctx, coverLetterModel, coverLetterEffort, prompt, "cover_letter", coverLetterSchema)
+	if err != nil && coverLetterModel != c.Model {
+		log.Printf("[cover-letter] %s failed, using %s: %v", coverLetterModel, c.Model, err)
+		text, err = c.structured(ctx, prompt, "cover_letter", coverLetterSchema)
+	}
 	if err != nil {
 		return CoverLetter{}, err
 	}
@@ -99,7 +141,7 @@ var (
 	sentencePattern = regexp.MustCompile(`[^.!?]+[.!?]+["”’]?\s*|[^.!?]+$`)
 	// Stock phrases that make a letter sound machine-written; a sentence
 	// that still uses one is dropped.
-	stockPhrasePattern = regexp.MustCompile(`(?i)\b(i am excited|i'm excited|i’m excited|thrilled|passionate|from day one|look forward to hearing|dynamic|fast-paced|leverag|synergy|proven track record|team player|perfect fit|great asset)\b`)
+	stockPhrasePattern = regexp.MustCompile(`(?i)\b(i am excited|i'm excited|i’m excited|thrilled|passionate|from day one|look forward to hearing|dynamic|fast-paced|leverag|synergy|proven track record|team player|perfect fit|great asset|i am confident|i'm confident)\b`)
 )
 
 // EnforceCoverLetter keeps the letter honest and plain: a sentence with a

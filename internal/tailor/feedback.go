@@ -69,9 +69,14 @@ RULES:
 // structured calls the Responses API with a strict JSON schema and returns
 // the model's JSON text.
 func (c *Client) structured(ctx context.Context, prompt, name, schema string) (string, error) {
+	return c.structuredWith(ctx, c.Model, "low", prompt, name, schema)
+}
+
+// structuredWith is structured with a chosen model and reasoning effort.
+func (c *Client) structuredWith(ctx context.Context, model, effort, prompt, name, schema string) (string, error) {
 	payload, err := json.Marshal(map[string]any{
-		"model":     c.Model,
-		"reasoning": map[string]string{"effort": "low"},
+		"model":     model,
+		"reasoning": map[string]string{"effort": effort},
 		"input":     []map[string]string{{"role": "user", "content": prompt}},
 		"text": map[string]any{"format": map[string]any{
 			"type": "json_schema", "name": name, "strict": true,
