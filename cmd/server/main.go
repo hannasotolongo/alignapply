@@ -466,6 +466,8 @@ func main() {
 
 	// Daily match emails go out in the background.
 	go server.RunMatchAlerts(ctx)
+	// Live job numbers for the homepage, counted in the background.
+	go server.RunJobStats(ctx)
 
 	// Production hosts provide PORT.
 	// Local development falls back to 8080.

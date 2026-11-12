@@ -10,107 +10,113 @@ import (
 	"unicode/utf8"
 
 	"github.com/hannasotolongo/casemade-backend/internal/jobs"
-	"github.com/hannasotolongo/casemade-backend/internal/repository"
 )
 
-// Live job numbers for the homepage: how many jobs are open in Jane's own
-// database, and how many she found this week and today, everywhere and in
-// a visitor's state. Counts are real and cached for a few minutes, so the
-// homepage never waits on the database.
+// Live job numbers for the homepage, from Jane's own saved jobs: how many
+// are open, and how many were posted (by the employer's own date) in the
+// last 7 days and the last day, everywhere and per state. The server counts
+// everything in the background every half hour, so a visitor's lookup is
+// instant and never touches the database.
 
-const jobStatsTTL = 10 * time.Minute
+const jobStatsRefresh = 30 * time.Minute
 
-type jobStatsEntry struct {
-	counts  repository.JobCounts
-	expires time.Time
+type jobCounts struct {
+	Open        int `json:"open"`
+	NewThisWeek int `json:"newThisWeek"`
+	NewToday    int `json:"newToday"`
+}
+
+func (c *jobCounts) add(posted *time.Time, now time.Time) {
+	c.Open++
+	if posted == nil || posted.After(now.Add(time.Hour)) {
+		return
+	}
+	if posted.After(now.Add(-7 * 24 * time.Hour)) {
+		c.NewThisWeek++
+	}
+	if posted.After(now.Add(-24 * time.Hour)) {
+		c.NewToday++
+	}
+}
+
+type jobStatsSnapshot struct {
+	all    jobCounts
+	states map[string]jobCounts
 }
 
 var jobStats = struct {
-	mu      sync.Mutex
-	entries map[string]jobStatsEntry
-	running map[string]bool
-}{entries: map[string]jobStatsEntry{}, running: map[string]bool{}}
+	mu       sync.RWMutex
+	snapshot *jobStatsSnapshot
+}{}
 
 type jobStatsResponse struct {
-	All   repository.JobCounts  `json:"all"`
-	State string                `json:"state,omitempty"`
-	Near  *repository.JobCounts `json:"near,omitempty"`
+	All   jobCounts  `json:"all"`
+	State string     `json:"state,omitempty"`
+	Near  *jobCounts `json:"near,omitempty"`
 }
 
+// GET /api/v1/stats/jobs[?place=Tampa, FL]
 func (s *Server) handleJobStats(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		methodNotAllowed(w, "GET")
 		return
 	}
-	if s.crawledJobs == nil {
-		writeError(w, http.StatusServiceUnavailable, "job numbers aren't available")
-		return
-	}
-	all, ok := s.cachedJobCounts(r.Context(), "")
-	if !ok {
+	jobStats.mu.RLock()
+	snapshot := jobStats.snapshot
+	jobStats.mu.RUnlock()
+	if snapshot == nil {
 		writeError(w, http.StatusServiceUnavailable, "job numbers aren't ready yet")
 		return
 	}
-	response := jobStatsResponse{All: all}
-
+	response := jobStatsResponse{All: snapshot.all}
 	place := strings.TrimSpace(r.URL.Query().Get("place"))
 	if place != "" && utf8.RuneCountInString(place) <= 100 {
 		if code := jobs.StateOfPlace(place); code != "" {
-			if near, ok := s.cachedJobCounts(r.Context(), code); ok {
-				response.State = jobs.StateName(code)
-				response.Near = &near
-			}
+			counts := snapshot.states[code]
+			response.State = jobs.StateName(code)
+			response.Near = &counts
 		}
 	}
 	w.Header().Set("Cache-Control", "public, max-age=120")
 	writeJSON(w, http.StatusOK, response)
 }
 
-// cachedJobCounts returns counts for a state ("" for everywhere). A stale
-// entry is returned at once and refreshed in the background.
-func (s *Server) cachedJobCounts(ctx context.Context, state string) (repository.JobCounts, bool) {
-	jobStats.mu.Lock()
-	entry, ok := jobStats.entries[state]
-	fresh := ok && time.Now().Before(entry.expires)
-	if ok && !fresh && !jobStats.running[state] {
-		jobStats.running[state] = true
-		go s.refreshJobCounts(state)
+// RunJobStats keeps the homepage's live counts current until ctx ends.
+func (s *Server) RunJobStats(ctx context.Context) {
+	if s.crawledJobs == nil {
+		return
 	}
-	jobStats.mu.Unlock()
-	if ok {
-		return entry.counts, true
+	for {
+		s.refreshJobStats(ctx)
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(jobStatsRefresh):
+		}
 	}
-
-	queryCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
-	defer cancel()
-	counts, err := s.crawledJobs.CountJobs(queryCtx, statePattern(state))
-	if err != nil {
-		log.Printf("[job-stats] count %q: %v", state, err)
-		return repository.JobCounts{}, false
-	}
-	jobStats.mu.Lock()
-	jobStats.entries[state] = jobStatsEntry{counts: counts, expires: time.Now().Add(jobStatsTTL)}
-	jobStats.mu.Unlock()
-	return counts, true
 }
 
-func (s *Server) refreshJobCounts(state string) {
-	defer func() {
-		jobStats.mu.Lock()
-		delete(jobStats.running, state)
-		jobStats.mu.Unlock()
-	}()
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+func (s *Server) refreshJobStats(ctx context.Context) {
+	started := time.Now()
+	queryCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
-	counts, err := s.crawledJobs.CountJobs(ctx, statePattern(state))
+	now := time.Now()
+	snapshot := &jobStatsSnapshot{states: map[string]jobCounts{}}
+	err := s.crawledJobs.EachOpenJob(queryCtx, func(location string, posted *time.Time) {
+		snapshot.all.add(posted, now)
+		for _, code := range jobs.StatesIn(location) {
+			counts := snapshot.states[code]
+			counts.add(posted, now)
+			snapshot.states[code] = counts
+		}
+	})
 	if err != nil {
-		log.Printf("[job-stats] refresh %q: %v", state, err)
+		log.Printf("[job-stats] refresh: %v", err)
 		return
 	}
 	jobStats.mu.Lock()
-	jobStats.entries[state] = jobStatsEntry{counts: counts, expires: time.Now().Add(jobStatsTTL)}
+	jobStats.snapshot = snapshot
 	jobStats.mu.Unlock()
+	log.Printf("[job-stats] %d open jobs, %d posted this week, %d in the last day, %d states (%s)",
+		snapshot.all.Open, snapshot.all.NewThisWeek, snapshot.all.NewToday, len(snapshot.states), time.Since(started).Round(time.Millisecond))
 }
-
-// statePattern matches job locations in a state ("" matches everywhere).
-func statePattern(state string) string { return jobs.StatePattern(state) }

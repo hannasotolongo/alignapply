@@ -1,5 +1,7 @@
 package jobs
 
+import "strings"
+
 // StateOfPlace returns the two-letter US state a searched place is in
 // ("Gainesville, FL", "32601", "Florida"), or "" when it can't tell.
 func StateOfPlace(text string) string {
@@ -22,4 +24,24 @@ func LocationNamesState(location, state string) bool {
 }
 
 // StateName is a state's full name ("Florida" for "FL"), or "" if unknown.
-func StateName(code string) string { return usStateFullName(code) }
+func StateName(code string) string {
+	words := strings.Fields(usStateFullName(code))
+	for i, word := range words {
+		if word == "of" {
+			continue
+		}
+		words[i] = strings.ToUpper(word[:1]) + word[1:]
+	}
+	return strings.Join(words, " ")
+}
+
+// StatesIn lists the US state codes a job location names ("Tampa, FL" ->
+// ["FL"]).
+func StatesIn(location string) []string {
+	found := usStatesIn(location)
+	codes := make([]string, 0, len(found))
+	for code := range found {
+		codes = append(codes, code)
+	}
+	return codes
+}
