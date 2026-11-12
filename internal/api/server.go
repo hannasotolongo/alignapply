@@ -57,6 +57,9 @@ type Server struct {
 	trialLimiter        *attemptLimiter
 
 	// Daily match emails (match_alerts.go).
+	// Free-trial cover letter previews (cover_letter.go).
+	trialLetterLimiter *attemptLimiter
+
 	matchAlerts  *repository.MatchAlertsRepository
 	alertLimiter *attemptLimiter
 	alertJobs    jobs.Provider
@@ -134,6 +137,7 @@ func NewServer(
 		fitCheckUserLimiter: newAttemptLimiter(ProJobMatchesPerHour, time.Hour),
 		trialLimiter:        newAttemptLimiter(trialSearchesPerDay, 24*time.Hour),
 		alertLimiter:        newAttemptLimiter(5, time.Hour),
+		trialLetterLimiter:  newAttemptLimiter(6, 24*time.Hour),
 	}
 
 	server.jobProvider = newJobProvider(server)
@@ -395,6 +399,7 @@ func (s *Server) routes() {
 		// Web (email + password) authentication.
 		s.mux.HandleFunc("/api/v1/fit-check", s.handleFitCheck)
 		s.mux.Handle("/api/v1/application-kit", s.sessionManager.Middleware(s.requirePro(http.HandlerFunc(s.handleApplicationKit))))
+		s.mux.Handle("/api/v1/cover-letter", s.sessionManager.Middleware(s.requirePro(http.HandlerFunc(s.handleCoverLetter))))
 		s.mux.Handle("/api/v1/interview-feedback", s.sessionManager.Middleware(s.requireInterview(http.HandlerFunc(s.handleInterviewFeedback))))
 		s.mux.Handle("/api/v1/interview-questions", s.sessionManager.Middleware(s.requireInterview(http.HandlerFunc(s.handleInterviewQuestions))))
 		s.mux.HandleFunc("/api/v1/auth/signup", s.handlePasswordSignUp)
@@ -464,6 +469,7 @@ func (s *Server) routes() {
 
 	// Free trial: one search without an account (janecareers.com/try).
 	s.mux.HandleFunc("/api/v1/trial/search", s.handleTrialSearch)
+	s.mux.HandleFunc("/api/v1/trial/cover-letter", s.handleTrialCoverLetter)
 	s.mux.HandleFunc("/api/v1/stats/jobs", s.handleJobStats)
 	s.mux.HandleFunc("/api/v1/alerts", s.handleCreateAlert)
 	s.mux.HandleFunc("/alerts/confirm", s.handleConfirmAlert)

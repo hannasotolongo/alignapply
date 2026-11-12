@@ -430,7 +430,6 @@ const NAV_MENUS = [
     { title: "Interview questions", text: "By job, with sample answers", href: "/interview-questions", plain: true },
     { title: "Why should we hire you?", text: "Turn it into your best answer", href: "/interview-tips/why-should-we-hire-you", plain: true },
     { title: "Questions to ask the interviewer", text: "End the interview strong", href: "/interview-tips/questions-to-ask-the-interviewer", plain: true },
-    { title: "Schools & career programs", text: "Pro for every student", href: "/pricing#schools" },
     { title: "Customer service", text: "Call 646-821-2027", href: "/contact", plain: true },
     { title: "Refund policy", text: "3-day money-back guarantee", href: "/refunds", plain: true },
   ] },
@@ -515,7 +514,7 @@ function siteFooter() {
     h("div", { class: "container foot-grid" },
       h("div", { class: "foot-brand" }, brand(), h("p", {}, "Fewer applications. More offers.")),
       column("Product", link("/#how", {}, "How Jane works"), link("/#interview", {}, "Interview Prep"), link("/pricing", {}, "Pricing"), link("/try", {}, "Try it free")),
-      column("Resources", page("/interview-questions", "Interview questions"), page("/interview-tips/tell-me-about-yourself", "Interview tips"), link("/pricing#schools", {}, "Schools & career programs")),
+      column("Resources", page("/interview-questions", "Interview questions"), page("/interview-tips/tell-me-about-yourself", "Interview tips")),
       column("Customer service", page("tel:+16468212027", "646-821-2027"), page("/contact", "Contact us")),
     ),
     h("div", { class: "container foot-bottom" },
@@ -671,13 +670,24 @@ function hdInterviewVisual() {
 }
 
 function janeHomeSections() {
+  const stepCard = (num, title, text, visual) => h("li", { class: "card hd5-card" },
+    h("span", { class: "hd-num", "aria-hidden": "true" }, String(num)),
+    h("h3", {}, title), h("p", {}, text), h("div", { class: "hd5-visual" }, visual));
   const how = h("section", { class: "hd-section", id: "how" },
-    h("div", { class: "container hd-wrap" },
+    h("div", { class: "container hd-wrap hd-wide" },
       h("p", { class: "hd-eyebrow" }, "How Jane works"),
-      h("h2", { class: "hd-h2" }, "Apply to fewer jobs. Land more interviews."),
-      hdStep(1, "Find the jobs", "Tell Jane the job and city. She scores every opening near you, so you start with the ones you're most qualified for.", hdFindVisual()),
-      hdStep(2, "Fix your résumé", "Jane checks the job's requirements against your résumé and shows what's missing. Often it's a skill you have but never listed. Add it, and your match goes up.", hdFixVisual()),
-      hdStep(3, "Apply direct", "One-click job boards bury you in a pile of mass applications. Jane tailors your best résumé and sends you to the employer's own site, where your application has a real shot at being seen. Then she tracks it.", hdApplyVisual()),
+      h("h2", { class: "hd-h2" }, "Jane gets your application ready."),
+      h("ol", { class: "hd5" },
+        stepCard(1, "Upload your résumé", "Tell Jane the job you want and your city.",
+          h("span", { class: "hd5-file" }, svgIcon('<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>'), "resume.pdf")),
+        stepCard(2, "See your matches", "Every job near you, scored by how well you fit.",
+          h("span", { class: "hd5-match" }, hdRing("92%", "white"), h("span", {}, h("b", {}, "Software Engineer"), h("small", {}, "2 mi away")))),
+        stepCard(3, "Know what to change", "What will make you stand out, and what you're missing.",
+          h("span", { class: "hd5-change" }, h("b", {}, "Say it clearly"), h("small", {}, "Lead with \u201cdistributed systems\u201d"))),
+        stepCard(4, "Get your cover letter", "Written for the job, from your real experience.",
+          h("span", { class: "hd5-letter" }, "Dear Hiring Manager,", h("br", {}), "I am applying for the Software Engineer position at Northwind Labs…")),
+        stepCard(5, "Apply direct", "On the employer's own site, never a job board.",
+          h("span", { class: "hd5-apply" }, "Apply on their site ↗"))),
       state.user ? null : h("p", { class: "hd-try" }, link("/try", {}, "Try it on your résumé →")),
     ));
 
@@ -690,23 +700,12 @@ function janeHomeSections() {
         h("div", { class: "hd-points" },
           h("div", {}, h("span", { class: "hd-num" }, "1"), h("div", {}, h("h3", {}, "Pick your stage"), h("p", {}, "Phone screen, first round, final round and more."))),
           h("div", {}, h("span", { class: "hd-num" }, "2"), h("div", {}, h("h3", {}, "Speak your answer out loud"), h("p", {}, "Jane asks the questions they're likely to ask, and you answer like it's the real thing."))),
-          h("div", {}, h("span", { class: "hd-num" }, "3"), h("div", {}, h("h3", {}, "Get coached on how you sound"), h("p", {}, "Pace, filler words, length and how to improve. Then say it again, better.")))),
+          h("div", {}, h("span", { class: "hd-num" }, "3"), h("div", {}, h("h3", {}, "Get coached on how you sound"), h("p", {}, "Pace, filler words, length and how to improve. Then say it again, better."))),
+          h("div", { class: "card hd-own" },
+            h("div", {}, h("b", {}, "Already have an interview?"),
+              h("p", {}, `Get Interview Prep on its own for ${(planFor("interview") || { displayPrice: "$8.99" }).displayPrice}/month. It's included in Pro.`)),
+            h("button", { class: "btn btn-primary", type: "button", onclick: () => startCheckout("interview") }, "Get Interview Prep"))),
         h("div", { class: "hd-card" }, hdInterviewVisual())),
-    ));
-
-  const row = (label, board, jane) => h("tr", {}, h("th", { scope: "row" }, label), h("td", {}, board), h("td", {}, jane));
-  const why = h("section", { class: "hd-section hd-border", id: "why" },
-    h("div", { class: "container hd-wrap" },
-      h("p", { class: "hd-eyebrow" }, "Why Jane"),
-      h("h2", { class: "hd-h2" }, "Apply direct, skip the spam pile."),
-      h("div", { class: "why-wrap" },
-        h("table", { class: "why-table" },
-          h("thead", {}, h("tr", {}, h("th", { scope: "col" }, h("span", { class: "sr-only" }, "Compare")), h("th", { scope: "col" }, "One-click job boards"), h("th", { scope: "col", class: "why-jane" }, "Jane"))),
-          h("tbody", {},
-            row("Which jobs to apply to", "Endless scrolling", "Match scores on jobs near you"),
-            row("Your résumé", "Same one for every job", "Your best one, tailored to each job"),
-            row("Where you apply", "Lost in the pile", "The employer's own site"),
-            row("The interview", "A list of questions to read", "Speak your answers out loud, get coached")))),
     ));
 
   const founder = h("section", { class: "hd-section hd-border" },
@@ -717,7 +716,7 @@ function janeHomeSections() {
       h("p", { class: "hd-sign" }, "Hanna ", h("span", {}, "· Founder, Jane Careers")),
     ));
 
-  return [how, practice, why, founder];
+  return [how, practice, founder];
 }
 
 // Live numbers from Jane's own job database, under the hero. Every number is
@@ -988,8 +987,6 @@ function trialAlertBox(request) {
 function renderTrialResults(body, request, result) {
   const total = result.total || 0;
   const matches = result.matches || [];
-  const fixes = result.fixes || [];
-  const strengths = result.strengths || [];
   const monthly = planFor("monthly") || { displayPrice: "$14.99" };
 
   if (!total) {
@@ -1002,64 +999,115 @@ function renderTrialResults(body, request, result) {
     return;
   }
 
-  const feedback = h("section", { class: "card try-card" },
-    h("div", { class: "try-bubble-row" },
-      h("img", { src: "/jane-mini.png", alt: "Jane", width: 52, height: 53 }),
-      h("p", { class: "try-bubble" }, `I read your résumé against ${request.targetRole} jobs near ${request.location}. Here's what I'd fix first.`)),
-    h("div", { class: "try-score" },
-      trialRing(result.averageMatch, "hd-ring-lg"),
-      h("div", {},
-        h("p", { class: "try-kicker" }, "Your average match"),
-        h("p", { class: "try-score-line" }, `On the top ${request.targetRole} jobs near you`))),
-    fixes.length ? h("div", { class: "stack-sm" },
-      h("h2", { class: "try-h2 try-fix" }, "Fix these"),
-      h("ol", { class: "try-fixes" }, fixes.map((fix) => {
-        const advice = classifyGapClient({ text: fix.text, category: fix.category || "other", importance: "required" }, false).advice;
-        return h("li", {},
-          h("b", {}, fix.text),
-          h("span", { class: "muted small" }, `${fix.jobs > 1 ? `Asked for by ${fix.jobs} of your top jobs. ` : ""}${advice}`));
-      }))) : null,
-    strengths.length ? h("p", { class: "try-strong" }, h("b", {}, "Already strong: "), strengths.join(" · ")) : null,
-  );
-
-  const cards = matches.map((match) => {
-    const applyURL = safeUrl(match.applyURL || "");
-    const meta = [match.company, match.location, distanceText(match)].filter(Boolean).join(" · ");
-    return h("article", { class: "card try-job" },
-      h("div", { class: "try-job-head" },
-        trialRing(match.matchPercentage),
-        h("div", { class: "stack-xs" },
-          h("h3", {}, match.title),
-          h("p", { class: "muted small" }, meta),
-          match.missing && match.missing.length
-            ? h("p", { class: "small try-missing" }, `Missing: ${match.missing.join(", ")}`)
-            : h("p", { class: "small try-good" }, match.matchLevel || "Good match"))),
-      applyURL ? h("a", { class: "btn btn-primary btn-block", href: applyURL, target: "_blank", rel: "noopener noreferrer" }, "Apply on employer's site ↗") : null);
+  const more = total - matches.length;
+  const cards = matches.map((match, index) => {
+    const meta = [match.company, distanceText(match)].filter(Boolean).join(" · ");
+    return h("button", { type: "button", class: `card try-pick${index === 0 ? " try-pick-top" : ""}`, onclick: () => renderTrialJob(body, request, result, index) },
+      trialRing(match.matchPercentage),
+      h("span", { class: "try-pick-text" },
+        h("b", {}, match.title),
+        h("span", { class: "muted small" }, meta),
+        h("span", { class: "small try-pick-note" }, match.matchLevel || "Good match")),
+      svgIcon('<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>'));
   });
 
-  const more = total - matches.length;
-  const unlock = h("section", { class: "card try-unlock" },
-    h("h2", {}, more > 0 ? `I found ${total} jobs that fit you` : "Let Jane do the rest"),
-    h("p", { class: "muted" }, "Let me fix your résumé for each one and get you ready for the interview."),
-    h("ul", { class: "check-list" },
-      h("li", {}, more > 0 ? `All ${total} matches, plus new ones as they post` : "Every match near you, plus new ones as they post"),
-      h("li", {}, "Upload all your résumés. Jane picks the best one for each job and tailors it"),
-      h("li", {}, h("b", {}, "Interview Prep included"))),
-    h("button", { class: "btn btn-primary btn-lg btn-block", onclick: () => startCheckout("monthly") }, `Get Pro · ${monthly.displayPrice}/month`),
-    h("p", { class: "faint small center" }, "Cancel anytime · 3-day money-back guarantee"),
-    h("p", { class: "small center" }, "Not ready? ", link("/signup", {}, "Create a free account")),
-  );
-
   body.replaceChildren(
-    h("div", { class: "try-head try-head-sm" }, h("h1", {}, matches.length === 1 ? "Your best match" : `Your ${matches.length} best matches`), h("p", { class: "muted" }, `${request.targetRole} · near ${request.location}`)),
-    feedback,
+    trialSteps(2),
+    h("div", { class: "try-head try-head-sm" },
+      h("h1", {}, total === 1 ? "You match 1 job near you." : `You match ${total} jobs near you.`),
+      h("p", { class: "muted" }, `${request.targetRole} · ${request.location} · best first`)),
+    h("p", { class: "try-hint" }, "Pick a job. Jane shows you what to change, writes your cover letter, and sends you to the employer to apply."),
     h("div", { class: "stack" }, cards),
-    trialAlertBox(request),
     more > 0 ? trialLockedList(result.locked || [], more, total, monthly) : null,
-    unlock,
     h("p", { class: "faint small center" }, "Every apply link goes straight to the employer, never a job board."),
   );
   window.scrollTo(0, 0);
+}
+
+// trialSteps is the 5-step progress bar: upload, matches, what to change,
+// cover letter, apply.
+function trialSteps(current) {
+  return h("div", { class: "try-steps", "aria-label": `Step ${current} of 5` },
+    [1, 2, 3, 4, 5].map((step) => h("span", { class: step <= current ? "on" : "" })));
+}
+
+// renderTrialJob is one free match: what to change, what's missing, a
+// cover letter preview, and the employer's apply link.
+function renderTrialJob(body, request, result, index) {
+  const match = (result.matches || [])[index];
+  if (!match) return;
+  const monthly = planFor("monthly") || { displayPrice: "$14.99" };
+  const applyURL = safeUrl(match.applyURL || "");
+  const partial = match.partial || [];
+  const missing = match.missing || [];
+  const strong = match.strong || [];
+
+  const changes = partial.map((text) => h("li", {},
+    h("b", {}, text),
+    h("span", { class: "muted small" }, "Your résumé shows some of this. Say it plainly, with a real example, so they can't miss it.")));
+  const gaps = missing.map((text) => h("li", {},
+    h("b", {}, text),
+    h("span", { class: "muted small" }, classifyGapClient({ text, category: "other", importance: "required" }, false).advice)));
+
+  const letterSlot = h("div", { class: "try-letter" }, spinnerRow("Jane is writing your cover letter for this job…"));
+
+  body.replaceChildren(
+    h("button", { type: "button", class: "btn btn-ghost btn-sm try-back", onclick: () => renderTrialResults(body, request, result) }, "← All matches"),
+    trialSteps(3),
+    h("div", { class: "try-job-top" },
+      trialRing(match.matchPercentage, "hd-ring-lg"),
+      h("div", { class: "stack-xs" },
+        h("h1", {}, match.title),
+        h("p", { class: "muted" }, [match.company, match.location, distanceText(match)].filter(Boolean).join(" · ")))),
+
+    h("section", { class: "card try-section" },
+      h("p", { class: "try-kicker" }, "3 · What to change"),
+      changes.length || gaps.length ? null : h("p", {}, "Your résumé already covers what this job asks for. Apply early."),
+      changes.length ? h("div", { class: "stack-sm" }, h("h2", { class: "try-h2" }, "Change these to stand out"), h("ol", { class: "try-fixes" }, changes)) : null,
+      gaps.length ? h("div", { class: "stack-sm" }, h("h2", { class: "try-h2" }, "You're missing"), h("ol", { class: "try-fixes try-gaps" }, gaps),
+        h("p", { class: "faint small" }, "If you've done it, add it. If you haven't, don't. You can still apply.")) : null,
+      strong.length ? h("p", { class: "try-strong" }, h("b", {}, "Already strong: "), strong.join(" · ")) : null),
+
+    h("section", { class: "card try-section" },
+      h("p", { class: "try-kicker" }, "4 · Your cover letter"),
+      letterSlot),
+
+    h("section", { class: "card try-section" },
+      h("p", { class: "try-kicker" }, "5 · Apply"),
+      h("p", { class: "muted small" }, `Apply on ${match.company || "the employer"}'s own site, never a job board.`),
+      applyURL ? h("a", { class: "btn btn-primary btn-lg btn-block", href: applyURL, target: "_blank", rel: "noopener noreferrer" }, `Apply on ${match.company || "the employer"}'s site ↗`) : null),
+
+    h("p", { class: "faint small center" }, h("a", { href: "#", onclick: (event) => { event.preventDefault(); renderTrialResults(body, request, result); } }, "See your other matches")),
+  );
+  window.scrollTo(0, 0);
+  loadTrialLetter(letterSlot, result.token, index, match, monthly);
+}
+
+// loadTrialLetter shows the start of the cover letter Jane wrote; the rest
+// unlocks with Pro.
+async function loadTrialLetter(slot, token, index, match, monthly) {
+  if (!token) {
+    slot.replaceChildren(trialLetterLocked(null, match, monthly));
+    return;
+  }
+  try {
+    const letter = await api("/api/v1/trial/cover-letter", { method: "POST", body: { token, index }, allowUnauthorized: true });
+    slot.replaceChildren(trialLetterLocked(letter.preview, match, monthly));
+  } catch {
+    slot.replaceChildren(trialLetterLocked(null, match, monthly));
+  }
+}
+
+function trialLetterLocked(preview, match, monthly) {
+  const paper = h("div", { class: "try-letter-paper" },
+    preview ? preview.split("\n\n").map((part) => h("p", {}, part)) : h("p", {}, "Dear Hiring Manager,"),
+    h("div", { class: "try-letter-fade", "aria-hidden": "true" },
+      [92, 100, 86, 97, 64, 0, 95, 88, 40].map((width) => width ? h("i", { style: `width:${width}%` }) : h("br", {}))));
+  return h("div", { class: "stack-sm" },
+    h("p", { class: "muted small" }, `Written for ${match.title}${match.company ? ` at ${match.company}` : ""}, only from your real experience.`),
+    paper,
+    h("button", { class: "btn btn-primary btn-lg btn-block", type: "button", onclick: () => startCheckout("monthly") }, "Unlock your cover letter"),
+    h("p", { class: "faint small center" }, `Pro · ${monthly.displayPrice}/month · a cover letter and updated résumé for every job · 3-day money-back guarantee`));
 }
 
 // ---------------------------------------------------------------------------
@@ -1160,8 +1208,6 @@ function pricingSection(plansInfo) {
       h("h2", { class: "section-title" }, "Simple pricing"),
       h("p", { class: "section-sub" }, "Cancel anytime, with a 3-day money-back guarantee."),
       h("div", { class: "grid-2 pricing-two" }, planCards(plansInfo, { include: ["monthly", "interview"] })),
-      h("p", { class: "school-line", id: "schools" }, "Schools & career programs: Pro for every student, ", `${school.displayPrice}/${school.interval}, free 2-week pilot. `,
-        link(state.user ? "/app/billing" : "/signup", {}, "Get a school license →")),
       state.user ? null : h("p", { class: "try-line" }, "Not sure yet? ", link("/try", {}, "Try one search free")),
       h("div", { class: "section-gap" }, checkoutNote()),
     ),
@@ -3431,7 +3477,37 @@ function applicationKitSection(getInput, title) {
     h("h3", {}, "Ready to apply? Let Jane tailor your résumé"),
     h("p", { class: "muted small" }, "A résumé summary, bullets and keywords rewritten for this job, plus interview prep for your gaps. Truth-locked: every line traces back to your real résumé, and nothing gets made up."),
     h("div", { class: "row" }, start));
-  return h("div", { class: "stack-sm" }, intro, slot);
+  return h("div", { class: "stack-sm" }, intro, slot, coverLetterSection(getInput));
+}
+
+// coverLetterSection writes a short, truth-locked cover letter for the job.
+function coverLetterSection(getInput) {
+  const slot = h("div", {});
+  const write = h("button", { class: "btn", type: "button", onclick: async () => {
+    write.disabled = true;
+    slot.replaceChildren(h("div", { class: "card inset" }, spinnerRow("Jane is writing your cover letter, using only what's true…")));
+    try {
+      const input = await getInput();
+      const letter = await api("/api/v1/cover-letter", { method: "POST", body: {
+        resumeText: input.resumeText, jobDescription: input.jobDescription, jobTitle: input.jobTitle, company: input.company } });
+      slot.replaceChildren(h("div", { class: "card inset stack-sm" },
+        h("div", { class: "row-between" }, h("h3", {}, "Your cover letter"),
+          h("button", { class: "btn btn-primary btn-sm", type: "button", onclick: () => copyText(letter.text, "Cover letter copied") }, "Copy")),
+        h("div", { class: "try-letter-paper" }, letter.text.split("\n\n").map((part) => h("p", {}, part.split("\n").flatMap((line, i) => i ? [h("br", {}), line] : [line])))),
+        h("p", { class: "faint small" }, "Written only from your résumé. Read it once and make it yours before you send it.")));
+      write.textContent = "Write it again";
+      write.disabled = false;
+    } catch (error) {
+      write.disabled = false;
+      slot.replaceChildren(h("div", { class: "form-error" }, error.code === "pro_required" ? "Choose a plan to get cover letters." : error.message));
+    }
+  } }, "Write my cover letter");
+  return h("div", { class: "stack-sm" },
+    h("div", { class: "card inset stack-sm" },
+      h("h3", {}, "Need a cover letter?"),
+      h("p", { class: "muted small" }, "Three short paragraphs written for this job, from your real experience. Nothing made up."),
+      h("div", { class: "row" }, write)),
+    slot);
 }
 
 // ---------------------------------------------------------------------------

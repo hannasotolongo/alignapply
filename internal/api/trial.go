@@ -58,8 +58,12 @@ type trialMatch struct {
 	MatchPercentage int      `json:"matchPercentage"`
 	MatchLevel      string   `json:"matchLevel"`
 	Missing         []string `json:"missing,omitempty"`
-	ApplyURL        string   `json:"applyURL"`
-	PostedAt        any      `json:"postedAt,omitempty"`
+	// Partly shown on the résumé: say these more clearly.
+	Partial []string `json:"partial,omitempty"`
+	// Already clear on the résumé.
+	Strong   []string `json:"strong,omitempty"`
+	ApplyURL string   `json:"applyURL"`
+	PostedAt any      `json:"postedAt,omitempty"`
 }
 
 type trialResponse struct {
@@ -69,6 +73,8 @@ type trialResponse struct {
 	Strengths    []string      `json:"strengths"`
 	Matches      []trialMatch  `json:"matches"`
 	Locked       []trialLocked `json:"locked"`
+	// Token asks for a cover letter preview for one of the matches.
+	Token string `json:"token,omitempty"`
 }
 
 // trialLocked is a match past the free three: its score is shown and its
@@ -175,7 +181,15 @@ func (s *Server) handleTrialSearch(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("[trial] role=%q location=%q jobs=%d scored=%d in %s", request.TargetRole, request.Location, len(result.Jobs), len(scored), time.Since(started))
 
-	writeJSON(w, http.StatusOK, buildTrialResponse(scored))
+	response := buildTrialResponse(scored)
+	if len(response.Matches) > 0 {
+		saved := make([]trialJob, 0, len(response.Matches))
+		for _, match := range scored[:len(response.Matches)] {
+			saved = append(saved, trialJob{Title: match.Title, Company: match.Company, Description: plainJobText(match.Description)})
+		}
+		response.Token = saveTrialSession(request.ResumeText, saved)
+	}
+	writeJSON(w, http.StatusOK, response)
 }
 
 // buildTrialResponse turns ranked matches into the trial's feedback and
@@ -274,12 +288,16 @@ func buildTrialResponse(ranked []jobs.JobMatch) trialResponse {
 		if len(response.Matches) == trialMatchesShown {
 			break
 		}
-		missingTexts := []string{}
-		for _, text := range match.MissingRequirements {
-			if len(text) <= trialMaxRequirement && len(missingTexts) < 2 && trialUseful(text) {
-				missingTexts = append(missingTexts, strings.TrimSpace(text))
+		usable := func(texts []string, max int) []string {
+			out := []string{}
+			for _, text := range texts {
+				if len(text) <= trialMaxRequirement && len(out) < max && trialUseful(text) {
+					out = append(out, strings.TrimSpace(text))
+				}
 			}
+			return out
 		}
+		missingTexts := usable(match.MissingRequirements, 3)
 		var posted any
 		if match.PostedAt != nil {
 			posted = match.PostedAt
@@ -292,6 +310,8 @@ func buildTrialResponse(ranked []jobs.JobMatch) trialResponse {
 			MatchPercentage: match.MatchPercentage,
 			MatchLevel:      match.MatchLevel,
 			Missing:         missingTexts,
+			Partial:         usable(match.PartialRequirements, 3),
+			Strong:          usable(match.SupportedRequirements, 4),
 			ApplyURL:        match.ApplyURL,
 			PostedAt:        posted,
 		})

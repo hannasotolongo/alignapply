@@ -596,16 +596,9 @@ input[type="file"]:focus-visible + .dropzone { outline: 2px solid rgba(255, 255,
   --elevated: rgba(255, 255, 255, 0.05);
 }
 
+/* Solid black (Nov 2026): no grid, no glow. */
 body {
-  background-color: #050506;
-  background-image:
-    radial-gradient(900px 520px at 12% -8%, rgba(255, 255, 255, 0.10), transparent 60%),
-    radial-gradient(800px 600px at 105% 12%, rgba(255, 255, 255, 0.06), transparent 60%),
-    radial-gradient(700px 500px at 50% 110%, rgba(255, 255, 255, 0.05), transparent 60%),
-    linear-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px);
-  background-size: auto, auto, auto, 56px 56px, 56px 56px;
-  background-attachment: fixed;
+  background: #050506;
 }
 
 /* Frosted surfaces */
@@ -1411,3 +1404,58 @@ body { background: #0b0b0c; background-image: none; }
 .try-alert-form .btn { height: 48px; white-space: nowrap; }
 .try-alert-icon { width: 40px; height: 40px; border-radius: 50%; background: #fff; color: #000; display: grid; place-items: center; font-weight: 900; font-size: 20px; }
 @media (max-width: 480px) { .try-alert-form { flex-direction: column; } .try-alert-form .btn { width: 100%; } }
+
+
+/* ---------- Nov 2026 redesign ---------- */
+/* Top bar sits a little lower on desktop. */
+@media (min-width: 901px) {
+  .site-nav .nav-bar { height: 90px; padding-top: 18px; box-sizing: border-box; }
+}
+/* "Meet Jane." in Inter Tight */
+.hd-hero h1 { font-family: "Inter Tight", Inter, system-ui, sans-serif; font-weight: 600; font-size: clamp(48px, 7vw, 76px); letter-spacing: -0.045em; }
+
+/* How Jane works: 5 steps */
+.hd-wide { max-width: 1160px; }
+.hd5 { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
+.hd5-card { display: flex; flex-direction: column; gap: 10px; padding: 22px 20px; border-radius: 22px; }
+.hd5-card h3 { margin: 4px 0 0; font-size: 19px; font-weight: 800; letter-spacing: -0.01em; }
+.hd5-card p { margin: 0; font-size: 14px; line-height: 1.5; color: #b4b4b9; }
+.hd5-visual { margin-top: auto; padding-top: 4px; }
+.hd5-file, .hd5-match, .hd5-change { display: flex; align-items: center; gap: 10px; padding: 11px 12px; border-radius: 12px; background: rgba(255, 255, 255, 0.035); border: 1px solid rgba(255, 255, 255, 0.08); font-size: 13px; font-weight: 600; }
+.hd5-file { border-style: dashed; border-color: rgba(255, 255, 255, 0.18); }
+.hd5-match > span:last-child, .hd5-change { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.hd5-match small, .hd5-change small { font-size: 12px; font-weight: 500; color: #a1a1aa; }
+.hd5-match .hd-ring { width: 42px; height: 42px; border-width: 5px; font-size: 11px; }
+.hd5-letter { display: block; padding: 12px; border-radius: 12px; background: #f4f4f5; color: #18181b; font-size: 11px; line-height: 1.5; }
+.hd5-apply { display: flex; align-items: center; justify-content: center; height: 42px; border-radius: 12px; background: linear-gradient(180deg, #ffffff, #e4e4e7); color: #050506; font-size: 13px; font-weight: 800; }
+
+/* Interview Prep sold on its own */
+.hd-own { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; padding: 16px 18px; border-radius: 18px; }
+.hd-own > div { flex: 1; min-width: 200px; }
+.hd-own b { font-size: 16px; }
+.hd-own p { margin: 3px 0 0; font-size: 14px; color: #b4b4b9; }
+
+/* Free trial: 5-step flow */
+.try-steps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin: 0 0 18px; }
+.try-steps span { height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.14); }
+.try-steps span.on { background: #ffffff; }
+.try-hint { margin: 0 0 14px; font-size: 14px; color: #b4b4b9; }
+.try-pick { width: 100%; display: flex; align-items: center; gap: 14px; padding: 14px 16px; text-align: left; color: inherit; font: inherit; cursor: pointer; border-radius: 18px; }
+.try-pick:hover { border-color: rgba(255, 255, 255, 0.28); }
+.try-pick-top { border-color: rgba(255, 255, 255, 0.5); }
+.try-pick .hd-ring { width: 58px; height: 58px; border-width: 5px; font-size: 15px; }
+.try-pick-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.try-pick-text b { font-size: 16px; }
+.try-pick-note { color: #d4d4d8; font-weight: 600; }
+.try-pick > span:last-child { color: #a1a1aa; }
+.try-back { margin: 0 0 10px -8px; }
+.try-job-top { display: flex; align-items: center; gap: 16px; margin: 4px 0 16px; }
+.try-job-top h1 { margin: 0; font-size: clamp(22px, 4vw, 28px); line-height: 1.15; letter-spacing: -0.02em; }
+.try-job-top p { margin: 0; }
+.try-section { display: grid; gap: 14px; margin-bottom: 12px; }
+.try-section .try-strong b { color: #ffffff; }
+.try-gaps li b { color: #ffffff; }
+.try-letter-paper { background: #f4f4f5; color: #18181b; border-radius: 14px; padding: 16px 18px; font-size: 14px; line-height: 1.6; }
+.try-letter-paper p { margin: 0 0 10px; }
+.try-letter-fade { display: grid; gap: 8px; margin-top: 4px; filter: blur(3px); }
+.try-letter-fade i { display: block; height: 9px; border-radius: 5px; background: #c4c4cc; }
