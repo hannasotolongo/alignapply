@@ -297,6 +297,9 @@ func buildTrialResponse(ranked []jobs.JobMatch) trialResponse {
 		})
 	}
 	for index := len(response.Matches); index < len(ranked) && len(response.Locked) < trialLockedShown; index++ {
+		if ranked[index].MatchPercentage <= 0 {
+			continue
+		}
 		response.Locked = append(response.Locked, trialLocked{
 			Title:           ranked[index].Title,
 			MatchPercentage: ranked[index].MatchPercentage,
