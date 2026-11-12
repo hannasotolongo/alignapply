@@ -1,0 +1,19 @@
+Jordan Lee
+New York, NY
+
+EXPERIENCE
+Software Engineer — Acme Corp, New York, NY (Jun 2021 – Present)
+- Built REST APIs in Go and Python serving 2M requests per day
+- Designed PostgreSQL schemas and tuned slow queries
+- Deployed services on AWS with Docker and Kubernetes
+- Set up CI/CD with GitHub Actions; wrote unit and integration tests
+- Led code reviews for a team of 5 engineers
+
+Junior Developer — Beta LLC, New York, NY (Jul 2019 – May 2021)
+- Built React and TypeScript front ends backed by Node.js services
+
+EDUCATION
+B.S. Computer Science, City College of New York, 2019
+
+SKILLS
+Go, Python, Java, JavaScript, TypeScript, React, SQL, PostgreSQL, AWS, Docker, Kubernetes, Git

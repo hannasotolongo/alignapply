@@ -25,8 +25,23 @@ const datePart = `(?:(?:(jan|feb|mar|apr|may|jun|jul|aug|sept?|oct|nov|dec)[a-z]
 
 var dateRangePattern = regexp.MustCompile(`(?i)` + datePart + `\s*(?:-|–|—|to|until)\s*(?:` + datePart + `|(present|current|now|today))`)
 
-// educationLine marks lines whose dates are school, not work.
-var educationLine = regexp.MustCompile(`(?i)\b(university|college|school|academy|bachelor|master|associate'?s? degree|b\.?s\.?n?|b\.?a\.?|m\.?s\.?n?|mba|ph\.?d|gpa|graduat|degree|diploma|coursework|student)\b`)
+// degreeLine marks lines about a degree; their dates are school, not work.
+var degreeLine = regexp.MustCompile(`(?i)\b(bachelor|master|associate'?s? degree|b\.?s\.?n?|b\.?a\.?|m\.?s\.?n?|mba|ph\.?d|gpa|graduat|degree|diploma|coursework)\b`)
+
+// institutionLine names a school. Alone it suggests schooling, but teachers,
+// school nurses and university staff work at schools: a job title on the
+// same line makes it work.
+var institutionLine = regexp.MustCompile(`(?i)\b(university|college|school|academy|isd|student)\b`)
+
+var jobTitleWord = regexp.MustCompile(`(?i)\b(teacher|teaching|instructor|professor|lecturer|tutor|para(?:professional|educator)?|aide|counselor|librarian|principal|coach|nurse|rn|lpn|cna|therapist|technician|assistant|coordinator|manager|director|specialist|analyst|engineer|developer|administrator|officer|representative|clerk|secretary|receptionist|advisor|adviser|supervisor|custodian|driver|cook|chef|scientist|researcher|intern)\b`)
+
+// isEducationLine reports whether a line's dates are school rather than work.
+func isEducationLine(line string) bool {
+	if degreeLine.MatchString(line) {
+		return true
+	}
+	return institutionLine.MatchString(line) && !jobTitleWord.MatchString(line)
+}
 
 type monthSpan struct{ start, end int } // months since year 0
 
@@ -57,7 +72,7 @@ func spansFromText(text string, now time.Time) []monthSpan {
 	var spans []monthSpan
 	current := monthIndex(now.Year(), int(now.Month()))
 	for _, line := range strings.Split(text, "\n") {
-		if educationLine.MatchString(line) {
+		if isEducationLine(line) {
 			continue
 		}
 		for _, m := range dateRangePattern.FindAllStringSubmatch(line, -1) {
@@ -132,14 +147,14 @@ func rawResumeLines(profile candidate.Profile, education bool) []candidate.Evide
 		if line == "" || len(line) > 200 {
 			continue
 		}
-		isEducation := educationLine.MatchString(line)
 		if education {
-			if isEducation {
+			// Degree lines and school names both help prove a degree.
+			if degreeLine.MatchString(line) || institutionLine.MatchString(line) {
 				lines = append(lines, candidate.Evidence{Text: line, Source: "resume"})
 			}
 			continue
 		}
-		if !isEducation && dateRangePattern.MatchString(line) {
+		if !isEducationLine(line) && dateRangePattern.MatchString(line) {
 			lines = append(lines, candidate.Evidence{Text: line, Source: "resume"})
 		}
 	}

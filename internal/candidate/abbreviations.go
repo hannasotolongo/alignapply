@@ -104,6 +104,7 @@ var extraCredentialPhrases = map[string][]string{
 	"adn": {"associate's degree in nursing", "associates degree in nursing", "associate degree nursing"},
 	"rn":  {"registered nurse license", "registered professional nurse"},
 	"bls": {"basic life support", "cpr/bls", "bls/cpr"},
+	"cpr": {"cardiopulmonary resuscitation", "cpr/aed", "cpr and aed"},
 }
 
 type phraseAlias struct {

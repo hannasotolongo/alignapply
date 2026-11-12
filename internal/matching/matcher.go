@@ -29,8 +29,9 @@ type evidenceResult struct {
 }
 
 var (
+	// "3 years", "3+ yrs", "2-4 years", "one year", "two (2) years".
 	yearsPattern = regexp.MustCompile(
-		`(?i)\b(\d+)\s*(?:\+|-\s*\d+)?\s*(?:years?|yrs?)\b`,
+		`(?i)\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s*(?:\(\s*\d+\s*\)\s*)?(?:\+|-\s*\d+)?\s*(?:years?|yrs?)\b`,
 	)
 
 	numberPattern = regexp.MustCompile(`\d+`)
@@ -176,6 +177,7 @@ func scoreJob(
 		weight   float64
 		required bool
 		critical bool
+		gate     bool
 		evidence evidenceResult
 		valid    bool
 	}
@@ -231,8 +233,9 @@ func scoreJob(
 							requirement,
 						)
 
-				// Only actual, verifiable qualifications affect fit.
-				if !isQualificationRequirement(requirement) || isSoftSkillRequirement(requirement) {
+				// Only actual, verifiable qualifications affect fit. A driver's
+				// license or a background check can't be read from a résumé.
+				if !isQualificationRequirement(requirement) || isSoftSkillRequirement(requirement) || isLogisticsRequirement(text) {
 					continue
 				}
 
@@ -250,6 +253,7 @@ func scoreJob(
 						weight:   weight,
 						required: isRequired,
 						critical: isCriticalRequired,
+						gate:     requirement.Category == jobs.RequirementEducation && requiredDegreeLevel(text) == levelHighSchool,
 						evidence: evidence,
 						valid:    true,
 					}
@@ -298,7 +302,11 @@ func scoreJob(
 			preferredEarned += evaluation.weight * evaluation.evidence.Score
 		}
 
-		if evaluation.required {
+		// A met high school requirement says little about fit; it shouldn't
+		// lift a job to a better match level (it still counts if missing).
+		countsForLevel := !(evaluation.gate && evaluation.evidence.Level == evidenceSupported)
+
+		if evaluation.required && countsForLevel {
 			requiredCount++
 		}
 
@@ -314,7 +322,7 @@ func scoreJob(
 					evaluation.text,
 				)
 
-			if evaluation.required {
+			if evaluation.required && countsForLevel {
 				requiredSupported++
 			}
 
@@ -591,7 +599,25 @@ func verifyEvidenceDeterministically(
 	requirement string,
 	evidence string,
 ) evidenceResult {
-	requirementTokens := meaningfulTokens(requirement)
+	// "Med surg, ICU, ER, or acute experience": any one alternative is enough.
+	if alternatives := requirementAlternatives(requirement); alternatives != nil {
+		best := missingEvidence()
+		for _, alternative := range alternatives {
+			result := verifyTokens(meaningfulTokens(alternative), evidence)
+			if result.Score > best.Score {
+				best = result
+			}
+		}
+		whole := verifyTokens(meaningfulTokens(requirement), evidence)
+		if whole.Score > best.Score {
+			best = whole
+		}
+		return best
+	}
+	return verifyTokens(meaningfulTokens(requirement), evidence)
+}
+
+func verifyTokens(requirementTokens []string, evidence string) evidenceResult {
 
 	if len(requirementTokens) == 0 {
 		return missingEvidence()
@@ -1014,6 +1040,18 @@ func requirementWeight(
 			requirement.Category,
 		)
 
+	// A diploma or a degree in any field is a gate most applicants clear,
+	// not what sets a fit apart, so it counts for less than the
+	// job-specific requirements.
+	if requirement.Category == jobs.RequirementEducation {
+		switch level := requiredDegreeLevel(requirement.Text); {
+		case level == levelHighSchool:
+			base = 1.0
+		case level != levelNone && degreeFieldPattern.FindStringSubmatch(requirement.Text) == nil:
+			base = 2.0
+		}
+	}
+
 	if requirement.Importance ==
 		jobs.RequirementPreferred {
 
@@ -1065,19 +1103,25 @@ func extractRequiredYears(
 		return 0, false
 	}
 
-	value, err :=
-		strconv.Atoi(match[1])
+	return yearsValue(match[1])
+}
 
+var spelledNumbers = map[string]int{"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10}
+
+func yearsValue(text string) (int, bool) {
+	if value, ok := spelledNumbers[strings.ToLower(text)]; ok {
+		return value, true
+	}
+	value, err := strconv.Atoi(text)
 	if err != nil {
 		return 0, false
 	}
-
 	return value, true
 }
 
 func extractLargestYears(text string) int {
 	matches :=
-		yearsPattern.FindAllString(
+		yearsPattern.FindAllStringSubmatch(
 			text,
 			-1,
 		)
@@ -1085,17 +1129,8 @@ func extractLargestYears(text string) int {
 	largest := 0
 
 	for _, match := range matches {
-		number :=
-			numberPattern.FindString(match)
-
-		if number == "" {
-			continue
-		}
-
-		value, err :=
-			strconv.Atoi(number)
-
-		if err != nil {
+		value, ok := yearsValue(match[1])
+		if !ok {
 			continue
 		}
 
@@ -1289,7 +1324,7 @@ func normalize(text string) string {
 }
 
 func meaningfulTokens(text string) []string {
-	text = strings.ToLower(text)
+	text = canonicalTerms(strings.ToLower(text))
 
 	text =
 		nonAlphanumericPattern.ReplaceAllString(

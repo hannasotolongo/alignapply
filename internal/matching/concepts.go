@@ -9,7 +9,7 @@ import "strings"
 // to close synonyms to avoid crediting unrelated work.
 var conceptGroups = [][]string{
 	{"lead", "led", "leading", "leader", "leaders", "leadership", "manage", "managed", "manages", "managing", "manager", "managers", "management", "supervise", "supervised", "supervising", "supervisor", "supervision", "oversee", "oversaw", "overseeing", "oversight", "direct", "directed", "directing", "head", "headed", "heading", "run", "ran", "running"},
-	{"team", "teams", "staff", "employees", "reports", "crew", "group", "people", "personnel", "workforce"},
+	{"team", "teams", "staff", "employees", "reports", "crew", "people", "personnel", "workforce"},
 	{"mentor", "mentored", "mentoring", "mentorship", "coach", "coached", "coaching", "train", "trained", "training", "trainer", "onboard", "onboarded", "onboarding", "teach", "taught", "teaching", "develop-people", "precept", "precepted", "precepting"},
 	{"client", "clients", "customer", "customers", "account", "accounts", "consumer", "consumers", "buyer", "buyers", "guest", "guests", "stakeholder", "stakeholders"},
 	{"relationship", "relationships", "rapport", "partnership", "partnerships", "retention", "engagement"},
@@ -76,10 +76,16 @@ func wordStem(token string) string {
 	return token
 }
 
-// conceptOf returns the shared concept for a word, or its stem.
+// conceptOf returns the shared concept for a word, or its stem. A final
+// silent "e" is dropped so "nurse" and "nursing" (both "nurs"), "service"
+// and "services" compare equal.
 func conceptOf(token string) string {
 	if concept, ok := conceptIndex[token]; ok {
 		return concept
 	}
-	return wordStem(token)
+	stem := wordStem(token)
+	if len(stem) >= 5 && strings.HasSuffix(stem, "e") && alphabeticToken(stem) {
+		stem = strings.TrimSuffix(stem, "e")
+	}
+	return stem
 }

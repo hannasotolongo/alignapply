@@ -31,8 +31,12 @@ func evaluateHardConstraint(
 		), true
 
 	case jobs.RequirementEducation:
+		education := withRawLines(profile.Education, profile, true)
+		if result, handled := evaluateDegreeLadder(education, requirement.Text); handled {
+			return result, true
+		}
 		return evaluateExplicitCredential(
-			withRawLines(profile.Education, profile, true),
+			education,
 			requirement.Text,
 		), true
 
@@ -319,7 +323,7 @@ func evaluateExplicitCredential(
 	best := 0.0
 
 	for _, item := range evidence {
-		itemTokens := credentialTokens(item.Text)
+		itemTokens := impliedCredentials(credentialTokens(item.Text))
 		matched := 0
 		for _, token := range requirementTokens {
 			if tokenDemonstrated(token, itemTokens) {
@@ -380,3 +384,15 @@ func educationLikeEvidence(text string) bool {
 }
 
 var credentialLine = regexp.MustCompile(`(?i)(licens|certif|\b(bls|acls|pals|nrp|tncc|ccrn|cpr|cna|lpn|lvn|rn|aprn|np|cpa|pmp|cdl)\b)`)
+
+// impliedCredentials adds credentials that another one includes: BLS, ACLS,
+// PALS and NRP courses all certify CPR.
+func impliedCredentials(tokens []string) []string {
+	for _, token := range tokens {
+		switch token {
+		case "bls", "acls", "pals", "nrp":
+			return append(tokens, "cpr")
+		}
+	}
+	return tokens
+}

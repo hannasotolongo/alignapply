@@ -2674,7 +2674,15 @@ func cleanRequirementText(text string) string {
 				r == '▪' ||
 				r == '●' ||
 				r == '◦' ||
-				r == '‣'
+				r == '‣' ||
+				r == '·' ||
+				r == '–' ||
+				r == '○' ||
+				r == '■' ||
+				r == '□' ||
+				r == '➢' ||
+				r == '✓' ||
+				r == '>'
 		},
 	)
 

@@ -201,7 +201,12 @@ func isIncompleteRequirementFragment(text string) bool {
 	case "and",
 		"or",
 		"with",
-		"including":
+		"including",
+		// Cut off mid-sentence: "Fresenius Medical Care is an",
+		// "Entry level for RNs with less than".
+		"than", "an", "a", "the", "of", "to", "for", "in", "is", "are",
+		"be", "at", "by", "from", "as", "that", "who", "which", "will",
+		"must", "should", "our", "your", "their", "its", "on":
 		return true
 	}
 
