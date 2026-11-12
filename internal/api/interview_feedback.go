@@ -189,6 +189,10 @@ func (s *Server) handleInterviewQuestions(w http.ResponseWriter, r *http.Request
 		writeError(w, http.StatusBadGateway, "Jane couldn't write practice questions just now. Try again in a minute.")
 		return
 	}
+	// Free plan: one question to try practicing with Jane.
+	if isFreeRequest(r) && len(questions) > 1 {
+		questions = questions[:1]
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"stage":          strings.TrimSpace(request.Stage),
 		"questions":      questions,

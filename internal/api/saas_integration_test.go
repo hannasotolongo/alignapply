@@ -18,6 +18,7 @@ import (
 
 	"github.com/hannasotolongo/casemade-backend/internal/auth"
 	"github.com/hannasotolongo/casemade-backend/internal/billing"
+	"github.com/hannasotolongo/casemade-backend/internal/jobs"
 	"github.com/hannasotolongo/casemade-backend/internal/mailer"
 	"github.com/hannasotolongo/casemade-backend/internal/repository"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -275,15 +276,20 @@ func TestWebSaaSIntegration(t *testing.T) {
 		}
 	})
 
-	t.Run("job matches require a plan", func(t *testing.T) {
+	t.Run("job matches run on the Free plan, trimmed", func(t *testing.T) {
 		response := do(http.MethodPost, "/api/v1/job-matches", map[string]any{
 			"careerProfile": map[string]any{"skills": []string{"Go"}},
 			"targetRole":    "Software Engineer",
 			"location":      "Miami, FL",
 		}, session, nil)
 
-		if response.Code != http.StatusPaymentRequired || !strings.Contains(response.Body.String(), "pro_required") {
-			t.Fatalf("status = %d; body = %s", response.Code, response.Body)
+		if response.Code != http.StatusOK || response.Header().Get("X-Jane-Locked") == "" {
+			t.Fatalf("status = %d; locked header = %q; body = %s", response.Code, response.Header().Get("X-Jane-Locked"), response.Body)
+		}
+		var matches []jobs.JobMatch
+		_ = json.NewDecoder(response.Body).Decode(&matches)
+		if len(matches) > FreeMatchesShown {
+			t.Fatalf("free search returned %d matches, want at most %d", len(matches), FreeMatchesShown)
 		}
 	})
 
@@ -416,8 +422,9 @@ func TestWebSaaSIntegration(t *testing.T) {
 		if fit := do(http.MethodPost, "/api/v1/fit-check", map[string]any{}, nil, nil); fit.Code != http.StatusUnauthorized || !strings.Contains(fit.Body.String(), "sign_up_required") {
 			t.Fatalf("anonymous fit check status = %d; body = %s", fit.Code, fit.Body)
 		}
-		if gated := do(http.MethodPost, "/api/v1/interview-questions", map[string]any{}, session, nil); gated.Code != http.StatusPaymentRequired {
-			t.Fatalf("interview practice without a plan = %d, want 402", gated.Code)
+		// The Free plan gets one practice set; past the gate there is no AI in tests (503).
+		if free := do(http.MethodPost, "/api/v1/interview-questions", map[string]any{}, session, nil); free.Code != http.StatusServiceUnavailable {
+			t.Fatalf("interview practice on the Free plan = %d; body = %s", free.Code, free.Body)
 		}
 
 		stripeFake.mu.Lock()

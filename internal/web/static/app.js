@@ -121,7 +121,9 @@ async function fetchMatchPage(request, offset) {
   const matches = Array.isArray(data) ? data : [];
   const total = Number(response.headers.get("X-Jane-Total")) || matches.length;
   const nextOffset = Number(response.headers.get("X-Jane-Next-Offset")) || offset + matches.length;
-  return { matches, total, nextOffset };
+  // Free plan: how many more scored jobs Pro would show.
+  const locked = Number(response.headers.get("X-Jane-Locked")) || 0;
+  return { matches, total, nextOffset, locked };
 }
 
 // ---------------------------------------------------------------------------
@@ -214,6 +216,21 @@ const isPro = () => state.billing && state.billing.plan === "pro";
 // Interview Prep subscribers can use interview practice and nothing else.
 const isInterviewOnly = () => state.billing && state.billing.plan === "interview";
 const hasInterview = () => isPro() || isInterviewOnly();
+// Free plan: signed in without Pro or Interview Prep (billing.free says what's left).
+const isFree = () => !!(state.billing && state.billing.billingEnabled && !hasInterview());
+const freeLeft = () => (state.billing && state.billing.free) || null;
+
+// freeUpgrade is the small card shown where the Free plan stops.
+function freeUpgrade(title, body) {
+  const monthly = planFor("monthly");
+  return h("div", { class: "card inset free-upgrade stack-sm" },
+    h("div", { class: "row" }, h("span", { class: "pill pill-pro" }, "Pro"), h("h3", {}, title)),
+    h("p", { class: "muted small" }, body),
+    h("div", { class: "row" },
+      h("button", { class: "btn btn-primary btn-sm", type: "button", onclick: () => startCheckout("monthly") },
+        monthly ? subscribeLabel(monthly) : "Upgrade to Pro"),
+      link("/pricing", { class: "btn btn-ghost btn-sm" }, "Compare plans")));
+}
 
 function refreshUsage() {
   const slot = document.querySelector(".sidebar-foot > div");
@@ -562,7 +579,7 @@ function jdStat(label, value, note, tone) {
 // startInterviewPrep sends someone to the Interview Prep plan, or straight
 // to practice when they already have access.
 function startInterviewPrep() {
-  if (state.user && state.billing && (isPro() || isInterviewOnly())) {
+  if (state.user && state.billing && (isPro() || isInterviewOnly() || isFree())) {
     navigate("/app/interview");
     return;
   }
@@ -944,7 +961,8 @@ function trialLockedList(locked, more, total, monthly) {
       hidden > 0 ? h("p", { class: "try-lock-more" }, `+ ${hidden} more`) : null,
       h("div", { class: "try-lock-cover" },
         h("button", { class: "btn btn-primary btn-lg", onclick: () => startCheckout("monthly") }, `Unlock all ${total} matches`),
-        h("p", { class: "faint small" }, `${monthly.displayPrice}/month · Cancel anytime · 3-day money-back guarantee`))));
+        h("p", { class: "faint small" }, `${monthly.displayPrice}/month · Cancel anytime · 3-day money-back guarantee`),
+        state.user ? null : h("p", { class: "small" }, "Or ", link("/signup", {}, "sign up free"), " for your top 5 matches on every search."))));
 }
 
 // "Email me new matches every morning": turns a one-time trial into a
@@ -1145,15 +1163,27 @@ function planCards(plansInfo, { compact = false, include = ["monthly", "intervie
   const school = planFor("school") || { key: "school", name: "School License", displayPrice: "$1,000", interval: "year" };
 
   const proFeatures = [
-    "Job search with match scores",
-    "What your résumé is missing and how to fix it",
+    "Unlimited job matches with scores",
+    "Every résumé fix, and how to make it",
     "Upload all your résumés. Jane picks the best one for each job and tailors it",
+    "A cover letter for every job",
     h("strong", {}, "Interview Prep included"),
   ];
   const ticks = (items) => h("ul", { class: "ticks" }, items.map((f) => h("li", {}, f)));
 
   // Built by key, then returned in the order `include` lists them.
   const byKey = {};
+  if (include.includes("free")) {
+    byKey.free = (h("div", { class: "card price-card" },
+      h("div", {}, h("h3", {}, "Free"), h("p", { class: "muted small" }, "See what Jane can do")),
+      h("div", { class: "price" }, "$0", " ", h("small", {}, "/ forever")),
+      compact ? null : ticks(["Job search with match scores (top 5 per search)", "Top 3 things your résumé is missing", "Apply direct on the employer's site", "1 free cover letter", "Try 1 interview practice question"]),
+      state.user
+        ? link("/app", { class: "btn btn-block" }, "Go to Jane")
+        : link("/signup", { class: "btn btn-block" }, "Start free"),
+      h("p", { class: "faint small center" }, "No card needed"),
+    ));
+  }
   if (include.includes("interview")) {
     const plan = interview || { key: "interview", name: "Interview Prep", displayPrice: "$8.99", interval: "month" };
     byKey.interview = (h("div", { class: "card price-card" },
@@ -1204,13 +1234,34 @@ function pricingSection(plansInfo) {
   const school = planFor("school") || { displayPrice: "$1,000", interval: "year" };
   return h("section", { class: "section", id: "pricing" },
     h("div", { class: "container" },
-      h("h2", { class: "section-title" }, "Simple pricing"),
-      h("p", { class: "section-sub" }, "Cancel anytime, with a 3-day money-back guarantee."),
-      h("div", { class: "grid-2 pricing-two" }, planCards(plansInfo, { include: ["monthly", "interview"] })),
-      state.user ? null : h("p", { class: "try-line" }, "Not sure yet? ", link("/try", {}, "Try one search free")),
+      h("h2", { class: "section-title" }, "Start free. Upgrade when you're ready."),
+      h("p", { class: "section-sub" }, "Paid plans cancel anytime, with a 3-day money-back guarantee."),
+      h("div", { class: "pricing-three" }, planCards(plansInfo, { include: ["free", "monthly", "interview"] })),
+      comparePlans(),
+      state.user ? null : h("p", { class: "try-line" }, "Not ready to sign up? ", link("/try", {}, "Try one search without an account")),
       h("div", { class: "section-gap" }, checkoutNote()),
     ),
   );
+}
+
+// comparePlans: what each plan includes, row by row.
+function comparePlans() {
+  const rows = [
+    ["Job search with match scores", "Top 5 per search", "Unlimited", "–"],
+    ["What your résumé is missing", "Top 3 per job", "All, with fixes", "–"],
+    ["Tailored résumé for each job", "–", "✓", "–"],
+    ["Cover letters", "1 letter", "Unlimited", "–"],
+    ["Apply on the employer's own site", "✓", "✓", "–"],
+    ["Interview practice", "1 question", "Unlimited", "Unlimited"],
+    ["Pace, filler words and length", "1 question", "✓", "✓"],
+  ];
+  const cell = (value, strong) => h("td", { class: value === "–" ? "none" : strong ? "strong" : "" }, value);
+  return h("div", { class: "compare-wrap" },
+    h("h3", {}, "Compare plans"),
+    h("div", { class: "card compare-card" },
+      h("table", { class: "compare-table" },
+        h("thead", {}, h("tr", {}, h("th", { scope: "col" }, "Feature"), h("th", { scope: "col" }, "Free"), h("th", { scope: "col" }, "Pro"), h("th", { scope: "col" }, "Interview Prep"))),
+        h("tbody", {}, rows.map(([name, free, pro, prep]) => h("tr", {}, h("th", { scope: "row" }, name), cell(free), cell(pro, true), cell(prep)))))));
 }
 
 // paywall is shown where a feature needs a plan.
@@ -1692,7 +1743,7 @@ function planStatusLine(billing) {
     case "pass": return `Sprint · until ${formatDate(billing.passExpiresAt)}`;
     case "organization": return `Pro via ${billing.organizationName}`;
     case "open": return "Early access";
-    default: return "No plan yet";
+    default: return state.billing && state.billing.billingEnabled ? "Free plan" : "No plan yet";
   }
 }
 
@@ -1710,7 +1761,7 @@ function renderUsage(slot) {
       ? null
       : billing.plan === "interview"
         ? link("/app/billing", { class: "btn btn-sm" }, "Upgrade to Pro")
-        : link("/app/billing", { class: "btn btn-primary btn-sm" }, "Choose a plan"),
+        : link("/app/billing", { class: "btn btn-primary btn-sm" }, "Upgrade to Pro"),
   ));
 }
 
@@ -2050,12 +2101,12 @@ async function viewJobs() {
       if (resumeId) request.resumeText = await resumeText(resumeId);
       const page = await fetchMatchPage(request, 0);
       const { careerProfile, resumeText: _omit, ...shown } = request;
-      state.lastSearch = { request: shown, fullRequest: request, matches: page.matches, total: page.total, nextOffset: page.nextOffset, resumeId };
+      state.lastSearch = { request: shown, fullRequest: request, matches: page.matches, total: page.total, nextOffset: page.nextOffset, locked: page.locked, resumeId };
       renderMatches(results, state.lastSearch.matches);
       savePreferences({ minimumSalary: request.minimumSalary, remote: request.remote, hybrid: request.hybrid, onsite: request.onsite }).catch(() => {});
     } catch (error) {
-      results.replaceChildren(error.code === "pro_required"
-        ? paywall("Your matches are ready to check", "Choose a plan to see every job ranked by how well your experience fits, with what you meet, what's partial, and what's missing.")
+      results.replaceChildren(error.code === "pro_required" || error.code === "free_limit_reached"
+        ? paywall(error.code === "free_limit_reached" ? "You've used today's free searches" : "Your matches are ready to check", error.code === "free_limit_reached" ? error.message : "Choose a plan to see every job ranked by how well your experience fits, with what you meet, what's partial, and what's missing.")
         : h("div", { class: "form-error" }, error.message));
     } finally {
       clearInterval(ticker);
@@ -2093,8 +2144,8 @@ async function viewJobs() {
       h("li", {}, "You get jobs ranked best fit first. Open one to see your gaps, build your Application Kit, or save it to My applications.")),
   ));
 
-  const freeNotice = !isPro() && state.billing && state.billing.billingEnabled
-    ? h("p", { class: "faint small" }, "Choose a plan to see your matches.")
+  const freeNotice = isFree()
+    ? h("p", { class: "faint small" }, "Free plan: your top 5 matches per search, up to 10 searches a day. ", link("/pricing", {}, "Pro shows every match"), ".")
     : null;
 
   if (sessionStorage.getItem("janecareers.autoSearch")) {
@@ -2152,7 +2203,10 @@ function renderMatches(container, matches) {
   const search = state.lastSearch && state.lastSearch.matches === matches ? state.lastSearch : null;
   const total = search && search.total ? search.total : matches.length;
   const list = h("div", { class: "stack" }, ...matches.map(jobCard));
-  const status = h("p", { class: "muted" }, `${total} role${total === 1 ? "" : "s"}, best fit first`);
+  const locked = search && search.locked ? search.locked : 0;
+  const status = h("p", { class: "muted" }, locked
+    ? `Your top ${total} of ${total + locked} matches, best fit first`
+    : `${total} role${total === 1 ? "" : "s"}, best fit first`);
   const more = h("div", { class: "row center load-more" });
   const credit = h("div", {}, sourceCredit(matches));
 
@@ -2184,7 +2238,14 @@ function renderMatches(container, matches) {
   };
   showButton();
 
-  container.replaceChildren(status, list, more, credit);
+  container.replaceChildren(status, list, more,
+    locked ? lockedMatchesCard(locked) : null, credit);
+}
+
+// lockedMatchesCard: the Free plan shows the best few jobs; Pro shows all.
+function lockedMatchesCard(locked) {
+  return freeUpgrade(`${locked} more ${locked === 1 ? "match is" : "matches are"} ready for you`,
+    "The Free plan shows your top 5 jobs per search. Pro shows every job Jane scored, every fix for your résumé, and a cover letter for each one.");
 }
 
 function salaryText(match) {
@@ -2271,8 +2332,9 @@ function jobCard(match) {
     ),
     h("div", { class: "row" },
       h("span", { class: `pill pill-${cls}` }, preview ? "Preview only" : (match.matchLevel || "Fit")),
-      preview ? null : h("span", { class: "faint small" },
-        `${(match.supportedRequirements || []).length} met · ${(match.partialRequirements || []).length} partial · ${(match.missingRequirements || []).length} missing`),
+      preview ? null : h("span", { class: "faint small" }, isFree()
+        ? `${(match.supportedRequirements || []).length} met · top ${(match.missingRequirements || []).length} missing`
+        : `${(match.supportedRequirements || []).length} met · ${(match.partialRequirements || []).length} partial · ${(match.missingRequirements || []).length} missing`),
     ),
     match.explanation ? h("p", { class: "muted" }, match.explanation) : null,
     h("div", { class: "row" },
@@ -2367,6 +2429,7 @@ function openJobDetail(match) {
       group("Missing must-haves", "Not on your résumé. If you've done it, add it with one real example. If you haven't, don't.", missingMust),
       group("Say these more clearly", "Your résumé hints at these. One specific example makes them count.", clearer),
       group("Nice to have", "", niceToHave),
+      isFree() ? freeUpgrade("See every fix", "The Free plan shows the top 3 things this job asks for that you're missing. Pro shows all of them, plus what to say more clearly.") : null,
       supported.length ? h("div", { class: "stack-sm" },
         h("span", { class: "section-label" }, "Already strong"),
         h("ul", { class: "js-strong" }, supported.slice(0, 8).map((text) => h("li", {}, text)))) : null);
@@ -2376,8 +2439,10 @@ function openJobDetail(match) {
     const slot = h("div", {});
     return h("div", { class: "stack" },
       h("p", { class: "muted" }, "Jane picks your best résumé for this job and rewrites it in the job's language, using only what's true."),
-      recommendationCard(match, slot),
-      applicationKitSection(getInput, `${match.title}${match.company ? ` at ${match.company}` : ""}`, { withLetter: false }));
+      isFree()
+        ? freeUpgrade("Tailor your résumé to this job", "Pro rewrites your résumé summary, bullets and keywords for this job, using only what's true, and picks your best résumé to send.")
+        : recommendationCard(match, slot),
+      isFree() ? null : applicationKitSection(getInput, `${match.title}${match.company ? ` at ${match.company}` : ""}`, { withLetter: false }));
   }
 
   function stepLetter() {
@@ -2846,14 +2911,16 @@ async function viewBilling() {
       case "pass": return `Your Sprint gives you Pro until ${formatDate(billing.passExpiresAt)}. It doesn't renew.`;
       case "organization": return `You have Pro through ${billing.organizationName}'s license.`;
       case "open": return "Full access during early access.";
-      default: return "Choose a plan to start matching.";
+      default: return billing.billingEnabled
+        ? "Your top 5 matches per search, the top 3 things you're missing, 1 cover letter and 1 practice question. Upgrade for everything."
+        : "Choose a plan to start matching.";
     }
   })();
 
   sections.push(h("div", { class: "card stack" },
     h("div", { class: "plan-row" },
       h("div", {},
-        h("div", { class: "row" }, h("span", { class: "plan-name" }, pro || interviewOnly ? planStatusLine(billing) : "No plan yet"), pro && billing.source !== "open" ? h("span", { class: "pill pill-pro" }, billing.source === "trial" ? "TRIAL" : "PRO") : interviewOnly ? h("span", { class: "pill pill-pro" }, "INTERVIEW PREP") : null),
+        h("div", { class: "row" }, h("span", { class: "plan-name" }, pro || interviewOnly ? planStatusLine(billing) : (billing.billingEnabled ? "Free plan" : "No plan yet")), pro && billing.source !== "open" ? h("span", { class: "pill pill-pro" }, billing.source === "trial" ? "TRIAL" : "PRO") : interviewOnly ? h("span", { class: "pill pill-pro" }, "INTERVIEW PREP") : null),
         h("p", { class: "muted" }, detail),
       ),
       billing.canManageBilling ? manage : null,
@@ -2868,7 +2935,7 @@ async function viewBilling() {
   // Personal plans
   if (!interviewOnly && (!pro || billing.source === "pass")) {
     sections.push(h("div", { class: "stack" },
-      h("h2", {}, pro ? "Extend your access" : "Choose your plan"),
+      h("h2", {}, pro ? "Extend your access" : "Upgrade your plan"),
       plansInfo.billingEnabled
         ? h("div", { class: "grid-2" }, planCards(plansInfo, { compact: true }))
         : h("div", { class: "card muted" }, "Plans are coming soon."),
@@ -3053,8 +3120,9 @@ async function viewResetPassword() {
 
 const FIT_CHECK_KEY = "janecareers.fitCheck";
 
+// Since the Free plan (Nov 2026) nobody has to pick a plan to get in.
 function needsActivation() {
-  return !!(state.billing && state.billing.billingEnabled && !hasInterview());
+  return false;
 }
 
 function afterActivationPath() {
@@ -3336,7 +3404,7 @@ function fitUnlockCard(message) {
     h("h3", {}, "See every gap, and how to close it"),
     h("p", { class: "muted" }, message || "Jane found the requirements you're missing. Sign up to see them, with a plan for each one."),
     h("div", { class: "row center" },
-      link(signedIn ? "/app/activate" : "/signup", { class: "btn btn-primary" }, "Sign up today")),
+      link(signedIn ? "/app/billing" : "/signup", { class: "btn btn-primary" }, signedIn ? "Upgrade to Pro" : "Sign up free")),
     h("p", { class: "faint small" }, "Your résumé and this job stay in your browser, so your full report is waiting after you sign up."),
   );
 }
@@ -3645,13 +3713,19 @@ function coverLetterSection(getInput) {
       write.disabled = false;
     } catch (error) {
       write.disabled = false;
-      slot.replaceChildren(h("div", { class: "form-error" }, error.code === "pro_required" ? "Choose a plan to get cover letters." : error.message));
+      slot.replaceChildren(error.code === "free_limit_reached"
+        ? freeUpgrade("A cover letter for every job", error.message)
+        : h("div", { class: "form-error" }, error.code === "pro_required" ? "Choose a plan to get cover letters." : error.message));
+    } finally {
+      if (isFree()) loadBilling();
     }
   } }, "Write my cover letter");
+  const left = isFree() && freeLeft() ? freeLeft().coverLettersLeft : null;
   return h("div", { class: "stack-sm" },
     h("div", { class: "card inset stack-sm" },
       h("h3", {}, "Need a cover letter?"),
       h("p", { class: "muted small" }, "Three short paragraphs written for this job, from your real experience. Nothing made up."),
+      left === null ? null : h("p", { class: "faint small" }, left > 0 ? "Your Free plan includes 1 cover letter. Use it on the job you want most." : "You've used your free cover letter. Pro writes one for every job."),
       h("div", { class: "row" }, write)),
     slot);
 }
@@ -3677,7 +3751,7 @@ async function searchMatches({ targetRole, location }) {
   if (primary) request.resumeText = await resumeText(primary.id);
   const page = await fetchMatchPage(request, 0);
   const { careerProfile, resumeText: _omit, ...shown } = request;
-  state.lastSearch = { request: shown, fullRequest: request, matches: page.matches, total: page.total, nextOffset: page.nextOffset, resumeId: primary ? primary.id : "" };
+  state.lastSearch = { request: shown, fullRequest: request, matches: page.matches, total: page.total, nextOffset: page.nextOffset, locked: page.locked, resumeId: primary ? primary.id : "" };
   return state.lastSearch;
 }
 
@@ -3733,7 +3807,7 @@ async function viewHome() {
           h("button", { class: "btn btn-ghost btn-sm", onclick: () => askTarget(search.request.targetRole, search.request.location) }, "Change"),
           (search.total || (search.matches || []).length) > 5 ? link("/app/jobs", { class: "btn btn-sm" }, `See all ${search.total || search.matches.length}`) : null)),
       matches.length
-        ? h("div", { class: "stack" }, matches.map(jobCard), sourceCredit(matches))
+        ? h("div", { class: "stack" }, matches.map(jobCard), search.locked ? lockedMatchesCard(search.locked) : null, sourceCredit(matches))
         : h("div", { class: "card empty" },
             h("h3", {}, "Nothing close enough yet"),
             h("p", {}, "Try a broader job title or a bigger nearby city. Jane only shows jobs she could actually score."),
@@ -3746,8 +3820,8 @@ async function viewHome() {
     try {
       showMatches(await searchMatches({ targetRole: role, location: where }));
     } catch (error) {
-      results.replaceChildren(error.code === "pro_required"
-        ? paywall("Your matches are ready", "Choose a plan to see every job ranked by how well you fit.")
+      results.replaceChildren(error.code === "pro_required" || error.code === "free_limit_reached"
+        ? paywall(error.code === "free_limit_reached" ? "You've used today's free searches" : "Your matches are ready", error.code === "free_limit_reached" ? error.message : "Choose a plan to see every job ranked by how well you fit.")
         : h("div", { class: "form-error" }, error.message));
     }
   };
@@ -3905,7 +3979,9 @@ function practiceBox(question, input, { open = false } = {}) {
         h("div", { class: "row try-again" }, tryAgain,
           h("span", { class: "faint small" }, "Use Jane's tips and record your answer again.")));
     } catch (error) {
-      slot.replaceChildren(h("p", { class: "text-error small" }, error.code === "pro_required" ? "Choose a plan to practice with Jane." : error.message));
+      slot.replaceChildren(error.code === "free_limit_reached"
+        ? freeUpgrade("Keep practicing with Jane", error.message)
+        : h("p", { class: "text-error small" }, error.code === "pro_required" ? "Choose a plan to practice with Jane." : error.message));
     } finally {
       submit.disabled = false;
     }
@@ -4117,9 +4193,13 @@ async function viewInterviewPractice() {
           list, moreRow);
       }
       renderQuestions(data.questions || []);
-      moreRow.replaceChildren(more);
+      moreRow.replaceChildren(isFree()
+        ? freeUpgrade("Practice every question", "The Free plan includes 1 practice question. Pro and Interview Prep give you unlimited questions for any job, with coaching on every answer.")
+        : more);
     } catch (error) {
-      const message = h("div", { class: "form-error" }, error.code === "pro_required" ? "Choose a plan to practice interviews with Jane." : error.message);
+      const message = error.code === "free_limit_reached"
+        ? freeUpgrade("Keep practicing with Jane", error.message)
+        : h("div", { class: "form-error" }, error.code === "pro_required" ? "Choose a plan to practice interviews with Jane." : error.message);
       if (again) moreRow.replaceChildren(message, more);
       else results.replaceChildren(message);
     } finally {
@@ -4140,7 +4220,13 @@ async function viewInterviewPractice() {
     h("div", { class: "row" }, go),
     h("p", { class: "faint small" }, "Tip: practice out loud. Voice answers work in Chrome, Edge and Safari; your microphone is only used while you're answering."));
 
-  return h("div", { class: "stack" }, head, form, results);
+  const freeNote = isFree()
+    ? h("p", { class: "faint small" }, freeLeft() && freeLeft().interviewSetsLeft === 0
+      ? "You've used your free practice question. "
+      : "Free plan: try 1 practice question, with your pace, filler words and length checked. ",
+      link("/pricing", {}, "Unlimited practice is in Pro and Interview Prep"), ".")
+    : null;
+  return h("div", { class: "stack" }, head, freeNote, form, results);
 }
 
 // ---------------------------------------------------------------------------

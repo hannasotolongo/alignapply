@@ -272,47 +272,54 @@ func (s *Server) requireInterview(next http.Handler) http.Handler {
 	})
 }
 
-// consumeJobMatchQuota requires Pro access, enforces the hourly fair-use
-// ceiling, and records the search. It writes the error response itself.
-func (s *Server) consumeJobMatchQuota(w http.ResponseWriter, r *http.Request, user repository.User) bool {
+// consumeJobMatchQuota checks the user's search allowance and records the
+// search. Pro has an hourly fair-use ceiling; everyone else is on the Free
+// plan (FreeSearchesPerDay searches a day, top FreeMatchesShown results).
+// It writes the error response itself and reports whether the search may run
+// and whether it runs on the Free plan.
+func (s *Server) consumeJobMatchQuota(w http.ResponseWriter, r *http.Request, user repository.User) (allowed bool, free bool) {
 	current, err := s.entitlementFor(r.Context(), user)
 	if err != nil {
 		log.Printf("load entitlement for user %s: %v", user.ID, err)
 		writeError(w, http.StatusInternalServerError, "failed to load subscription")
-		return false
+		return false, false
 	}
 
-	if !current.Pro {
-		writeSubscriptionRequired(w)
-		return false
-	}
+	free = !current.Pro
 
 	if s.billingRepo == nil {
-		return true
+		return true, free
 	}
 
-	used, err := s.billingRepo.CountUsageSince(r.Context(), user.ID, featureJobMatch, time.Now().Add(-time.Hour))
+	since, limit, code, message := time.Now().Add(-time.Hour), ProJobMatchesPerHour, "rate_limited", "too many searches in the last hour; try again shortly"
+	if free {
+		since, limit, code = time.Now().Add(-24*time.Hour), FreeSearchesPerDay, "free_limit_reached"
+		message = "You've used today's free searches. Upgrade to Pro for unlimited matches, or come back tomorrow."
+	}
+
+	used, err := s.billingRepo.CountUsageSince(r.Context(), user.ID, featureJobMatch, since)
 	if err != nil {
 		log.Printf("count usage for user %s: %v", user.ID, err)
 		writeError(w, http.StatusInternalServerError, "failed to check usage")
-		return false
+		return false, false
 	}
 
-	if used >= ProJobMatchesPerHour {
-		writeJSON(w, http.StatusTooManyRequests, map[string]string{
-			"error": "too many searches in the last hour; try again shortly",
-			"code":  "rate_limited",
-		})
-		return false
+	if used >= limit {
+		status := http.StatusTooManyRequests
+		if free {
+			status = http.StatusPaymentRequired
+		}
+		writeJSON(w, status, map[string]string{"error": message, "code": code})
+		return false, false
 	}
 
 	if err := s.billingRepo.RecordUsage(r.Context(), user.ID, featureJobMatch); err != nil {
 		log.Printf("record usage for user %s: %v", user.ID, err)
 		writeError(w, http.StatusInternalServerError, "failed to record usage")
-		return false
+		return false, false
 	}
 
-	return true
+	return true, free
 }
 
 // ---------------------------------------------------------------------------
@@ -352,6 +359,8 @@ type billingStatusResponse struct {
 	EmailVerified     bool             `json:"emailVerified"`
 	EmailEnabled      bool             `json:"emailEnabled"`
 	JobMatches        usageResponse    `json:"jobMatches"`
+	// Free is what a Free plan account has left (nil on a paid plan).
+	Free *freeAllowanceResponse `json:"free,omitempty"`
 }
 
 func (s *Server) handleBillingPlans(w http.ResponseWriter, r *http.Request) {
@@ -417,6 +426,9 @@ func (s *Server) handleBillingStatus(w http.ResponseWriter, r *http.Request) {
 		response.Plan = "pro"
 	} else if current.InterviewOnly {
 		response.Plan = "interview"
+	}
+	if !current.Pro {
+		response.Free = s.freeAllowanceFor(r.Context(), user.ID)
 	}
 	if current.Organization != nil {
 		response.OrganizationName = current.Organization.Name

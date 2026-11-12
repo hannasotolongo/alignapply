@@ -399,9 +399,12 @@ func (s *Server) routes() {
 		// Web (email + password) authentication.
 		s.mux.HandleFunc("/api/v1/fit-check", s.handleFitCheck)
 		s.mux.Handle("/api/v1/application-kit", s.sessionManager.Middleware(s.requirePro(http.HandlerFunc(s.handleApplicationKit))))
-		s.mux.Handle("/api/v1/cover-letter", s.sessionManager.Middleware(s.requirePro(http.HandlerFunc(s.handleCoverLetter))))
-		s.mux.Handle("/api/v1/interview-feedback", s.sessionManager.Middleware(s.requireInterview(http.HandlerFunc(s.handleInterviewFeedback))))
-		s.mux.Handle("/api/v1/interview-questions", s.sessionManager.Middleware(s.requireInterview(http.HandlerFunc(s.handleInterviewQuestions))))
+		s.mux.Handle("/api/v1/cover-letter", s.sessionManager.Middleware(s.proOrFree(featureFreeCoverLetter, FreeCoverLetters, false,
+			"You've used your free cover letter. Upgrade to Pro for a cover letter for every job.", http.HandlerFunc(s.handleCoverLetter))))
+		s.mux.Handle("/api/v1/interview-feedback", s.sessionManager.Middleware(s.proOrFree(featureFreeInterviewFeedback, FreeInterviewFeedback, true,
+			"You've used your free practice answer. Upgrade to keep practicing with Jane.", http.HandlerFunc(s.handleInterviewFeedback))))
+		s.mux.Handle("/api/v1/interview-questions", s.sessionManager.Middleware(s.proOrFree(featureFreeInterviewQuestions, FreeInterviewQuestionSets, true,
+			"You've used your free practice question. Upgrade to keep practicing with Jane.", http.HandlerFunc(s.handleInterviewQuestions))))
 		s.mux.HandleFunc("/api/v1/auth/signup", s.handlePasswordSignUp)
 		s.mux.HandleFunc("/api/v1/auth/login", s.handlePasswordLogin)
 		s.mux.HandleFunc("/api/v1/auth/logout", s.handleLogout)
@@ -1182,7 +1185,8 @@ func (s *Server) handleJobMatches(
 
 	// Count the search only once it is valid, so malformed requests do not
 	// spend a free user's weekly allowance.
-	if !s.consumeJobMatchQuota(w, r, user) {
+	allowed, free := s.consumeJobMatchQuota(w, r, user)
+	if !allowed {
 		return
 	}
 
@@ -1297,6 +1301,14 @@ func (s *Server) handleJobMatches(
 
 	sortJobMatches(matches)
 	setServerTiming(w, searchStarted, pipelineStarted, matchingStarted, time.Now(), timings)
+
+	// Free plan: the best few jobs, and how many more Pro would show.
+	if free {
+		var locked int
+		matches, locked = trimMatchesForFree(matches)
+		w.Header().Set("X-Jane-Locked", strconv.Itoa(locked))
+		w.Header().Set("Access-Control-Expose-Headers", "X-Jane-Total, X-Jane-Next-Offset, X-Jane-Locked")
+	}
 
 	// Pages: keep the whole ranked list so "Load more" is instant.
 	if request.PageSize > 0 {
