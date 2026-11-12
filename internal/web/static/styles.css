@@ -1503,3 +1503,10 @@ body { background: #0b0b0c; background-image: none; }
   .js-step-text b { font-size: 13px; white-space: nowrap; }
   .js-panel { padding: 16px; }
 }
+.js-head-actions { display: flex; align-items: center; gap: 8px; flex: none; }
+.js-foot .btn { white-space: nowrap; }
+.js-nav { position: relative; }
+@media (max-width: 760px) {
+  .js-head-actions .btn:not(.btn-ghost) { display: none; } /* Save is in the Apply step */
+  .js-foot .btn-primary { white-space: normal; text-align: center; }
+}

@@ -2335,6 +2335,9 @@ function openJobDetail(match) {
       button.classList.toggle("on", i === index);
       if (i === index) button.setAttribute("aria-current", "step"); else button.removeAttribute("aria-current");
     });
+    // On phones the steps are one scrolling row: keep the current one in view.
+    const nav = navButtons[index].parentElement;
+    if (nav && nav.scrollWidth > nav.clientWidth) nav.scrollTo({ left: navButtons[index].offsetLeft - 8, behavior: "smooth" });
     if (!rendered.has(index)) rendered.set(index, steps[index].render());
     const back = index > 0 ? h("button", { type: "button", class: "btn btn-ghost", onclick: () => show(index - 1) }, "← Back") : h("span", {});
     const next = index < steps.length - 1
@@ -2409,7 +2412,7 @@ function openJobDetail(match) {
       h("div", { class: "js-title" },
         h("h2", {}, match.title),
         h("span", { class: "muted small" }, [match.company, match.location, distanceText(match), salaryText(match)].filter(Boolean).join(" · "))),
-      h("div", { class: "row" },
+      h("div", { class: "js-head-actions" },
         trackButton(match),
         h("button", { class: "btn btn-ghost btn-sm", "aria-label": "Close", onclick: () => dialog.close() }, "✕"))),
     h("div", { class: "js-body" },
