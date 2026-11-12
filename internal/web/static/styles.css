@@ -1459,3 +1459,6 @@ body { background: #0b0b0c; background-image: none; }
 .try-letter-paper p { margin: 0 0 10px; }
 .try-letter-fade { display: grid; gap: 8px; margin-top: 4px; filter: blur(3px); }
 .try-letter-fade i { display: block; height: 9px; border-radius: 5px; background: #c4c4cc; }
+
+/* Pricing: a little more room above "Not sure yet? Try one search free" */
+.try-line { margin-top: 28px; text-align: center; }
