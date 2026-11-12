@@ -797,7 +797,6 @@ async function viewLanding() {
           h("p", { class: "faint small hero-note" }, signedIn ? "Cancel anytime · 3-day money-back guarantee" : "No card needed · Cancel anytime · 3-day money-back guarantee"),
         ),
       ),
-      liveJobsStrip(),
       ...janeHomeSections(),
       pricingSection(plansInfo),
     ),
