@@ -30,6 +30,9 @@ func TestBuildTrialResponse(t *testing.T) {
 	if len(got.Strengths) == 0 || got.Strengths[0] != "Scheduling" {
 		t.Errorf("strengths = %+v", got.Strengths)
 	}
+	if len(got.Locked) != 1 || got.Locked[0].Title != "Receptionist" || got.Locked[0].MatchPercentage != 60 {
+		t.Errorf("locked = %+v, want the one match past the free three", got.Locked)
+	}
 	empty := buildTrialResponse(nil)
 	if empty.Total != 0 || empty.Matches == nil || empty.Fixes == nil {
 		t.Errorf("empty = %+v", empty)

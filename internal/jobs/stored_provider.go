@@ -221,6 +221,12 @@ func NearSearchPattern(location string) string {
 	} else if code, ok := geoStateOnly(location); ok {
 		state = code
 	}
+	return StatePattern(state)
+}
+
+// StatePattern is a PostgreSQL regular expression for job locations in a
+// state ("FL"): ", FL" or "Florida".
+func StatePattern(state string) string {
 	if state == "" {
 		return ""
 	}

@@ -20,3 +20,6 @@ func LocationNamesState(location, state string) bool {
 	}
 	return usStatesIn(location)[state]
 }
+
+// StateName is a state's full name ("Florida" for "FL"), or "" if unknown.
+func StateName(code string) string { return usStateFullName(code) }

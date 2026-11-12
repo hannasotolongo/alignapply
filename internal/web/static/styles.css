@@ -1363,3 +1363,51 @@ body { background: #0b0b0c; background-image: none; }
   .site-nav.menu-open .nav-menus { flex-wrap: nowrap; }
   body.nav-locked { overflow: hidden; }
 }
+
+/* Free trial: locked matches past the free three */
+.try-lockbox { display: grid; gap: 16px; }
+.try-lock-head h2 { margin: 10px 0 4px; font-size: 24px; letter-spacing: -0.02em; }
+.try-lock-head p { margin: 0; }
+.try-lock-list { position: relative; display: grid; gap: 10px; padding-bottom: 8px; }
+.try-lock-row { display: flex; align-items: center; gap: 14px; padding: 12px 14px; border-radius: 14px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.07); }
+.try-lock-row svg { margin-left: auto; color: #8d8d96; flex: none; }
+.try-lock-text { display: grid; gap: 4px; min-width: 0; }
+.try-blur { filter: blur(6px); user-select: none; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.try-blur-sub { font-weight: 400; font-size: 13px; color: #8d8d96; filter: blur(5px); }
+.try-lock-more { margin: 4px 0 0; text-align: center; color: #8d8d96; font-weight: 600; }
+.try-lock-cover { position: absolute; left: 0; right: 0; bottom: 0; height: 62%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 8px; padding: 0 12px 14px; text-align: center;
+  background: linear-gradient(to bottom, rgba(14, 14, 16, 0) 0%, rgba(14, 14, 16, 0.92) 45%, rgba(14, 14, 16, 0.98) 100%); border-radius: 14px; }
+.try-lock-cover p { margin: 0; }
+
+/* Homepage: live job numbers */
+.live-strip { border-top: 1px solid rgba(255, 255, 255, 0.08); border-bottom: 1px solid rgba(255, 255, 255, 0.08); background: rgba(255, 255, 255, 0.02); padding: 36px 0 40px; }
+.live-strip[hidden] { display: none; }
+.live-wrap { display: grid; gap: 22px; justify-items: center; text-align: center; max-width: 860px; }
+.live-label { margin: 0; display: inline-flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #9a9aa3; }
+.live-dot { width: 9px; height: 9px; border-radius: 50%; background: #3ddc84; box-shadow: 0 0 0 0 rgba(61, 220, 132, 0.6); animation: live-pulse 1.8s infinite; }
+@keyframes live-pulse { 0% { box-shadow: 0 0 0 0 rgba(61, 220, 132, 0.55); } 70% { box-shadow: 0 0 0 10px rgba(61, 220, 132, 0); } 100% { box-shadow: 0 0 0 0 rgba(61, 220, 132, 0); } }
+@media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }
+.live-nums { width: 100%; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.live-nums div { display: grid; gap: 4px; padding: 16px 10px; border-radius: 16px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.07); }
+.live-nums strong { font-size: clamp(26px, 5vw, 40px); font-weight: 900; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; line-height: 1.05; }
+.live-nums span { font-size: 13.5px; color: #9a9aa3; }
+.live-form { display: flex; gap: 8px; width: 100%; max-width: 460px; }
+.live-form input { flex: 1; min-width: 0; height: 46px; padding: 0 14px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.16); background: rgba(255, 255, 255, 0.05); color: #fff; font: inherit; }
+.live-form .btn { height: 46px; }
+.live-result { display: grid; gap: 12px; justify-items: center; min-height: 0; }
+.live-result p { margin: 0; }
+.live-answer { font-size: 18px; }
+@media (max-width: 560px) {
+  .live-nums { grid-template-columns: 1fr 1fr; }
+  .live-nums div:last-child { grid-column: 1 / -1; }
+}
+
+/* Free trial: daily match email sign-up */
+.try-alert { display: grid; gap: 10px; justify-items: start; border-color: rgba(255, 255, 255, 0.22); background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.03)); }
+.try-alert h2 { margin: 2px 0 0; font-size: 22px; letter-spacing: -0.02em; }
+.try-alert p { margin: 0; }
+.try-alert-form { display: flex; gap: 8px; width: 100%; margin-top: 4px; }
+.try-alert-form input { flex: 1; min-width: 0; height: 48px; padding: 0 14px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.18); background: rgba(255, 255, 255, 0.06); color: #fff; font: inherit; }
+.try-alert-form .btn { height: 48px; white-space: nowrap; }
+.try-alert-icon { width: 40px; height: 40px; border-radius: 50%; background: #fff; color: #000; display: grid; place-items: center; font-weight: 900; font-size: 20px; }
+@media (max-width: 480px) { .try-alert-form { flex-direction: column; } .try-alert-form .btn { width: 100%; } }

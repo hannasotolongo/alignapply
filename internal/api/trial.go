@@ -33,6 +33,7 @@ const (
 	trialStrengthsShown = 4
 	trialJobsConsidered = 15
 	trialMaxRequirement = 140
+	trialLockedShown    = 6
 )
 
 var trialSlots = make(chan struct{}, 2)
@@ -62,11 +63,20 @@ type trialMatch struct {
 }
 
 type trialResponse struct {
-	Total        int          `json:"total"`
-	AverageMatch int          `json:"averageMatch"`
-	Fixes        []trialFix   `json:"fixes"`
-	Strengths    []string     `json:"strengths"`
-	Matches      []trialMatch `json:"matches"`
+	Total        int           `json:"total"`
+	AverageMatch int           `json:"averageMatch"`
+	Fixes        []trialFix    `json:"fixes"`
+	Strengths    []string      `json:"strengths"`
+	Matches      []trialMatch  `json:"matches"`
+	Locked       []trialLocked `json:"locked"`
+}
+
+// trialLocked is a match past the free three: its score is shown and its
+// title is shown blurred, so visitors see what they'd unlock. No company,
+// place or link is sent.
+type trialLocked struct {
+	Title           string `json:"title"`
+	MatchPercentage int    `json:"matchPercentage"`
 }
 
 func (s *Server) handleTrialSearch(w http.ResponseWriter, r *http.Request) {
@@ -171,7 +181,7 @@ func (s *Server) handleTrialSearch(w http.ResponseWriter, r *http.Request) {
 // buildTrialResponse turns ranked matches into the trial's feedback and
 // its first three jobs.
 func buildTrialResponse(ranked []jobs.JobMatch) trialResponse {
-	response := trialResponse{Total: len(ranked), Fixes: []trialFix{}, Strengths: []string{}, Matches: []trialMatch{}}
+	response := trialResponse{Total: len(ranked), Fixes: []trialFix{}, Strengths: []string{}, Matches: []trialMatch{}, Locked: []trialLocked{}}
 	if len(ranked) == 0 {
 		return response
 	}
@@ -284,6 +294,12 @@ func buildTrialResponse(ranked []jobs.JobMatch) trialResponse {
 			Missing:         missingTexts,
 			ApplyURL:        match.ApplyURL,
 			PostedAt:        posted,
+		})
+	}
+	for index := len(response.Matches); index < len(ranked) && len(response.Locked) < trialLockedShown; index++ {
+		response.Locked = append(response.Locked, trialLocked{
+			Title:           ranked[index].Title,
+			MatchPercentage: ranked[index].MatchPercentage,
 		})
 	}
 	return response

@@ -262,3 +262,27 @@ func firstNonBlank(values ...string) string {
 	}
 	return ""
 }
+
+// JobCounts are live numbers from Jane's saved jobs, shown on the homepage.
+type JobCounts struct {
+	Open        int `json:"open"`
+	NewThisWeek int `json:"newThisWeek"`
+	NewToday    int `json:"newToday"`
+}
+
+// CountJobs counts open jobs, and those Jane first saw in the last 7 days
+// and the last 24 hours. With a place pattern (from jobs.NearSearchPattern)
+// it counts only jobs whose location matches it.
+func (r *CrawledJobsRepository) CountJobs(ctx context.Context, nearPattern string) (JobCounts, error) {
+	var counts JobCounts
+	err := r.pool.QueryRow(ctx, `
+		SELECT COUNT(*),
+			COUNT(*) FILTER (WHERE first_seen_at > NOW() - INTERVAL '7 days'),
+			COUNT(*) FILTER (WHERE first_seen_at > NOW() - INTERVAL '24 hours')
+		FROM crawled_jobs
+		WHERE active AND ($1 = '' OR location ~* $1)`, nearPattern).Scan(&counts.Open, &counts.NewThisWeek, &counts.NewToday)
+	if err != nil {
+		return JobCounts{}, fmt.Errorf("repository: count crawled jobs: %w", err)
+	}
+	return counts, nil
+}

@@ -720,6 +720,65 @@ function janeHomeSections() {
   return [how, practice, why, founder];
 }
 
+// Live numbers from Jane's own job database, under the hero. Every number is
+// a real count (cached a few minutes on the server); if they can't load, the
+// strip stays hidden.
+const TRY_PLACE_KEY = "janecareers.tryPlace";
+
+function liveJobsStrip() {
+  const fmt = (n) => Number(n || 0).toLocaleString("en-US");
+  const open = h("strong", {}, "—");
+  const week = h("strong", {}, "—");
+  const today = h("strong", {}, "—");
+  const result = h("div", { class: "live-result", "aria-live": "polite" });
+  const place = h("input", { type: "text", maxlength: 100, placeholder: "Your city, like Tampa, FL", "aria-label": "Your city" });
+  const go = h("button", { type: "submit", class: "btn btn-primary" }, "Check");
+  const strip = h("section", { class: "live-strip", hidden: true },
+    h("div", { class: "container live-wrap" },
+      h("p", { class: "live-label" }, h("span", { class: "live-dot", "aria-hidden": "true" }), "Live from Jane's job database"),
+      h("div", { class: "live-nums" },
+        h("div", {}, week, h("span", {}, "new jobs this week")),
+        h("div", {}, today, h("span", {}, "added in the last 24 hours")),
+        h("div", {}, open, h("span", {}, "open jobs right now"))),
+      h("form", { class: "live-form", onsubmit: async (event) => {
+        event.preventDefault();
+        const where = place.value.trim();
+        if (!where) { place.focus(); return; }
+        go.disabled = true;
+        result.replaceChildren(h("p", { class: "muted small" }, "Counting…"));
+        try {
+          const data = await api(`/api/v1/stats/jobs?place=${encodeURIComponent(where)}`, { allowUnauthorized: true });
+          if (!data.near) {
+            result.replaceChildren(h("p", { class: "muted small" }, "Add your state, like “Tampa, FL”."));
+          } else {
+            try { sessionStorage.setItem(TRY_PLACE_KEY, where); } catch { /* ignore */ }
+            const n = data.near;
+            result.replaceChildren(
+              h("p", { class: "live-answer" },
+                h("b", {}, fmt(n.open)), ` open jobs in ${data.state}`,
+                n.newToday > 0 ? [" · ", h("b", {}, fmt(n.newToday)), " added in the last 24 hours"] : n.newThisWeek > 0 ? [" · ", h("b", {}, fmt(n.newThisWeek)), " added this week"] : null),
+              state.user
+                ? link("/app", { class: "btn btn-ghost" }, "See your matches →")
+                : link("/try", { class: "btn btn-ghost" }, "See which ones you qualify for →"));
+          }
+        } catch {
+          result.replaceChildren(h("p", { class: "muted small" }, "Couldn't count right now. Try again in a minute."));
+        } finally {
+          go.disabled = false;
+        }
+      } }, place, go),
+      result));
+
+  api("/api/v1/stats/jobs", { allowUnauthorized: true }).then((data) => {
+    if (!data || !data.all || !data.all.open) return;
+    open.textContent = fmt(data.all.open);
+    week.textContent = fmt(data.all.newThisWeek);
+    today.textContent = fmt(data.all.newToday);
+    strip.hidden = false;
+  }).catch(() => null);
+  return strip;
+}
+
 async function viewLanding() {
   if (state.user === undefined) await loadUser();
   const plansInfo = await loadPlans();
@@ -739,6 +798,7 @@ async function viewLanding() {
           h("p", { class: "faint small hero-note" }, signedIn ? "Cancel anytime · 3-day money-back guarantee" : "No card needed · Cancel anytime · 3-day money-back guarantee"),
         ),
       ),
+      liveJobsStrip(),
       ...janeHomeSections(),
       pricingSection(plansInfo),
     ),
@@ -796,7 +856,9 @@ function trialUsedNote() {
 
 function renderTrialForm(body, saved = {}) {
   const role = h("input", { id: "try-role", type: "text", required: true, maxlength: 100, autocomplete: "organization-title", placeholder: "Software engineer, nurse, teacher…", value: saved.role || "" });
-  const place = h("input", { id: "try-place", type: "text", required: true, maxlength: 100, placeholder: "New York, NY or 10001", value: saved.place || "" });
+  let rememberedPlace = "";
+  try { rememberedPlace = sessionStorage.getItem(TRY_PLACE_KEY) || ""; } catch { /* ignore */ }
+  const place = h("input", { id: "try-place", type: "text", required: true, maxlength: 100, placeholder: "New York, NY or 10001", value: saved.place || rememberedPlace });
   const file = h("input", { id: "try-resume", type: "file", accept: ".pdf,.txt,application/pdf,text/plain", class: "try-file-input" });
   const fileName = h("span", { class: "try-file-name" }, "Upload your résumé");
   const fileHint = h("span", { class: "try-file-hint" }, "PDF, up to 10 MB");
@@ -862,6 +924,65 @@ function renderTrialForm(body, saved = {}) {
 
 function trialRing(percent, size) {
   return h("span", { class: `hd-ring hd-ring-white ${size || "hd-ring-md"}` }, `${percent}%`);
+}
+
+// The matches past the free three: real scores, blurred titles, and the
+// count of everything else Jane found. Seeing them is what makes people unlock.
+function trialLockedList(locked, more, total, monthly) {
+  const lockIcon = '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+  const rows = locked.map((match) => h("div", { class: "try-lock-row", "aria-hidden": "true" },
+    trialRing(match.matchPercentage),
+    h("div", { class: "try-lock-text" },
+      h("span", { class: "try-blur" }, match.title),
+      h("span", { class: "try-blur try-blur-sub" }, "Company name · 4 miles away")),
+    svgIcon(lockIcon)));
+  const hidden = more - locked.length;
+  return h("section", { class: "card try-lockbox" },
+    h("div", { class: "try-lock-head" },
+      h("span", { class: "try-chip" }, "Locked"),
+      h("h2", {}, `${more} more ${more === 1 ? "job matches" : "jobs match"} you`),
+      h("p", { class: "muted small" }, "Jane already scored them. Unlock to see who's hiring and apply on their site.")),
+    h("div", { class: "try-lock-list" }, rows,
+      hidden > 0 ? h("p", { class: "try-lock-more" }, `+ ${hidden} more`) : null,
+      h("div", { class: "try-lock-cover" },
+        h("button", { class: "btn btn-primary btn-lg", onclick: () => startCheckout("monthly") }, `Unlock all ${total} matches`),
+        h("p", { class: "faint small" }, `${monthly.displayPrice}/month · Cancel anytime · 3-day money-back guarantee`))));
+}
+
+// "Email me new matches every morning": turns a one-time trial into a
+// daily reason to come back. Jane emails a confirmation link first.
+function trialAlertBox(request) {
+  const email = h("input", { type: "email", required: true, maxlength: 254, autocomplete: "email", placeholder: "you@email.com", "aria-label": "Your email" });
+  const submit = h("button", { type: "submit", class: "btn btn-primary" }, "Send me matches");
+  const note = h("p", { class: "try-error", role: "alert" });
+  const box = h("section", { class: "card try-alert" });
+  const form = h("form", { class: "try-alert-form", onsubmit: async (event) => {
+    event.preventDefault();
+    note.textContent = "";
+    const address = email.value.trim();
+    if (!address) { email.focus(); return; }
+    submit.disabled = true;
+    try {
+      const reply = await api("/api/v1/alerts", { method: "POST", allowUnauthorized: true,
+        body: { email: address, targetRole: request.targetRole, location: request.location, resumeText: request.resumeText } });
+      box.replaceChildren(
+        h("p", { class: "try-alert-icon", "aria-hidden": "true" }, "✓"),
+        h("h2", {}, reply.status === "active" ? "You're already set." : "Check your email."),
+        h("p", { class: "muted" }, reply.status === "active"
+          ? `Jane already emails you new ${request.targetRole} matches every morning.`
+          : `Tap the link Jane sent to ${address} and your first matches arrive right away.`));
+    } catch (problem) {
+      note.textContent = problem.message || "Couldn't sign you up. Try again.";
+      submit.disabled = false;
+    }
+  } }, email, submit);
+  box.append(
+    h("span", { class: "try-chip" }, "Free"),
+    h("h2", {}, "Get new matches every morning"),
+    h("p", { class: "muted" }, `New ${request.targetRole} jobs near ${request.location} post every day. Jane scores them against your résumé and emails you the best ones before everyone else applies.`),
+    form, note,
+    h("p", { class: "faint small" }, "To score new jobs, Jane keeps your résumé with this email. Unsubscribe anytime and it's deleted."));
+  return box;
 }
 
 function renderTrialResults(body, request, result) {
@@ -933,9 +1054,8 @@ function renderTrialResults(body, request, result) {
     h("div", { class: "try-head try-head-sm" }, h("h1", {}, matches.length === 1 ? "Your best match" : `Your ${matches.length} best matches`), h("p", { class: "muted" }, `${request.targetRole} · near ${request.location}`)),
     feedback,
     h("div", { class: "stack" }, cards),
-    more > 0 ? h("div", { class: "card try-locked" },
-      svgIcon('<svg aria-hidden="true" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>'),
-      h("div", {}, h("b", {}, `${more} more ${more === 1 ? "match" : "matches"} near you`), h("p", { class: "muted small" }, "Unlock all of them, plus a tailored résumé for each."))) : null,
+    trialAlertBox(request),
+    more > 0 ? trialLockedList(result.locked || [], more, total, monthly) : null,
     unlock,
     h("p", { class: "faint small center" }, "Every apply link goes straight to the employer, never a job board."),
   );

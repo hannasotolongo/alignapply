@@ -26,6 +26,8 @@ type Message struct {
 	Subject string
 	Text    string
 	HTML    string
+	// Headers are extra email headers, like List-Unsubscribe.
+	Headers map[string]string
 }
 
 // NewResend returns nil when email is not configured, so callers can treat a
@@ -58,13 +60,17 @@ func (c *Client) Send(ctx context.Context, message Message) error {
 		return errors.New("mailer: email is not configured")
 	}
 
-	payload, err := json.Marshal(map[string]any{
+	body := map[string]any{
 		"from":    c.from,
 		"to":      []string{message.To},
 		"subject": message.Subject,
 		"text":    message.Text,
 		"html":    message.HTML,
-	})
+	}
+	if len(message.Headers) > 0 {
+		body["headers"] = message.Headers
+	}
+	payload, err := json.Marshal(body)
 	if err != nil {
 		return err
 	}

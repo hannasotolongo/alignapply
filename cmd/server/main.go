@@ -335,6 +335,11 @@ func main() {
 		log.Printf("Job crawler started")
 	}
 
+	matchAlertsRepository, err := repository.NewMatchAlertsRepository(db.Pool())
+	if err != nil {
+		log.Fatalf("create match alerts repository: %v", err)
+	}
+
 	billingConfig := api.BillingConfig{
 		WebhookSecret: strings.TrimSpace(os.Getenv("STRIPE_WEBHOOK_SECRET")),
 		Plans: []api.Plan{
@@ -441,6 +446,7 @@ func main() {
 				Billing:          billingRepository,
 				Accounts:         accountsRepository,
 				CrawledJobs:      crawledJobsRepository,
+				MatchAlerts:      matchAlertsRepository,
 			},
 			AppleVerifier:  appleVerifier,
 			AppleClient:    appleClient,
@@ -457,6 +463,9 @@ func main() {
 			},
 		},
 	)
+
+	// Daily match emails go out in the background.
+	go server.RunMatchAlerts(ctx)
 
 	// Production hosts provide PORT.
 	// Local development falls back to 8080.

@@ -55,6 +55,11 @@ type Server struct {
 
 	fitCheckUserLimiter *attemptLimiter
 	trialLimiter        *attemptLimiter
+
+	// Daily match emails (match_alerts.go).
+	matchAlerts  *repository.MatchAlertsRepository
+	alertLimiter *attemptLimiter
+	alertJobs    jobs.Provider
 }
 
 // WebConfig configures the browser-facing SaaS: where it is hosted (used for
@@ -77,6 +82,8 @@ type Repositories struct {
 	Accounts         *repository.AccountsRepository
 	// CrawledJobs holds the jobs Jane's own crawler has saved (optional).
 	CrawledJobs *repository.CrawledJobsRepository
+	// MatchAlerts holds daily match email sign-ups (optional).
+	MatchAlerts *repository.MatchAlertsRepository
 }
 
 type Dependencies struct {
@@ -126,6 +133,7 @@ func NewServer(
 		kitLimiter:          newAttemptLimiter(20, time.Hour),
 		fitCheckUserLimiter: newAttemptLimiter(ProJobMatchesPerHour, time.Hour),
 		trialLimiter:        newAttemptLimiter(trialSearchesPerDay, 24*time.Hour),
+		alertLimiter:        newAttemptLimiter(5, time.Hour),
 	}
 
 	server.jobProvider = newJobProvider(server)
@@ -165,6 +173,12 @@ func NewServer(
 
 		server.accountsRepo = deps.Repositories.Accounts
 		server.crawledJobs = deps.Repositories.CrawledJobs
+		server.matchAlerts = deps.Repositories.MatchAlerts
+		if server.crawledJobs != nil {
+			// Daily match emails score Jane's saved jobs only, so they never
+			// wait on employers' sites.
+			server.alertJobs = jobs.NewStoredJobsProvider(func() jobs.BoardStore { return server.crawledJobs })
+		}
 		server.mailer = deps.Mailer
 		server.stripe = deps.Stripe
 		server.billingConfig = deps.BillingConfig
@@ -450,6 +464,10 @@ func (s *Server) routes() {
 
 	// Free trial: one search without an account (janecareers.com/try).
 	s.mux.HandleFunc("/api/v1/trial/search", s.handleTrialSearch)
+	s.mux.HandleFunc("/api/v1/stats/jobs", s.handleJobStats)
+	s.mux.HandleFunc("/api/v1/alerts", s.handleCreateAlert)
+	s.mux.HandleFunc("/alerts/confirm", s.handleConfirmAlert)
+	s.mux.HandleFunc("/alerts/unsubscribe", s.handleUnsubscribeAlert)
 	s.mux.HandleFunc("/api/v1/billing/plans", s.handleBillingPlans)
 
 	// Stripe calls this directly; it is authenticated by signature.
