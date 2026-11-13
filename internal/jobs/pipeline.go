@@ -336,6 +336,9 @@ func matchesLocationPreference(
 
 	// A search for a US city or state is a US search, so a remote role
 	// limited to another country doesn't fit.
+	if requestCountry == "" {
+		requestCountry = SearchCountry(request.Location)
+	}
 	if requestCountry == "" && (len(metrosIn(requested)) > 0 || locationContainsUSRegion(request.Location)) {
 		requestCountry = "US"
 	}
@@ -365,7 +368,22 @@ func matchesLocationPreference(
 		return true
 	}
 
-	// Any US town, city or ZIP: measure the distance.
+	// A search for a whole country or region abroad ("Canada", "Ontario",
+	// "UK") takes any job there.
+	if country, region := worldCountryIn(request.Location); country != "" {
+		if _, _, ok := geoLocate(request.Location, "", true); !ok {
+			if jobCountry != "" && jobCountry != country {
+				return false
+			}
+			if region == "" {
+				return jobCountry == country
+			}
+			_, jobKey, ok := geoLocate(job.Location, worldKey(country, region), false)
+			return ok && jobKey == worldKey(country, region)
+		}
+	}
+
+	// Any town, city or ZIP: measure the distance.
 	if miles, jobState, ok := jobDistance(request, job); ok {
 		radius := request.RadiusMiles
 		if radius == 0 {

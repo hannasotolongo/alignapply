@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -331,6 +332,11 @@ func main() {
 	// Jane's own job crawler keeps saved jobs current in the background.
 	// JANE_CRAWLER=off turns it off (for example on a local machine).
 	if !strings.EqualFold(strings.TrimSpace(os.Getenv("JANE_CRAWLER")), "off") {
+		// The database plan's size, so the crawler can say when it's
+		// getting full (DATABASE_STORAGE_GB, 5 by default).
+		if gb, err := strconv.ParseFloat(envOrDefault("DATABASE_STORAGE_GB", "5"), 64); err == nil && gb > 0 {
+			jobs.StorageLimitBytes = int64(gb * (1 << 30))
+		}
 		go jobs.NewCrawler(crawledJobsRepository, jobs.CrawlSeedBoards()).Run(ctx)
 		log.Printf("Job crawler started")
 	}

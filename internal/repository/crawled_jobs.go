@@ -281,3 +281,13 @@ func (r *CrawledJobsRepository) EachOpenJob(ctx context.Context, fn func(locatio
 	}
 	return rows.Err()
 }
+
+// DatabaseBytes is how much space the whole database uses, for the
+// crawler's storage check.
+func (r *CrawledJobsRepository) DatabaseBytes(ctx context.Context) (int64, error) {
+	var size int64
+	if err := r.pool.QueryRow(ctx, `SELECT pg_database_size(current_database())`).Scan(&size); err != nil {
+		return 0, fmt.Errorf("repository: database size: %w", err)
+	}
+	return size, nil
+}

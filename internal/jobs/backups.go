@@ -80,6 +80,13 @@ func countryFromLocation(location string) string {
 		// "Remote - US or Canada" is open to US candidates.
 		return "US"
 	}
+	if code, _ := worldCountryIn(location); code != "" {
+		return code
+	}
+	// "London, KY" is in Kentucky, whatever the city's name.
+	if len(usStatesIn(location)) > 0 {
+		return "US"
+	}
 	for name, code := range foreignCountries {
 		if strings.Contains(lower, name) {
 			return code

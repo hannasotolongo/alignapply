@@ -12,6 +12,8 @@ import (
 	"sync"
 )
 
+// Places outside the US come from GeoNames (see world_geo.go).
+//
 // US places and ZIP codes with their coordinates, from the US Census
 // Bureau's Gazetteer files (public domain). They let a search for any town,
 // city or ZIP code find the jobs within driving distance, instead of only
@@ -186,7 +188,23 @@ func geoLocateUncached(text, hintState string, anyState bool) (geoPoint, string,
 	if strings.TrimSpace(text) == "" {
 		return geoPoint{}, "", false
 	}
+	// Outside the US: a place that names its country or region, or a job
+	// location read for a search abroad.
+	if country, region := worldCountryIn(text); country != "" {
+		return worldLocate(text, country, region)
+	}
+	if country, region, foreign := parseWorldKey(hintState); foreign {
+		if point, key, ok := worldLocate(text, country, region); ok {
+			return point, key, true
+		}
+		return worldLocate(text, country, "")
+	}
 	states := usStatesIn(text)
+	if len(states) == 0 && anyState {
+		if point, key, ok := worldBigCity(text); ok {
+			return point, key, true
+		}
+	}
 	if match := zipRE.FindStringSubmatch(text); match != nil {
 		if point, ok := geoZips[match[1]]; ok {
 			state := ""

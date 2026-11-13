@@ -111,6 +111,7 @@ func (c *Crawler) Run(ctx context.Context) {
 			if err := c.Store.PruneClosed(ctx, 72*time.Hour); err != nil {
 				log.Printf("[crawler] pruning closed jobs failed: %v", err)
 			}
+			checkStorage(ctx, c.Store)
 			lastPrune = time.Now()
 		}
 
@@ -209,10 +210,14 @@ func finishCrawledJob(job *Job, board Board) {
 	if job.WorkArrangement == "" {
 		job.WorkArrangement = arrangementFromLocation(job.Location + " " + job.Title)
 	}
-	// Non-US jobs are kept as a short record (so they aren't downloaded
-	// again every day) without their description.
+	// Jobs in the countries Jane searches abroad are kept in full while the
+	// database has room (see StorageGuard). Other countries' jobs are kept
+	// as a short record (so they aren't downloaded again every day)
+	// without their description.
 	if job.CountryCode != "" && job.CountryCode != "US" {
-		job.Description = ""
+		if _, searched := WorldCountries[job.CountryCode]; !searched || !foreignPostingsAllowed() {
+			job.Description = ""
+		}
 	}
 	job.IsActive = true
 }
