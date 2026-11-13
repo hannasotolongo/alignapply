@@ -946,7 +946,7 @@ function nhSections() {
           h("p", { class: "faint small" }, "Included with Pro, or on its own with Interview Prep.")),
         h("div", { class: "card nh-prep-card" },
           h("p", { class: "nh-kicker" }, "Software Engineer · NVIDIA"),
-          h("p", { class: "nh-prep-q" }, "“How would you optimize a matrix multiplication kernel in CUDA?”"),
+          h("p", { class: "nh-prep-q" }, "“Design the checkout system for a grocery store.”"),
           h("div", { class: "nh-rec" }, h("span", { class: "nh-rec-dot" }), "Recording", h("span", { class: "nh-rec-time" }, "1:12")),
           h("div", { class: "nh-meters" },
             meter("Pace", "148", "words / min"),
