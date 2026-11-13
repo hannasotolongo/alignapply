@@ -928,7 +928,7 @@ function nhSections() {
     h("section", { class: "nh-section", id: "how" },
       h("div", { class: "container" },
         h("p", { class: "hd-eyebrow" }, "How it works"),
-        h("h2", { class: "nh-h2" }, "From résumé to interview."),
+        h("h2", { class: "nh-h2" }, "From application to interview."),
         h("ol", { class: "nh-steps" },
           how(1, "Drop your résumé", "Tell Jane the job you want and where."),
           how(2, "Get your best matches", "Jane searches openings on employers' own career sites and scores each one against your résumé, so you know which jobs you have a real shot at and why."),
