@@ -2637,9 +2637,9 @@ function openJobDetail(match) {
   function stepResume() {
     const slot = h("div", {});
     return h("div", { class: "stack" },
-      h("p", { class: "muted" }, "Jane picks your best résumé for this job and rewrites it in the job's language, using only what's true."),
+      h("p", { class: "muted" }, "Your résumé, rewritten for this job so the recruiter sees a match in seconds. Jane only uses your real experience."),
       isFree()
-        ? freeUpgrade("Tailor your résumé to this job", "Pro rewrites your résumé summary, bullets and keywords for this job, using only what's true, and picks your best résumé to send.")
+        ? freeUpgrade("Get a résumé made for this job", "With Pro, Jane rewrites your résumé to match what this employer is looking for, picks your strongest résumé to send, and gives it to you as a PDF or Word file.")
         : recommendationCard(match, slot),
       isFree() ? null : tailoredResumeSection(getInput),
       isFree() ? null : applicationKitSection(getInput, `${match.title}${match.company ? ` at ${match.company}` : ""}`, { withLetter: false }));
@@ -2647,7 +2647,7 @@ function openJobDetail(match) {
 
   function stepLetter() {
     return h("div", { class: "stack" },
-      h("p", { class: "muted" }, `Three short paragraphs for ${company}, written from your real experience. Nothing made up.`),
+      h("p", { class: "muted" }, `A short, personal cover letter that tells ${company} why you're a great fit, ready to send as a PDF or Word file.`),
       coverLetterSection(getInput));
   }
 
@@ -2663,13 +2663,30 @@ function openJobDetail(match) {
   }
 
   function stepPractice() {
+    const rounds = [["mixed", "Not sure yet"], ["phone", "Phone screen"], ["first", "First round"], ["role", "Technical"],
+      ["design", "System design"], ["behavioral", "Behavioral"], ["panel", "Panel"], ["final", "Final round"]];
+    let chosen = "mixed";
+    const chips = rounds.map(([value, label]) => {
+      const chip = h("button", { type: "button", class: value === chosen ? "round-chip on" : "round-chip", "aria-pressed": value === chosen ? "true" : "false", onclick: () => {
+        chosen = value;
+        chips.forEach((c) => { const on = c === chip; c.classList.toggle("on", on); c.setAttribute("aria-pressed", on ? "true" : "false"); });
+      } }, label);
+      return chip;
+    });
     return h("div", { class: "stack" },
-      h("p", { class: "muted" }, "Jane asks the questions this employer is likely to ask. You answer out loud, and she coaches how you sound."),
+      h("p", { class: "muted" }, `Walk into your ${company} interview ready. Jane runs a mock interview built for this job: she asks what this interviewer is likely to ask, you answer out loud, and she coaches you after every answer.`),
+      h("div", { class: "stack-sm" },
+        h("span", { class: "section-label" }, "Which round are you preparing for?"),
+        h("div", { class: "round-chips" }, chips)),
+      h("ul", { class: "ticks" },
+        h("li", {}, "Questions for this company and this round, from phone screens to system design"),
+        h("li", {}, "Your pace, filler words and answer length after every answer"),
+        h("li", {}, "What you did well, what to fix, and a stronger version of your answer")),
       h("button", { class: "btn btn-primary btn-lg", type: "button", onclick: () => {
-        state.practiceJob = { title: match.title, company: match.company, description: (match.description || "").slice(0, 30000) };
+        state.practiceJob = { title: match.title, company: match.company, description: (match.description || "").slice(0, 30000), stage: chosen };
         dialog.close();
         startInterviewPrep();
-      } }, "Practice this interview"));
+      } }, "Start my mock interview"));
   }
 
   const dialog = h("dialog", { class: "dialog dialog-job", "aria-label": match.title },
@@ -3833,7 +3850,7 @@ function renderKit(kit, title, input) {
     h("div", { class: "row-between" },
       h("div", { class: "stack-sm" },
         h("h3", {}, "Your Application Kit"),
-        h("span", { class: "truth-badge" }, "✓ Truth-locked: every line comes from your résumé")),
+        h("span", { class: "truth-badge" }, "✓ Built only from your real experience")),
       h("button", { class: "btn btn-primary btn-sm", type: "button", onclick: () => copyText(kitPlainText(kit, title), "Kit copied") }, "Copy everything")),
   ];
   if (kit.headline || kit.summary) {
@@ -3875,7 +3892,7 @@ function applicationKitSection(getInput, title, { withLetter = true } = {}) {
   const slot = h("div", {});
   const start = h("button", { class: "btn btn-primary", type: "button", onclick: async () => {
     start.disabled = true;
-    slot.replaceChildren(h("div", { class: "card inset" }, spinnerRow("Jane is tailoring your résumé to this job, using only what's true…")));
+    slot.replaceChildren(h("div", { class: "card inset" }, spinnerRow("Jane is tailoring your résumé to this job…")));
     let input;
     try {
       input = await getInput();
@@ -3889,7 +3906,7 @@ function applicationKitSection(getInput, title, { withLetter = true } = {}) {
   } }, "Build my Application Kit");
   const intro = h("div", { class: "card inset kit-intro stack-sm" },
     h("h3", {}, "Ready to apply? Let Jane tailor your résumé"),
-    h("p", { class: "muted small" }, "A résumé summary, bullets and keywords rewritten for this job, plus interview prep for your gaps. Truth-locked: every line traces back to your real résumé, and nothing gets made up."),
+    h("p", { class: "muted small" }, "A new summary, bullets and keywords for this job that you can copy into your own résumé, plus tips for anything you're missing."),
     h("div", { class: "row" }, start));
   return h("div", { class: "stack-sm" }, intro, slot, withLetter ? coverLetterSection(getInput) : null);
 }
@@ -3909,7 +3926,7 @@ function tailoredResumeSection(getInput) {
     (resume.skills || []).length ? h("p", { class: "small" }, h("b", {}, "Skills: "), resume.skills.join(", ")) : null);
   const make = h("button", { class: "btn btn-primary", type: "button", onclick: async () => {
     make.disabled = true;
-    slot.replaceChildren(h("div", { class: "card inset" }, spinnerRow("Jane is rewriting your résumé for this job, using only what's true… (about 30 seconds)")));
+    slot.replaceChildren(h("div", { class: "card inset" }, spinnerRow("Jane is rewriting your résumé for this job… (about 30 seconds)")));
     try {
       const input = await getInput();
       company = input.company || "";
@@ -3922,7 +3939,7 @@ function tailoredResumeSection(getInput) {
             (e) => { error.hidden = false; error.textContent = e.message || "Couldn't download the file."; }))),
         error,
         preview(resume),
-        h("p", { class: "faint small" }, "Every line comes from your résumé, reworded for this job. Download the Word file if you want to edit it.")));
+        h("p", { class: "faint small" }, "Give it a quick read before you send it. Download the Word file to edit.")));
       make.textContent = "Rewrite it again";
     } catch (error) {
       slot.replaceChildren(h("div", { class: "form-error" }, error.code === "pro_required" ? "Choose a plan to get a tailored résumé." : error.message));
@@ -3943,7 +3960,7 @@ function coverLetterSection(getInput) {
   const slot = h("div", {});
   const write = h("button", { class: "btn", type: "button", onclick: async () => {
     write.disabled = true;
-    slot.replaceChildren(h("div", { class: "card inset" }, spinnerRow("Jane is writing your cover letter, using only what's true…")));
+    slot.replaceChildren(h("div", { class: "card inset" }, spinnerRow("Jane is writing your cover letter…")));
     try {
       const input = await getInput();
       const letter = await api("/api/v1/cover-letter", { method: "POST", body: {
@@ -3957,7 +3974,7 @@ function coverLetterSection(getInput) {
               company: input.company || "", resumeText: (input.resumeText || "").slice(0, 3000) }),
             (error) => toast(error.message || "Couldn't download the file.")))),
         h("div", { class: "try-letter-paper" }, letter.text.split("\n\n").map((part) => h("p", {}, part.split("\n").flatMap((line, i) => i ? [h("br", {}), line] : [line])))),
-        h("p", { class: "faint small" }, "Written only from your résumé. Read it once and make it yours before you send it. Download it as a PDF or a Word file to edit.")));
+        h("p", { class: "faint small" }, "Give it a quick read and add anything personal before you send it. Download the Word file to edit.")));
       write.textContent = "Write it again";
       write.disabled = false;
     } catch (error) {
@@ -3972,8 +3989,8 @@ function coverLetterSection(getInput) {
   const left = isFree() && freeLeft() ? freeLeft().coverLettersLeft : null;
   return h("div", { class: "stack-sm" },
     h("div", { class: "card inset stack-sm" },
-      h("h3", {}, "Need a cover letter?"),
-      h("p", { class: "muted small" }, "Three short paragraphs written for this job, from your real experience. Nothing made up."),
+      h("h3", {}, "Your cover letter"),
+      h("p", { class: "muted small" }, "Jane writes a short letter for this job that shows why you're a fit, in a natural voice. You can copy it or download it."),
       left === null ? null : h("p", { class: "faint small" }, left > 0 ? "Your Free plan includes 1 cover letter. Use it on the job you want most." : "You've used your free cover letter. Pro writes one for every job."),
       h("div", { class: "row" }, write)),
     slot);
@@ -4391,6 +4408,7 @@ async function viewInterviewPractice() {
     pasteTitle.value = state.practiceJob.title || "";
     pasteCompany.value = state.practiceJob.company || "";
     pasteBody.value = state.practiceJob.description || "";
+    state.practiceStage = state.practiceJob.stage || "";
     state.practiceJob = null;
   }
   const syncPaste = () => pasteArea.classList.toggle("hidden", jobSelect.value !== "");
@@ -4399,6 +4417,10 @@ async function viewInterviewPractice() {
 
   const stageSelect = h("select", { "aria-label": "Interview stage" },
     INTERVIEW_STAGES.map(([value, label]) => h("option", { value }, label)));
+  if (state.practiceStage) {
+    if (INTERVIEW_STAGES.some(([value]) => value === state.practiceStage)) stageSelect.value = state.practiceStage;
+    state.practiceStage = "";
+  }
 
   // One practice session: the request that made it, every question asked so
   // far (so "More questions" never repeats), and where new ones go.

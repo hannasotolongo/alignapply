@@ -1646,3 +1646,7 @@ body { background: #0b0b0c; background-image: none; }
 .nh-round.on { background: #fff; color: #0a0a0a; border-color: #fff; }
 .nh-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .nh-card-head .nh-kicker { margin: 0; }
+.round-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.round-chip { font: inherit; font-size: 13px; font-weight: 600; padding: 7px 13px; border-radius: 999px; border: 1px solid rgba(255,255,255,.16); background: transparent; color: var(--text-2); cursor: pointer; }
+.round-chip:hover { border-color: rgba(255,255,255,.35); color: var(--text); }
+.round-chip.on { background: #fff; color: #0a0a0a; border-color: #fff; }
