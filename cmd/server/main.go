@@ -351,11 +351,11 @@ func main() {
 		Plans: []api.Plan{
 			{
 				Key:          "monthly",
-				Name:         "Pro Monthly",
+				Name:         "Pro",
 				Kind:         api.PlanKindSubscription,
 				Interval:     "month",
 				TrialDays:    0, // No free trial; the first payment is due at checkout.
-				DisplayPrice: envOrDefault("PRO_MONTHLY_DISPLAY_PRICE", "$29"),
+				DisplayPrice: envOrDefault("PRO_MONTHLY_DISPLAY_PRICE", "$49.99"),
 				PriceID:      strings.TrimSpace(os.Getenv("STRIPE_PRICE_PRO_MONTHLY")),
 				// Subscribers at the old $14.99 price keep it.
 				LegacyPriceIDs: envList("STRIPE_PRICE_PRO_MONTHLY_LEGACY"),
@@ -370,12 +370,23 @@ func main() {
 				PriceID:      strings.TrimSpace(os.Getenv("STRIPE_PRICE_SPRINT")),
 			},
 			{
+				// Limited-time launch deal: one payment, Pro for life. Shown
+				// only while STRIPE_PRICE_LIFETIME is set; unset it to end it.
+				Key:          "lifetime",
+				Name:         "Lifetime Pro",
+				Kind:         api.PlanKindPass,
+				Interval:     "lifetime",
+				PassDays:     36500,
+				DisplayPrice: envOrDefault("LIFETIME_DISPLAY_PRICE", "$199"),
+				PriceID:      strings.TrimSpace(os.Getenv("STRIPE_PRICE_LIFETIME")),
+			},
+			{
 				Key:          "interview",
 				Name:         "Interview Prep",
 				Kind:         api.PlanKindSubscription,
 				Interval:     "month",
 				Access:       api.AccessInterview,
-				DisplayPrice: envOrDefault("INTERVIEW_DISPLAY_PRICE", "$9.99"),
+				DisplayPrice: envOrDefault("INTERVIEW_DISPLAY_PRICE", "$29.99"),
 				PriceID:      strings.TrimSpace(os.Getenv("STRIPE_PRICE_INTERVIEW")),
 				// Subscribers at the old $8.99 price keep it.
 				LegacyPriceIDs: envList("STRIPE_PRICE_INTERVIEW_LEGACY"),

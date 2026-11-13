@@ -763,7 +763,7 @@ function janeHomeSections() {
           h("div", {}, h("span", { class: "hd-num" }, "3"), h("div", {}, h("h3", {}, "Get coached on how you sound"), h("p", {}, "Pace, filler words, length and how to improve. Then say it again, better."))),
           h("div", { class: "card hd-own" },
             h("div", {}, h("b", {}, "Already have an interview?"),
-              h("p", {}, `Get Interview Prep on its own for ${(planFor("interview") || { displayPrice: "$9.99" }).displayPrice}/month. It's included in Pro.`)),
+              h("p", {}, `Get Interview Prep on its own for ${(planFor("interview") || { displayPrice: "$29.99" }).displayPrice}/month. It's included in Pro.`)),
             h("button", { class: "btn btn-primary", type: "button", onclick: () => startCheckout("interview") }, "Get Interview Prep"))),
         h("div", { class: "hd-card" }, hdInterviewVisual())),
     ));
@@ -1192,7 +1192,7 @@ function trialAlertBox(request) {
 function renderTrialResults(body, request, result) {
   const total = result.total || 0;
   const matches = result.matches || [];
-  const monthly = planFor("monthly") || { displayPrice: "$14.99" };
+  const monthly = planFor("monthly") || { displayPrice: "$49.99" };
 
   if (!total) {
     body.replaceChildren(h("div", { class: "try-head" },
@@ -1240,7 +1240,7 @@ function trialSteps(current) {
 function renderTrialJob(body, request, result, index) {
   const match = (result.matches || [])[index];
   if (!match) return;
-  const monthly = planFor("monthly") || { displayPrice: "$14.99" };
+  const monthly = planFor("monthly") || { displayPrice: "$49.99" };
   const applyURL = safeUrl(match.applyURL || "");
   const partial = match.partial || [];
   const missing = match.missing || [];
@@ -1345,14 +1345,14 @@ function checkoutNote() {
 function planCards(plansInfo, { compact = false, include = ["monthly", "interview"] } = {}) {
   const enabled = plansInfo.billingEnabled;
   const interview = planFor("interview");
-  const monthly = planFor("monthly") || { key: "monthly", name: "Pro Monthly", displayPrice: "$29", interval: "month" };
+  const monthly = planFor("monthly") || { key: "monthly", name: "Pro", displayPrice: "$49.99", interval: "month" };
   const sprint = planFor("sprint") || { key: "sprint", name: "Job Search Sprint", displayPrice: "$39", interval: "90 days" };
   const school = planFor("school") || { key: "school", name: "School License", displayPrice: "$1,000", interval: "year" };
 
   const proFeatures = [
     "Unlimited job matches with scores",
     "Every résumé fix, and how to make it",
-    "Upload all your résumés. Jane picks the best one for each job and tailors it",
+    "Every résumé tailored to make you stand out for each job",
     "A cover letter for every job",
     "Download your résumé and cover letter as PDF or Word",
     h("strong", {}, "Interview Prep included"),
@@ -1374,7 +1374,7 @@ function planCards(plansInfo, { compact = false, include = ["monthly", "intervie
     ));
   }
   if (include.includes("interview")) {
-    const plan = interview || { key: "interview", name: "Interview Prep", displayPrice: "$9.99", interval: "month" };
+    const plan = interview || { key: "interview", name: "Interview Prep", displayPrice: "$29.99", interval: "month" };
     byKey.interview = (h("div", { class: "card price-card" },
       h("div", {}, h("span", { class: "pill pill-new" }, "New"), h("h3", {}, plan.name), h("p", { class: "muted small" }, "Just the interview practice")),
       h("div", { class: "price" }, plan.displayPrice, " ", h("small", {}, `/ ${plan.interval}`)),
@@ -1419,12 +1419,40 @@ function planCards(plansInfo, { compact = false, include = ["monthly", "intervie
   return include.filter((key) => byKey[key]).map((key) => byKey[key]);
 }
 
+// lifetimeOffer is the limited-time lifetime deal: one payment, Pro for
+// life. It shows only while the server offers the "lifetime" plan, so
+// ending the offer is a server change.
+// isLifetime: Lifetime Pro is a pass that runs for a century.
+function isLifetime(billing) {
+  return Boolean(billing && billing.passExpiresAt && new Date(billing.passExpiresAt).getFullYear() >= 2100);
+}
+
+function lifetimeOffer(plansInfo) {
+  const ticks = (items) => h("ul", { class: "ticks" }, items.map((f) => h("li", {}, f)));
+  const plan = planFor("lifetime");
+  if (!plan) return null;
+  const enabled = Boolean(plansInfo && plansInfo.billingEnabled);
+  return h("div", { class: "card lifetime" },
+    h("div", { class: "lifetime-copy" },
+      h("span", { class: "pill pill-pro" }, "Limited time offer"),
+      h("h3", {}, "Lifetime Pro"),
+      h("p", { class: "muted" }, "Pay once, keep everything in Pro for life. Every future job search, no monthly bill."),
+      ticks(["Everything in Pro, forever", "Interview Prep included", "Every new feature we ship"])),
+    h("div", { class: "lifetime-buy" },
+      h("div", { class: "price" }, plan.displayPrice, " ", h("small", {}, "one-time")),
+      h("p", { class: "faint small lifetime-was" }, "Pro is ", (planFor("monthly") || {}).displayPrice || "", "/month"),
+      h("button", { class: "btn btn-primary btn-block", disabled: !enabled, onclick: () => startCheckout("lifetime") },
+        enabled ? "Claim lifetime access" : "Coming soon"),
+      h("p", { class: "faint small center" }, "3-day money-back guarantee")));
+}
+
 function pricingSection(plansInfo, { full = false } = {}) {
   const school = planFor("school") || { displayPrice: "$1,000", interval: "year" };
   return h("section", { class: "section", id: "pricing" },
     h("div", { class: "container" },
       h("h2", { class: "section-title" }, "Start free. Upgrade when you're ready."),
       h("p", { class: "section-sub" }, "Paid plans cancel anytime, with a 3-day money-back guarantee."),
+      lifetimeOffer(plansInfo),
       h("div", { class: "pricing-three" }, planCards(plansInfo, { include: ["free", "monthly", "interview"] })),
       full ? comparePlans() : null,
       h("div", { class: "card nh-guarantee", id: "guarantee" }, svgIcon(ICON_SHIELD.replace(/20/g, "30")),
@@ -1932,7 +1960,7 @@ function planStatusLine(billing) {
       const name = billing.plan === "interview" ? "Interview Prep" : "Pro";
       return billing.cancelAtPeriodEnd && billing.currentPeriodEnd ? `${name} · ends ${formatDate(billing.currentPeriodEnd)}` : (billing.plan === "interview" ? "Interview Prep" : "Pro Monthly");
     }
-    case "pass": return `Sprint · until ${formatDate(billing.passExpiresAt)}`;
+    case "pass": return isLifetime(billing) ? "Lifetime Pro" : `Sprint · until ${formatDate(billing.passExpiresAt)}`;
     case "organization": return `Pro via ${billing.organizationName}`;
     case "open": return "Early access";
     default: return state.billing && state.billing.billingEnabled ? "Free plan" : "No plan yet";
@@ -3117,7 +3145,7 @@ async function viewBilling() {
         if (billing.status === "past_due") return "Payment past due. Update your card to keep Pro.";
         return billing.cancelAtPeriodEnd ? `Cancels on ${formatDate(billing.currentPeriodEnd)}.` : `Renews on ${formatDate(billing.currentPeriodEnd)}.`;
       }
-      case "pass": return `Your Sprint gives you Pro until ${formatDate(billing.passExpiresAt)}. It doesn't renew.`;
+      case "pass": return isLifetime(billing) ? "You have Lifetime Pro. Everything in Pro, with no monthly bill." : `Your Sprint gives you Pro until ${formatDate(billing.passExpiresAt)}. It doesn't renew.`;
       case "organization": return `You have Pro through ${billing.organizationName}'s license.`;
       case "open": return "Full access during early access.";
       default: return billing.billingEnabled

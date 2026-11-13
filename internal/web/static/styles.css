@@ -1649,3 +1649,15 @@ body { background: #0b0b0c; background-image: none; }
 .round-chip { font: inherit; font-size: 13px; font-weight: 600; padding: 7px 13px; border-radius: 999px; border: 1px solid rgba(255,255,255,.16); background: transparent; color: var(--text-2); cursor: pointer; }
 .round-chip:hover { border-color: rgba(255,255,255,.35); color: var(--text); }
 .round-chip.on { background: #fff; color: #0a0a0a; border-color: #fff; }
+
+/* First-launch lifetime deal */
+.lifetime { display: grid; grid-template-columns: 1.3fr 1fr; gap: 36px; align-items: center; margin-bottom: 22px;
+  border-color: var(--border-strong); background: radial-gradient(120% 140% at 0% 0%, #26272c, var(--surface) 60%); }
+.lifetime h3 { font-size: 30px; letter-spacing: -0.02em; margin: 12px 0 8px; }
+.lifetime .ticks { margin-top: 14px; }
+.lifetime-buy { display: grid; gap: 12px; }
+.lifetime-was { margin-top: -6px; }
+.spots-bar { height: 8px; border-radius: 4px; background: var(--secondary); overflow: hidden; }
+.spots-bar i { display: block; height: 100%; background: #fff; border-radius: 4px; }
+.spots p { margin-top: 8px; color: var(--text-2); }
+@media (max-width: 900px) { .lifetime { grid-template-columns: 1fr; gap: 22px; } }
