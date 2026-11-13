@@ -238,37 +238,46 @@ func StatePattern(state string) string {
 // one of the role's meaningful words, including short forms (a "registered
 // nurse" search also finds "ICU RN").
 func TitleSearchPattern(role string) string {
-	expanded := expandTitleAliases(normalizePreferenceText(role))
-	tokens := roleRelevanceTokens(expanded)
-	if len(tokens) == 0 {
-		tokens = preferenceTokenSet(expanded)
-	}
-	if len(tokens) == 0 {
-		return ""
-	}
-
-	words := make(map[string]struct{}, len(tokens))
-	for token := range tokens {
-		words[token] = struct{}{}
-	}
-	for short, expansion := range titleAliases {
-		for _, word := range strings.Fields(expansion) {
-			if _, ok := tokens[word]; ok {
-				words[short] = struct{}{}
+	words := map[string]struct{}{}
+	pieces := map[string]struct{}{}
+	for _, form := range roleSearchForms(role) {
+		tokens := roleRelevanceTokens(form)
+		if len(tokens) == 0 {
+			tokens = preferenceTokenSet(form)
+		}
+		for token := range tokens {
+			// A word's stem finds its other forms in the database
+			// ("account" finds accountant and accounting); the title
+			// filter decides afterward.
+			if stem := stemWord(token); len(stem) >= 4 {
+				words[stem] = struct{}{}
+			} else {
+				words[token] = struct{}{}
+			}
+			for _, alternative := range roleSynonyms[token] {
+				words[alternative] = struct{}{}
+			}
+			if parts, ok := compoundWords[token]; ok {
+				pieces[regexp.QuoteMeta(parts[0])+`[\s/-]*`+regexp.QuoteMeta(parts[1])] = struct{}{}
+			}
+		}
+		for short, expansion := range titleAliases {
+			for _, word := range strings.Fields(expansion) {
+				if _, ok := tokens[word]; ok {
+					words[short] = struct{}{}
+				}
 			}
 		}
 	}
-
-	// Titles can use a synonym instead of the searched word.
-	for token := range tokens {
-		for _, alternative := range roleSynonyms[token] {
-			words[alternative] = struct{}{}
-		}
+	if len(words) == 0 && len(pieces) == 0 {
+		return ""
 	}
-
-	list := make([]string, 0, len(words))
+	list := make([]string, 0, len(words)+len(pieces))
 	for word := range words {
 		list = append(list, regexp.QuoteMeta(word))
+	}
+	for piece := range pieces {
+		list = append(list, piece)
 	}
 	sort.Strings(list)
 	return `\m(` + strings.Join(list, "|") + `)`

@@ -87,10 +87,10 @@ func evaluateExperienceYears(
 
 	requirementWithoutYears :=
 		normalize(
-			yearsPattern.ReplaceAllString(
+			trailingClause(yearsPattern.ReplaceAllString(
 				requirement,
 				"",
-			),
+			)),
 		)
 
 	if requirementWithoutYears == "" {
@@ -192,8 +192,14 @@ func evaluateExperienceYears(
 			continue
 		}
 
-		if candidateYears >= requiredYears {
+		// The years only count in full when this statement is clearly the
+		// same kind of work. "5 years of B2B SaaS sales" half-matches
+		// "software engineering" (SaaS is software) but isn't it.
+		if candidateYears >= requiredYears && result.Level == evidenceSupported {
 			return supportedEvidence()
+		}
+		if candidateYears >= requiredYears {
+			return partialEvidence()
 		}
 
 		// Relevant explicit experience was found, but the candidate's stated
@@ -395,4 +401,16 @@ func impliedCredentials(tokens []string) []string {
 		}
 	}
 	return tokens
+}
+
+// trailingClausePattern finds where a years requirement stops naming the
+// kind of work and starts describing the person: "1+ years in customer
+// service or call center support, with a proven ability to handle…".
+var trailingClausePattern = regexp.MustCompile(`(?i)(,\s*(with|including|ideally|preferably|where|and a|and an)\b|;|\s+with a (proven|demonstrated|strong)\b)`)
+
+func trailingClause(text string) string {
+	if location := trailingClausePattern.FindStringIndex(text); location != nil && location[0] > 12 {
+		return text[:location[0]]
+	}
+	return text
 }

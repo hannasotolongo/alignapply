@@ -46,7 +46,9 @@ func TestStructuredCareerProfileCanMatchWithoutResumeText(t *testing.T) {
 	}
 }
 
-func TestCareerProfileTakesPrecedenceOverLegacyResumeText(t *testing.T) {
+func TestResumeAndCareerProfileBothCount(t *testing.T) {
+	// A saved profile is often shorter than the résumé it came from. Both
+	// are the user's own words, so a skill on either one counts.
 	request := jobs.SearchRequest{
 		ResumeText: "Go distributed systems",
 		CareerProfile: candidate.CareerProfile{
@@ -56,29 +58,19 @@ func TestCareerProfileTakesPrecedenceOverLegacyResumeText(t *testing.T) {
 		},
 	}
 
-	job := structuredProfileTestJob(
-		jobs.Requirement{
-			Text:       "Go",
-			Category:   jobs.RequirementSkill,
-			Importance: jobs.RequirementRequired,
-		},
-	)
-
-	match := Match(request, job)
-
-	if containsRequirement(
-		match.SupportedRequirements,
-		"Go",
-	) {
-		t.Fatalf(
-			"legacy resumeText must not override a populated CareerProfile",
+	for _, skill := range []string{"Go", "Python"} {
+		job := structuredProfileTestJob(
+			jobs.Requirement{
+				Text:       skill,
+				Category:   jobs.RequirementSkill,
+				Importance: jobs.RequirementRequired,
+			},
 		)
-	}
-
-	if len(match.MissingRequirements) == 0 {
-		t.Fatalf(
-			"expected Go to be not clearly demonstrated by the CareerProfile",
-		)
+		match := Match(request, job)
+		if !containsRequirement(match.SupportedRequirements, skill) {
+			t.Fatalf("%s should count from the résumé or the profile; got supported=%v missing=%v",
+				skill, match.SupportedRequirements, match.MissingRequirements)
+		}
 	}
 }
 

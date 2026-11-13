@@ -405,6 +405,299 @@ var acceptedHeadings = []headingDefinition{
 		Section: makeSection(RequirementOther, RequirementRequired, true),
 	},
 
+	// Headings real postings use (sampled from Greenhouse boards, Nov 2026).
+	{
+		Name:    "what you should have",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "what you should bring",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "what you'll bring to the role",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "what you’ll bring to the role",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "what you will bring",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "what we are looking for in you (qualifications)",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "what we are looking for in you",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "what we're looking for in you",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "what we’re looking for in you",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "what we are looking for",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "about you",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "who we're looking for",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "who we’re looking for",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "who we are looking for",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "you might be a good fit if",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "you may be a good fit if",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "you might be a great fit if",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "you'll thrive in this role if",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "you’ll thrive in this role if",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "you will thrive in this role if",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "you'll be a great fit if",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "you’ll be a great fit if",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "you're a great fit if",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "you’re a great fit if",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "is this you",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "must haves",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "must-haves",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "must have",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "must-have",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "your qualifications",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "your experience",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "skills and experience",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "skills & experience",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "skills & qualifications",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "qualifications and experience",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "qualifications & experience",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "experience and skills",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "the ideal candidate will have",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "ideal candidate profile",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "to be successful in this role",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "to be successful in this role, you will need",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "to be successful you will need",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "what it takes",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "what you need to succeed",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "what you'll need to succeed",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "what you’ll need to succeed",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "job requirements",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "position requirements",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "role requirements",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "required skills and experience",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "minimum qualifications and experience",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "what you have",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "we'd love to hear from you if",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "we’d love to hear from you if",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "you have:",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "you bring:",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "you are:",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "experience:",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "requirements:",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "skills:",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "education:",
+		Section: makeSection(RequirementOther, RequirementRequired, true),
+	},
+	{
+		Name:    "extra credit",
+		Section: makeSection(RequirementOther, RequirementPreferred, true),
+	},
+	{
+		Name:    "even better if",
+		Section: makeSection(RequirementOther, RequirementPreferred, true),
+	},
+	{
+		Name:    "bonus if",
+		Section: makeSection(RequirementOther, RequirementPreferred, true),
+	},
+	{
+		Name:    "pluses",
+		Section: makeSection(RequirementOther, RequirementPreferred, true),
+	},
+	{
+		Name:    "plus points",
+		Section: makeSection(RequirementOther, RequirementPreferred, true),
+	},
+	{
+		Name:    "preferred skills and experience",
+		Section: makeSection(RequirementOther, RequirementPreferred, true),
+	},
+	{
+		Name:    "preferred qualifications and experience",
+		Section: makeSection(RequirementOther, RequirementPreferred, true),
+	},
+	{
+		Name:    "additional qualifications",
+		Section: makeSection(RequirementOther, RequirementPreferred, true),
+	},
+	{
+		Name:    "it would be great if you have",
+		Section: makeSection(RequirementOther, RequirementPreferred, true),
+	},
+	{
+		Name:    "it's a plus if",
+		Section: makeSection(RequirementOther, RequirementPreferred, true),
+	},
+	{
+		Name:    "it’s a plus if",
+		Section: makeSection(RequirementOther, RequirementPreferred, true),
+	},
+	{
+		Name:    "nice if you have",
+		Section: makeSection(RequirementOther, RequirementPreferred, true),
+	},
 	// Broad fallbacks intentionally last.
 	{
 		Name:    "qualifications",
@@ -497,6 +790,27 @@ var rejectedHeadings = []string{
 	"why this position",
 	"why this opportunity",
 
+	"why you'll love working here",
+	"why you’ll love working here",
+	"what's in it for you",
+	"what’s in it for you",
+	"perks",
+	"our perks",
+	"what you'll get",
+	"what you’ll get",
+	"what you'll find at",
+	"what you’ll find at",
+	"life at",
+	"about the team",
+	"the team",
+	"meet the team",
+	"pay transparency",
+	"base pay",
+	"base salary",
+	"compensation range",
+	"pay transparency statement",
+	"our values",
+
 	// Application/contact/recruiting content.
 	"how to apply",
 	"application process",
@@ -521,7 +835,7 @@ var rejectedHeadings = []string{
 }
 
 func EnrichJob(job Job) Job {
-	job.Requirements = ExtractRequirements(job.Description)
+	job.Requirements = condenseRequirements(ExtractRequirements(job.Description))
 
 	job.Requirements = ValidateRequirements(
 		job.Requirements,
@@ -680,6 +994,9 @@ func extractSectionSpans(text string) []sectionSpan {
 
 		body := strings.TrimSpace(text[match.End:end])
 		body = truncateMarketingProse(body)
+		if match.Section.Accept {
+			body = cutAtTrailingSectionLine(body)
+		}
 
 		if !match.Section.Accept || body == "" {
 			continue
@@ -808,6 +1125,12 @@ func validHeadingEnd(text string, start int, nameEnd int, name string) (int, boo
 	}
 
 	i := nameEnd
+
+	// "What you'll need to thrive (Requirements)": a known heading followed
+	// by a short tail or a parenthetical is still that heading.
+	if tail := headingTailRE.FindStringIndex(text[nameEnd:]); tail != nil && tail[0] == 0 {
+		i = nameEnd + tail[1]
+	}
 
 	// Providers frequently normalize headings into forms such as:
 	//
@@ -2312,7 +2635,10 @@ func classifyRequirement(
 	case physicalRE.MatchString(text):
 		return RequirementPhysical
 
-	case educationRE.MatchString(text):
+	case educationRE.MatchString(text) && !degreeOfPhrase(lower):
+		return RequirementEducation
+
+	case degreeAbbreviationRE.MatchString(text):
 		return RequirementEducation
 
 	case yearsRE.MatchString(text):
@@ -2816,3 +3142,100 @@ func minInt(a, b int) int {
 
 	return b
 }
+
+// trailingSectionStarts begin lines that end a qualifications list even when
+// the posting's heading isn't one Jane knows: "What you'll find at MongoDB",
+// "About Discord", "Req ID: 4264". Only short, heading-like lines count.
+var trailingSectionStarts = []string{
+	"about ", "what you'll find", "what you’ll find", "what you'll get", "what you’ll get",
+	"what we offer", "why ", "life at ", "perks", "benefits", "req id", "job id", "requisition",
+	"compensation", "pay range", "salary range", "the base salary", "base salary", "base pay",
+	"join us", "our commitment", "equal opportunity", "#li-",
+}
+
+func cutAtTrailingSectionLine(body string) string {
+	lines := strings.Split(body, "\n")
+	for i, line := range lines {
+		trimmed := strings.ToLower(strings.TrimSpace(line))
+		if i == 0 || trimmed == "" || len(trimmed) > 70 {
+			continue
+		}
+		for _, start := range trailingSectionStarts {
+			if strings.HasPrefix(trimmed, start) {
+				return strings.TrimSpace(strings.Join(lines[:i], "\n"))
+			}
+		}
+	}
+	return body
+}
+
+var sentenceSplitRE = regexp.MustCompile(`([.!?])\s+(\p{Lu})`)
+
+// qualificationSentenceRE marks a later sentence in a long requirement that
+// still describes the candidate ("You are an expert in React…").
+var qualificationSentenceRE = regexp.MustCompile(`(?i)(\d+\+?\s*(?:-\s*\d+\s*)?years?|\bexperience\b|\bexpert\b|\bproficien|\bfluen|\bdegree\b|\bcertif|\blicen[cs]|\bknowledge of\b|\bfamiliar|\bskilled\b|\bbackground in\b|\bsolid grasp\b|\bhands-on\b)`)
+
+// condenseRequirements splits requirements written as a short label followed
+// by explanation ("5+ years of software engineering experience. You're a key
+// technical contributor…") into the label plus any later sentence that still
+// states a qualification. Company sentences ("We work primarily in…") are
+// dropped. Long paragraphs otherwise fail validation and the whole
+// requirement is lost.
+func condenseRequirements(requirements []Requirement) []Requirement {
+	out := make([]Requirement, 0, len(requirements))
+	for _, requirement := range requirements {
+		text := strings.TrimSpace(requirement.Text)
+		lower := strings.ToLower(text)
+		if lower == "the base" || strings.HasSuffix(lower, "'s base") || strings.HasSuffix(lower, "’s base") {
+			continue
+		}
+		if len(text) < 160 {
+			out = append(out, requirement)
+			continue
+		}
+		marked := sentenceSplitRE.ReplaceAllString(text, "$1\x00$2")
+		sentences := strings.Split(marked, "\x00")
+		if len(sentences) < 2 {
+			out = append(out, requirement)
+			continue
+		}
+		for i, sentence := range sentences {
+			sentence = strings.TrimSpace(strings.TrimRight(strings.TrimSpace(sentence), "."))
+			if sentence == "" {
+				continue
+			}
+			first := strings.ToLower(firstWord(sentence))
+			if i > 0 && (first == "we" || first == "our" || first == "this" || first == "the" || !qualificationSentenceRE.MatchString(sentence)) {
+				continue
+			}
+			part := requirement
+			part.Text = sentence
+			part.Category = classifyRequirement(sentence, RequirementOther)
+			out = append(out, part)
+		}
+	}
+	return out
+}
+
+// degreeOfPhrase reports "a high degree of empathy" style wording, where
+// "degree" isn't about education.
+func degreeOfPhrase(lower string) bool {
+	if !strings.Contains(lower, "degree of ") {
+		return false
+	}
+	for _, word := range []string{"bachelor", "master", "associate", "doctorate", "phd", "ph.d", "high school", "ged", "diploma", "degree in", "degree required"} {
+		if strings.Contains(lower, word) {
+			return false
+		}
+	}
+	return true
+}
+
+// degreeAbbreviationRE finds degrees written as abbreviations: "BS/MS or
+// equivalent", "BS in Computer Science", "B.A. degree". The word after the
+// abbreviation keeps "MS Office" from counting.
+var degreeAbbreviationRE = regexp.MustCompile(`(?i)\b(?:b\.?s\.?|b\.?a\.?|m\.?s\.?|bsc|msc|b\.?eng|m\.?eng)(?:\s*/\s*(?:b\.?s|b\.?a|m\.?s|m\.?a|ph\.?d)\.?)?\s+(?:degree|in|or)\b`)
+
+// headingTailRE matches what can follow a known heading on the same line:
+// "to thrive", "to succeed in this role", "(Requirements)".
+var headingTailRE = regexp.MustCompile(`^(?i)(?:\s+to\s+(?:thrive|succeed|be successful)(?:\s+in\s+this\s+role)?)?(?:\s*\([^)\n]{1,40}\))?`)

@@ -43,7 +43,12 @@ func currentEvidenceVerifier() EvidenceVerifier {
 // search result lists) skips the per-requirement OpenAI verifier and
 // embedding lookups and relies on the instant word, synonym and date checks;
 // the full scorer (Fit Check, résumé recommendation) uses AI as well.
-type scorer struct{ fast bool }
+type scorer struct {
+	fast bool
+	// titleOnly scores a posting that lists no usable requirements on its
+	// job title instead.
+	titleOnly bool
+}
 
 func (s scorer) verifier() EvidenceVerifier {
 	if s.fast {

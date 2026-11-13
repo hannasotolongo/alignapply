@@ -154,7 +154,7 @@ func EnforceCoverLetter(letter CoverLetter, sourceText string) CoverLetter {
 	allowed := numberSet(normalize(sourceText))
 	paragraphs := make([]string, 0, len(letter.Paragraphs))
 	for _, paragraph := range letter.Paragraphs {
-		paragraph = strings.TrimSpace(strings.NewReplacer("—", ", ", "–", "-", "!", ".", "\n", " ").Replace(paragraph))
+		paragraph = Plain(strings.TrimSpace(strings.NewReplacer("—", ", ", "–", "-", "!", ".", "\n", " ").Replace(paragraph)))
 		paragraph = strings.TrimLeft(paragraph, "-•* ")
 		// Most paragraphs pass whole; only a flagged one is split, and its
 		// pieces are rejoined exactly as written.

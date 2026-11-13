@@ -45,7 +45,53 @@ func normalizeRequirementCategory(requirement jobs.Requirement) jobs.Requirement
 			requirement.Category = jobs.RequirementLicense
 		case certificationText.MatchString(requirement.Text):
 			requirement.Category = jobs.RequirementCertification
+		case requirement.Category == jobs.RequirementOther && languagePattern.MatchString(requirement.Text):
+			// "Fluency in Spanish": a résumé shows a language plainly.
+			requirement.Category = jobs.RequirementSkill
+		case requirement.Category == jobs.RequirementOther && namesCapabilities(requirement.Text):
+			// "You are an expert in React with a solid grasp of Python" or
+			// "Track record of exceeding quota and closing customers" read
+			// as "other" but name real, checkable work.
+			requirement.Category = jobs.RequirementSkill
 		}
 	}
 	return requirement
 }
+
+// traitWords describe personality, not work a résumé can show.
+var traitWords = map[string]struct{}{
+	"mindset": {}, "attitude": {}, "passion": {}, "passionate": {}, "motivated": {}, "curious": {},
+	"hungry": {}, "coachable": {}, "collaborative": {}, "ego": {}, "sense": {}, "empathy": {},
+	"approach": {}, "team": {}, "first": {}, "humble": {}, "driven": {}, "self": {}, "starter": {},
+	"pragmatic": {}, "growth": {}, "ownership": {}, "mentality": {}, "love": {}, "enjoy": {},
+	"thrive": {}, "eager": {}, "excited": {}, "values": {}, "integrity": {}, "autonomy": {},
+	"ambiguity": {}, "consistently": {}, "bonus": {}, "maintain": {}, "degree": {},
+	// Application and posting wording, not work.
+	"notice": {}, "applying": {}, "apply": {}, "applicants": {}, "position": {}, "location": {},
+	"role": {}, "company": {}, "job": {}, "opportunity": {}, "remote": {}, "hybrid": {}, "onsite": {},
+}
+
+// namesCapabilities reports requirement text that names at least two
+// concrete things a résumé could show (tools, skills, kinds of work), and
+// isn't a soft skill, a personality trait or a logistics line.
+func namesCapabilities(text string) bool {
+	if isLogisticsRequirement(text) || companyProse.MatchString(text) || isSoftSkillRequirement(jobs.Requirement{Category: jobs.RequirementOther, Text: text}) {
+		return false
+	}
+	count := 0
+	for _, token := range meaningfulTokens(text) {
+		if _, trait := traitWords[token]; trait {
+			continue
+		}
+		count++
+	}
+	return count >= 3
+}
+
+var languagePattern = regexp.MustCompile(`(?i)\b(spanish|french|german|italian|portuguese|mandarin|cantonese|chinese|japanese|korean|vietnamese|tagalog|arabic|russian|hindi|urdu|polish|haitian creole|creole|asl|american sign language)\b`)
+
+// companyProse is the employer talking about itself or the law, which can
+// end up in a requirements list: "At Toast, our employees are…", "Toast is
+// committed to an inclusive hiring process", "it is unlawful in
+// Massachusetts…".
+var companyProse = regexp.MustCompile(`(?i)(^(at|apply|for roles|join)\b|\b(we|our|us|we're|we’re)\b|committed to|unlawful|equal opportunity|accommodation|hiring process|lie detector|benefits|salary|compensation|pay range|apply today|click here)`)

@@ -41,14 +41,15 @@ const feedbackSchema = `{
 
 func buildFeedbackPrompt(request FeedbackRequest) string {
 	var b strings.Builder
-	b.WriteString(`You are Jane, an honest, encouraging interview coach. The candidate practiced an answer to an interview question. Coach them.
+	b.WriteString(`You are Jane, an honest interview coach sitting next to the candidate. They just practiced an answer out loud. Tell them what an interviewer for this job would think, and how to make it better.
 
 RULES:
-- "strengths": 1 to 3 specific things that work in their answer. Quote or name the part.
-- "improvements": 2 to 4 concrete, actionable changes (structure such as situation, action, result; missing specifics; tie back to the job's requirements; trim filler). Be direct, kind, and specific.
-- "strongerAnswer": a rewritten answer of 90 to 160 words in first person, spoken style. Use ONLY facts from the candidate's answer and résumé. Never invent employers, titles, tools, numbers, results, or credentials. If a strong answer needs a detail they haven't given, write it as a bracketed placeholder like [the result you saw] instead of making it up.
-
+- "strengths": 1 to 3 specific things that work. Quote their words or name the exact part ("Opening with the 40-minute deploy time gets attention"). No general praise like "Great answer" or "Good job".
+- "improvements": 2 to 4 changes, each one sentence they can act on in the next try: what to add, cut or move, and why the interviewer cares. Point to this job's requirements where it helps. If the answer doesn't answer the question, say so first.
+- "strongerAnswer": their answer, rewritten the way they'd actually say it out loud, 90 to 160 words, first person, contractions are fine. Use ONLY facts from their answer and résumé. Never invent employers, titles, tools, numbers, results or credentials. If a strong answer needs a detail they haven't given, write a bracketed placeholder like [the result you saw] instead of making it up.
 `)
+	b.WriteString(plainWritingRules)
+	b.WriteString("\n")
 	if request.JobTitle != "" {
 		fmt.Fprintf(&b, "JOB: %s\n\n", request.JobTitle)
 	}
@@ -167,9 +168,9 @@ func EnforceFeedback(feedback Feedback, candidateText string) Feedback {
 		}
 		return kept
 	}
-	feedback.Strengths = trim(feedback.Strengths, 3)
-	feedback.Improvements = trim(feedback.Improvements, 4)
-	feedback.StrongerAnswer = strings.TrimSpace(feedback.StrongerAnswer)
+	feedback.Strengths = plainAll(trim(feedback.Strengths, 3))
+	feedback.Improvements = plainAll(trim(feedback.Improvements, 4))
+	feedback.StrongerAnswer = Plain(feedback.StrongerAnswer)
 	return feedback
 }
 
@@ -234,7 +235,15 @@ func (c *Client) Questions(ctx context.Context, resumeText, jobDescription, jobT
 		focus = InterviewStages["mixed"]
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "You are Jane, an interview coach. Predict %s. For each, give a 1 to 2 sentence approach that draws on the candidate's REAL experience from the résumé. Never suggest claiming experience they don't have.\n\n", focus)
+	fmt.Fprintf(&b, "You are Jane, an interview coach who has sat on hiring panels for jobs like this one. Predict %s.\n\n", focus)
+	b.WriteString(`QUESTIONS:
+- Write each question the way a real interviewer at this company would say it out loud, about this job's actual work: name the product area, tools, customers or situations from the posting. Avoid questions that would fit any job ("What are your strengths?") unless this is a recruiter phone screen.
+- Mix difficulty: at least one question should be hard for THIS candidate, aimed at the biggest gap between the posting and the résumé.
+APPROACH (1 to 2 sentences, to the candidate as "you"):
+- Name the specific example from their résumé to use and the one thing they must make clear. If the résumé has nothing that fits, say how to answer honestly (a related example, or what they'd do), never to claim experience they don't have.
+`)
+	b.WriteString(plainWritingRules)
+	b.WriteString("\n")
 	if len(options.Exclude) > 0 {
 		b.WriteString("The candidate has already practiced these questions. Write different ones; don't repeat or reword them:\n")
 		for _, question := range options.Exclude {
@@ -256,6 +265,10 @@ func (c *Client) Questions(ctx context.Context, resumeText, jobDescription, jobT
 	}
 	if len(result.Questions) > 8 {
 		result.Questions = result.Questions[:8]
+	}
+	for i := range result.Questions {
+		result.Questions[i].Question = strings.TrimSpace(strings.NewReplacer("—", ", ", " – ", ", ").Replace(result.Questions[i].Question))
+		result.Questions[i].Approach = Plain(result.Questions[i].Approach)
 	}
 	return result.Questions, nil
 }

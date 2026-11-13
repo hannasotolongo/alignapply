@@ -1,0 +1,641 @@
+# Employers added Nov 13: regional hospitals, banks, credit unions, universities, grocers, retail, restaurants, logistics, manufacturing, energy, tech
+Aurora Health Care
+Baylor Scott & White Health
+Beaumont Health
+BJC HealthCare
+Bon Secours Mercy Health
+Carilion Clinic
+Cone Health
+Essentia Health
+Fairview Health Services
+Franciscan Health
+IU Health
+Jefferson Health
+Johns Hopkins Medicine
+Lehigh Valley Health Network
+Main Line Health
+MaineHealth
+Marshfield Clinic
+MedStar Health
+Mercy
+Methodist Le Bonheur Healthcare
+MultiCare
+Nebraska Medicine
+NYU Langone Health
+OSF HealthCare
+Presbyterian Healthcare Services
+ProMedica
+Rush University Medical Center
+Sentara Health
+SSM Health
+Spectrum Health
+St. Luke's Health System
+Texas Health Resources
+ThedaCare
+TriHealth
+UNC Health
+University Hospitals
+UVA Health
+Valley Health System
+Virtua Health
+WakeMed
+Wellstar Health System
+Avera Health
+Bryan Health
+CentraCare
+Cook Children's
+Children's Hospital Colorado
+Nationwide Children's Hospital
+Cincinnati Children's
+Texas Children's Hospital
+Seattle Children's
+Children's Healthcare of Atlanta
+Hospital for Special Surgery
+Mount Sinai Health System
+Montefiore
+NewYork-Presbyterian
+Northside Hospital
+Baptist Health South Florida
+Broward Health
+Sarasota Memorial
+Parkland Health
+JPS Health Network
+University Health
+Covenant Health
+Ballad Health
+Erlanger
+Atlantic Health System
+RWJBarnabas Health
+Inspira Health
+Cooper University Health Care
+Bayhealth
+TidalHealth
+Luminis Health
+LifeBridge Health
+Inova
+Riverside Health System
+Bon Secours
+Roper St. Francis
+AnMed
+Self Regional Healthcare
+Atrium Health Wake Forest Baptist
+CaroMont Health
+FirstHealth of the Carolinas
+ECU Health
+Mission Health
+HealthPartners
+North Memorial Health
+Gundersen Health System
+Bellin Health
+Froedtert ThedaCare
+UW Health
+SSM Health Dean Medical Group
+Mercy Health
+Bronson Healthcare
+Sparrow Health
+Munson Healthcare
+McLaren Health Care
+Trinity Health Michigan
+Parkview Health
+Community Health Network
+Ascension St. Vincent
+Deaconess Health System
+Norton Healthcare
+UofL Health
+Baptist Health Kentucky
+St. Elizabeth Healthcare
+Owensboro Health
+CHI Health
+Methodist Health System
+Integris Health
+Saint Francis Health System
+Hillcrest HealthCare System
+Arkansas Children's
+Baptist Health Arkansas
+Washington Regional
+Ochsner LSU Health
+Our Lady of the Lake
+Willis-Knighton Health System
+Baptist Memorial Health Care
+Methodist Healthcare
+Huntsville Hospital
+UAB Medicine
+Infirmary Health
+Singing River Health System
+North Mississippi Health Services
+Banner Health Arizona
+Dignity Health
+Scripps Health
+Sharp HealthCare
+Keck Medicine of USC
+UCLA Health
+UC San Diego Health
+UC Davis Health
+John Muir Health
+El Camino Health
+Valley Children's Healthcare
+Adventist Health
+Providence Swedish
+Virginia Mason Franciscan Health
+PeaceHealth
+Legacy Health
+OHSU
+Samaritan Health Services
+St. Charles Health System
+Kootenai Health
+St. Luke's Idaho
+Billings Clinic
+Bozeman Health
+Logan Health
+Renown Health
+University Medical Center of Southern Nevada
+Intermountain Healthcare
+University of Utah Health
+Denver Health
+HealthONE
+Centura Health
+SCL Health
+Lovelace Health System
+Presbyterian New Mexico
+UNM Hospitals
+Alaska Native Tribal Health Consortium
+Providence Alaska
+Queen's Health System
+Hawaii Pacific Health
+Kaiser Permanente Hawaii
+Rite Aid
+Option Care Health
+Lincare
+Apria
+AdaptHealth
+BrightSpring Health Services
+Help at Home
+PACE Programs
+CenterWell
+Blue Cross Blue Shield of Michigan
+Florida Blue
+Highmark Health
+Independence Blue Cross
+Premera Blue Cross
+Regence
+Blue Shield of California
+Bright Health
+Clover Health
+Devoted Health
+Alignment Health
+Fifth Third Bank
+M&T Bank
+First Horizon
+Zions Bancorporation
+Comerica
+Synovus
+BOK Financial
+Associated Bank
+Old National Bank
+First Citizens Bank
+Webster Bank
+Valley National Bank
+Frost Bank
+Cadence Bank
+Hancock Whitney
+Pinnacle Financial Partners
+Umpqua Bank
+Columbia Banking System
+Western Alliance Bank
+East West Bank
+Cathay Bank
+Banner Bank
+Glacier Bancorp
+UMB Bank
+Commerce Bank
+Arvest Bank
+First Interstate Bank
+Wintrust
+Busey Bank
+First Merchants
+Old Second
+State Employees' Credit Union
+BECU
+SchoolsFirst Federal Credit Union
+Golden 1 Credit Union
+America First Credit Union
+Mountain America Credit Union
+Randolph-Brooks Federal Credit Union
+Security Service Federal Credit Union
+Lake Michigan Credit Union
+Digital Federal Credit Union
+Global Credit Union
+Desert Financial Credit Union
+OneAZ Credit Union
+Ent Credit Union
+Redstone Federal Credit Union
+GreenState Credit Union
+Wright-Patt Credit Union
+Pennsylvania State Employees Credit Union
+Members 1st Federal Credit Union
+Ally Financial
+Discover Financial
+Synchrony
+Ameriprise Financial
+LPL Financial
+Stifel
+Principal Financial Group
+Lincoln Financial
+The Hartford
+Farmers Insurance
+Erie Insurance
+Auto-Owners Insurance
+American Family Insurance
+Cincinnati Insurance
+Sentry Insurance
+Shelter Insurance
+Country Financial
+Grange Insurance
+Westfield Insurance
+Selective Insurance
+Hanover Insurance
+Markel
+W. R. Berkley
+Assurant
+Globe Life
+Primerica
+Brown & Brown
+Gallagher
+Marsh McLennan
+Aon
+Lockton
+Hub International
+Acrisure
+Alera Group
+NFP
+Michigan State University
+University of Wisconsin-Madison
+University of Iowa
+Iowa State University
+University of Illinois
+Washington University in St. Louis
+University of Missouri
+University of Kansas
+Kansas State University
+University of Nebraska
+University of Oklahoma
+Oklahoma State University
+University of Arkansas
+Louisiana State University
+Tulane University
+University of Alabama
+Auburn University
+University of Georgia
+Georgia State University
+Clemson University
+University of South Carolina
+University of North Carolina at Chapel Hill
+NC State University
+Wake Forest University
+University of Virginia
+Virginia Tech
+George Mason University
+University of Maryland
+Georgetown University
+George Washington University
+Penn State University
+Temple University
+University of Pittsburgh
+Carnegie Mellon University
+Ohio University
+University of Cincinnati
+Case Western Reserve University
+University of Kentucky
+University of Louisville
+University of Tennessee
+University of Central Florida
+University of South Florida
+Florida International University
+University of North Texas
+Texas A&M University
+Texas Tech University
+University of Houston
+Rice University
+Baylor University
+Southern Methodist University
+University of Colorado Boulder
+Colorado State University
+University of Utah
+Brigham Young University
+University of New Mexico
+University of Nevada Las Vegas
+Washington State University
+University of Oregon
+Oregon State University
+Cal State University
+Northeastern University
+University of Rochester
+Syracuse University
+University at Buffalo
+Rutgers
+Brown University
+Dartmouth College
+University of Vermont
+University of Connecticut
+University of Massachusetts
+Southern New Hampshire University
+Western Governors University
+Grand Canyon University
+Liberty University
+Safeway
+Giant Eagle
+Giant Food
+Stop & Shop
+Food Lion
+Hannaford
+ShopRite
+Weis Markets
+Ingles Markets
+Winn-Dixie
+Southeastern Grocers
+Schnucks
+Dierbergs
+Raley's
+WinCo Foods
+Stater Bros
+Smart & Final
+Grocery Outlet
+Fresh Thyme Market
+Lidl
+Sam's Club
+BJ's Wholesale Club
+Family Dollar
+Big Lots
+Burlington Stores
+Dillard's
+JCPenney
+Belk
+The Home Depot
+Menards
+Ace Hardware
+Bass Pro Shops
+Academy Sports + Outdoors
+Old Navy
+Urban Outfitters
+Foot Locker
+Hibbett
+RH
+Crate & Barrel
+IKEA
+Staples
+Office Depot
+Barnes & Noble
+Mister Car Wash
+Casey's General Stores
+Love's Travel Stops
+Pilot Flying J
+Kwik Trip
+Maverik
+Wendy's
+Burger King
+Taco Bell
+Papa John's
+Olive Garden
+Brinker International
+Cracker Barrel
+Denny's
+IHOP
+Dine Brands
+Red Robin
+Culver's
+Potbelly
+Noodles & Company
+Portillo's
+Knight-Swift
+Penske Logistics
+C.H. Robinson
+Estes Express Lines
+ArcBest
+TQL
+Landstar
+BNSF
+Norfolk Southern
+Amtrak
+Alaska Airlines
+Spirit Airlines
+Frontier Airlines
+SkyWest
+Republic Airways
+Envoy Air
+Airbus
+Raytheon
+L3Harris
+BAE Systems
+Booz Allen Hamilton
+ManTech
+Peraton
+Parsons
+KBR
+Jacobs
+AECOM
+Fluor
+Bechtel
+Kiewit
+Turner Construction
+Skanska
+Whiting-Turner
+Clayco
+Mortenson
+McCarthy Building Companies
+DPR Construction
+Hensel Phelps
+Granite Construction
+Vulcan Materials
+Martin Marietta
+CRH
+John Deere
+Cummins
+GE Aerospace
+GE Vernova
+Emerson
+Eaton
+Rockwell Automation
+Parker Hannifin
+Illinois Tool Works
+Dover
+Whirlpool
+Polaris
+Harley-Davidson
+Oshkosh
+Paccar
+Navistar
+Honda
+Nissan
+Hyundai
+Kia
+Subaru
+BMW
+Mercedes-Benz
+Volvo
+Stellantis
+Magna
+Lear
+BorgWarner
+Aptiv
+Goodyear
+Bridgestone
+Michelin
+Dow
+DuPont
+LyondellBasell
+Eastman
+Celanese
+PPG
+Ecolab
+Kimberly-Clark
+Conagra
+Hershey
+Tyson Foods
+Cargill
+ADM
+Smithfield Foods
+Hormel
+JBS
+Perdue Farms
+Pilgrim's
+Land O'Lakes
+Dairy Farmers of America
+Keurig Dr Pepper
+Anheuser-Busch
+Molson Coors
+Constellation Brands
+Dominion Energy
+Georgia Power
+Florida Power & Light
+Xcel Energy
+Ameren
+Entergy
+Evergy
+DTE Energy
+Consumers Energy
+AEP
+FirstEnergy
+PPL
+PSEG
+Con Edison
+National Grid
+Eversource
+Exelon
+ComEd
+PG&E
+Southern California Edison
+San Diego Gas & Electric
+Arizona Public Service
+Salt River Project
+PacifiCorp
+Puget Sound Energy
+Portland General Electric
+Idaho Power
+NV Energy
+Black Hills Energy
+Alliant Energy
+WEC Energy Group
+CenterPoint Energy
+Oncor
+Vistra
+NRG Energy
+ConocoPhillips
+Marathon Petroleum
+Phillips 66
+Valero
+Halliburton
+Baker Hughes
+SLB
+Waste Connections
+Veolia
+American Water
+Spectrum
+Lumen Technologies
+Frontier Communications
+Cox Communications
+Altice USA
+Confluent
+HashiCorp
+Intercom
+Lattice
+Palantir
+Square
+Stripe
+Wealthfront
+Whatnot
+Zapier
+Faire
+Mercury Technologies
+Navan
+Gong
+Glean
+Harvey
+Hebbia
+Hex
+Mistral
+Perplexity
+Runway
+Sierra
+Ironclad
+Klaviyo
+Attentive
+Braze
+Amplitude
+Mixpanel
+PagerDuty
+Postman
+Sourcegraph
+PlanetScale
+Neon
+Temporal
+Cockroach Labs
+Grafana Labs
+Chainguard
+Wiz
+Snyk
+Abnormal Security
+Vanta
+Drata
+Arctic Wolf
+Tanium
+SentinelOne
+Fortinet
+Rapid7
+Tenable
+Qualys
+Splunk
+SAP
+Autodesk
+Electronic Arts
+Activision Blizzard
+Epic Games
+Riot Games
+Unity
+Take-Two Interactive
+Hulu
+Expedia
+Booking Holdings
+Tripadvisor
+Yelp
+Indeed
+ZipRecruiter
+Upwork
+Fiverr
+Chegg
+Guild
+Handshake
+Khan Academy
+Quizlet
+Nerdy
+Remitly
+Wise
+Marqeta
+Bill.com
+Carta
+AngelList
+Justworks
+TriNet
+Paycom
+Paylocity
+Ceridian
+UKG

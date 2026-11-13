@@ -27,7 +27,7 @@ var degreeLevelPatterns = []struct {
 }{
 	{levelDoctorate, regexp.MustCompile(`(?i)\b(ph\.?\s?d|doctorate|doctoral|doctor of|d\.?n\.?p|ed\.?d|j\.?d|m\.?d|pharm\.?d)\b`)},
 	{levelMaster, regexp.MustCompile(`(?i)\b(master'?s?|m\.?s\.?n?|m\.?a\.?|m\.?b\.?a|m\.?ed|m\.?eng|m\.?s\.?w|graduate degree)\b`)},
-	{levelBachelor, regexp.MustCompile(`(?i)\b(bachelor'?s?|baccalaureate|b\.?s\.?n?|b\.?a\.?|b\.?sc|b\.?eng|undergraduate degree|(?:four|4)[- ]year (?:college )?degree)\b`)},
+	{levelBachelor, regexp.MustCompile(`(?i)\b(bachelor'?s?|baccalaureate|b\.?s\.?n?|b\.?a\.?|b\.?sc|b\.?eng|b\.?b\.?a|bsba|b\.?f\.?a|b\.?a\.?s|undergraduate degree|(?:four|4)[- ]year (?:college )?degree)\b`)},
 	{levelAssociate, regexp.MustCompile(`(?i)\b(associate'?s?(?: of| degree| in)|a\.?a\.?s?|a\.?s\.?n?|a\.?d\.?n|(?:two|2)[- ]year degree)\b`)},
 	{levelHighSchool, regexp.MustCompile(`(?i)\b(high school|h\.?s\.? diploma|ged|g\.e\.d|hiset|secondary school|secondary education)\b`)},
 }

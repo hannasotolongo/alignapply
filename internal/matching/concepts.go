@@ -8,7 +8,7 @@ import "strings"
 // fallback recognizes experience that's worded differently. Groups are kept
 // to close synonyms to avoid crediting unrelated work.
 var conceptGroups = [][]string{
-	{"lead", "led", "leading", "leader", "leaders", "leadership", "manage", "managed", "manages", "managing", "manager", "managers", "management", "supervise", "supervised", "supervising", "supervisor", "supervision", "oversee", "oversaw", "overseeing", "oversight", "direct", "directed", "directing", "head", "headed", "heading", "run", "ran", "running"},
+	{"lead", "led", "leading", "leader", "leaders", "leadership", "manage", "managed", "manages", "managing", "manager", "managers", "management", "supervise", "supervised", "supervising", "supervisor", "supervision", "oversee", "oversaw", "overseeing", "oversight", "direct", "directed", "directing", "head", "headed", "heading"},
 	{"team", "teams", "staff", "employees", "reports", "crew", "people", "personnel", "workforce"},
 	{"mentor", "mentored", "mentoring", "mentorship", "coach", "coached", "coaching", "train", "trained", "training", "trainer", "onboard", "onboarded", "onboarding", "teach", "taught", "teaching", "develop-people", "precept", "precepted", "precepting"},
 	{"client", "clients", "customer", "customers", "account", "accounts", "consumer", "consumers", "buyer", "buyers", "guest", "guests", "stakeholder", "stakeholders"},

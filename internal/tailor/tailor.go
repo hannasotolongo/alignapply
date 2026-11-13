@@ -101,12 +101,15 @@ STRICT RULES (truth lock):
 - You may reorder, tighten, and use the job's vocabulary when the résumé line genuinely describes the same thing.
 - Never put a number in a bullet unless the same number appears in its source line.
 - Pick the 5 to 8 résumé lines most relevant to this job, most relevant first.
-- "headline": one line, the candidate's real title/specialty aimed at this role.
-- "summary": 2 to 3 sentences, plain and specific, only from the résumé. No buzzwords like "results-driven" or "passionate".
-- "keywords": up to 10 terms from the job posting that the résumé truly supports.
-- "interview": 3 likely interview questions for this job, prioritizing the gaps listed, each with a short honest approach that draws on the candidate's real experience. Never suggest claiming experience they don't have.
+- Each bullet: one sentence under 25 words. Start with a plain past-tense verb (Built, Ran, Cut, Trained, Sold), say what was done and what came of it. Never start with "Responsible for", "Helped with" or an -ing word.
+- "headline": one line, the candidate's real title/specialty aimed at this role, like a person would write it ("Backend engineer, payments and APIs"). No slogans.
+- "summary": 2 sentences, only from the résumé: who they are and the experience this job cares about most.
+- "keywords": up to 10 terms from the job posting that the résumé truly supports, written the way the posting writes them.
+- "interview": 3 interview questions this employer would really ask for this job, starting with the gaps listed. Each "approach" is 1 to 2 sentences to the candidate: which real example from their résumé to use and what to make sure they say. Never suggest claiming experience they don't have.
 
 `)
+	b.WriteString(plainWritingRules)
+	b.WriteString("\n")
 	if request.JobTitle != "" || request.Company != "" {
 		fmt.Fprintf(&b, "JOB: %s at %s\n\n", request.JobTitle, request.Company)
 	}
@@ -228,10 +231,11 @@ func Enforce(kit Kit, resumeText string) Kit {
 			kit.DroppedLines++
 			continue
 		}
-		kept = append(kept, Bullet{Text: text, Source: strings.TrimSpace(bullet.Source)})
+		kept = append(kept, Bullet{Text: Plain(text), Source: strings.TrimSpace(bullet.Source)})
 	}
 	kit.Bullets = kept
 
+	kit.Summary = Plain(kit.Summary)
 	if hasInventedNumber(kit.Summary, resumeNumbers) {
 		kit.Summary = ""
 	}
@@ -251,6 +255,9 @@ func Enforce(kit Kit, resumeText string) Kit {
 	kit.Keywords = keywords
 	if len(kit.Interview) > 3 {
 		kit.Interview = kit.Interview[:3]
+	}
+	for i := range kit.Interview {
+		kit.Interview[i].Approach = Plain(kit.Interview[i].Approach)
 	}
 	return kit
 }

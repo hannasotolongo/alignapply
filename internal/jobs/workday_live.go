@@ -345,7 +345,18 @@ func SetWorkdayLiveDebug(on bool) { workdayLiveDebug = on }
 // workdayQueries is the role plus the names employers use for it (a
 // "doctor" search also asks for "physician").
 func workdayQueries(role string) []string {
+	// Employers' own search boxes get the cleaned search ("full stack
+	// jobs near me" asks for "full stack"), and an everyday word asks for
+	// the title it stands for ("coding" asks for "software engineer").
+	cleaned := cleanRoleQuery(role)
 	queries := []string{role}
+	if forms := roleSearchForms(role); cleaned != "" {
+		queries = []string{strings.ReplaceAll(cleaned, "fullstack", "full stack")}
+		if len(forms) > 1 {
+			queries = append(queries, forms[1])
+			return queries
+		}
+	}
 	tokens := roleRelevanceTokens(expandTitleAliases(normalizePreferenceText(role)))
 	if len(tokens) == 1 {
 		for token := range tokens {

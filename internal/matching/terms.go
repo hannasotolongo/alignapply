@@ -32,7 +32,10 @@ var termRewrites = func() []struct {
 		// Office and admin
 		{`\b(?:microsoft|ms)\s*office(?:\s*(?:suite|365))?\b|\bmicrosoft 365\b|\boffice 365\b`, " msoffice "},
 		{`\bdata entry\b`, " data-entry "},
-		{`\bcustomer service\b`, " customer-service "},
+		// One token each, so "customer" and "service" from different lines
+		// ("customer billing dashboard", "backend services") can't add up.
+		{`\b(?:customer|client|member|guest)[\s-]+(?:service|support|care|experience)\b`, " customerservice "},
+		{`\b(?:call|contact)[\s-]+(?:center|centre)\b`, " callcenter customerservice "},
 		{`\bfront desk\b`, " front-desk reception "},
 		{`\breceptionist\b`, " reception "},
 		// Teaching
@@ -75,7 +78,7 @@ func canonicalTerms(text string) string {
 // logisticsPattern finds requirements a résumé can't show either way: a
 // driver's license, a car, insurance, screenings, schedules. They're checked
 // by the employer during hiring, so they don't count for or against fit.
-var logisticsPattern = regexp.MustCompile(`(?i)\b(driver'?s?'? licen[cs]e|driving record|reliable (?:transportation|vehicle)|own (?:transportation|vehicle|car)|auto(?:mobile)? insurance|vehicle insurance|proof of insurance|background (?:check|screening)|drug (?:screen|test)|tb (?:test|screening)|immunization|vaccinat|able to (?:lift|stand|sit|work weekends|work nights)|lift up to|work (?:weekends|nights|holidays|overtime|on-call)|on[- ]call|authorized to work|work authorization|sponsorship|18 years|at least 18)\b`)
+var logisticsPattern = regexp.MustCompile(`(?i)\b(driver'?s?'? licen[cs]e|driving record|reliable (?:transportation|vehicle)|own (?:transportation|vehicle|car)|auto(?:mobile)? insurance|vehicle insurance|proof of insurance|background (?:check|screening)|drug (?:screen|test)|tb (?:test|screening)|immunization|vaccinat|able to (?:lift|stand|sit|work weekends|work nights)|lift up to|work (?:weekends|nights|holidays|overtime|on-call)|on[- ]call|authorized to work|work authorization|sponsorship|18 years|at least 18|physically demanding|physical activity|walk(?:ing)?/stand|stand(?:ing)? for (?:long|extended)|extended periods|kneel|crouch|climb|bend(?:ing)?|squat|stoop|reach with|manual dexterity|visual acuity|hearing|frequent driving|operate a (?:vehicle|forklift)|read,? write,? (?:and )?speak|speak,? read|lbs|pounds)\b`)
 
 func isLogisticsRequirement(text string) bool {
 	return logisticsPattern.MatchString(text)
@@ -88,9 +91,12 @@ var alternativesPattern = regexp.MustCompile(`\s*(?:,\s*(?:or\s+)?|\s+or\s+|\s*/
 // requirementAlternatives returns the alternatives in an "A, B, or C"
 // requirement, or nil when it isn't one. Each alternative is short, so a
 // long sentence that happens to contain "or" isn't split.
+// slashBetweenWords finds "software engineering/production infrastructure".
+var slashBetweenWords = regexp.MustCompile(`[a-z]{3,}\s*/\s*[a-z]{3,}`)
+
 func requirementAlternatives(requirement string) []string {
 	lower := " " + strings.ToLower(requirement) + " "
-	if !strings.Contains(lower, " or ") {
+	if !strings.Contains(lower, " or ") && !slashBetweenWords.MatchString(lower) {
 		return nil
 	}
 	parts := alternativesPattern.Split(strings.TrimSpace(strings.ToLower(requirement)), -1)

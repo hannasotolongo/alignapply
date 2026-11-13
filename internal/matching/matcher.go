@@ -103,6 +103,55 @@ var stopWords = map[string]struct{}{
 	"concepts":     {},
 	"foundation":   {},
 	"foundations":  {},
+
+	// More qualification wording seen in real postings ("You are an expert in
+	// React with a solid grasp of Python"): none of it names a capability.
+	"expert":       {},
+	"expertise":    {},
+	"grasp":        {},
+	"deep":         {},
+	"hands":        {},
+	"advanced":     {},
+	"capable":      {},
+	"able":         {},
+	"who":          {},
+	"we":           {},
+	"will":         {},
+	"can":          {},
+	"least":        {},
+	"one":          {},
+	"more":         {},
+	"following":    {},
+	"similar":      {},
+	"equivalent":   {},
+	"etc":          {},
+	"eg":           {},
+	"ie":           {},
+	"high":         {},
+	"level":        {},
+	"good":         {},
+	"great":        {},
+	"consistently": {},
+
+	// Context words around the capability ("a closing sales role", "the
+	// commercial space", "fluency in Spanish, spoken and written").
+	"role":        {},
+	"roles":       {},
+	"position":    {},
+	"positions":   {},
+	"setting":     {},
+	"settings":    {},
+	"environment": {},
+	"space":       {},
+	"sizes":       {},
+	"type":        {},
+	"types":       {},
+	"fluency":     {},
+	"fluent":      {},
+	"spoken":      {},
+	"written":     {},
+	"verbal":      {},
+	"both":        {},
 }
 
 func Match(
@@ -130,7 +179,10 @@ func scoreJob(
 
 	quality := jobs.EvaluateExtractionQuality(job)
 
-	if !quality.Scorable {
+	if !quality.Scorable && !s.titleOnly {
+		if titled, ok := titleOnlyJob(job); ok {
+			return scoreTitleOnly(s, request, titled)
+		}
 		result.MatchPercentage = 0
 		result.MatchLevel = "Insufficient Evidence"
 		result.Explanation =
@@ -141,14 +193,14 @@ func scoreJob(
 
 	var profile candidate.Profile
 
-	// Career Profile is the canonical evidence source for Your Fit.
-	//
-	// ResumeText remains a legacy fallback while existing clients migrate.
-	// We intentionally do not merge an individual resume into a populated
-	// Career Profile here.
+	// The résumé and the Career Profile are read together. A profile saved
+	// at sign-up is often shorter than the résumé (skills split out, bullets
+	// trimmed), and scoring it alone marked people as missing things their
+	// résumé clearly shows. Evidence only adds up, so a profile entry can
+	// never lower a score the résumé earns.
 	if request.CareerProfile.HasEvidence() {
 		profile = candidate.BuildProfile(
-			"",
+			request.ResumeText,
 			request.CareerProfile,
 		)
 	} else {
@@ -156,6 +208,8 @@ func scoreJob(
 			request.ResumeText,
 		)
 	}
+
+	addImpliedEvidence(&profile)
 
 	if len(profile.AllEvidence) == 0 {
 		result.MatchPercentage = 0
@@ -356,6 +410,12 @@ func scoreJob(
 				criticalRequiredNotSupported++
 				criticalRequiredMissing++
 			}
+		}
+	}
+
+	if totalWeight == 0 && !s.titleOnly {
+		if titled, ok := titleOnlyJob(job); ok {
+			return scoreTitleOnly(s, request, titled)
 		}
 	}
 
@@ -625,6 +685,10 @@ func verifyTokens(requirementTokens []string, evidence string) evidenceResult {
 
 	evidenceTokens := meaningfulTokens(evidence)
 
+	// Words that mean the same thing ("leading", "managers", "managing")
+	// count once, so one idea can't fill most of a requirement on its own.
+	requirementTokens = oneTokenPerConcept(requirementTokens)
+
 	matched := 0
 
 	for _, requirementToken := range requirementTokens {
@@ -642,10 +706,17 @@ func verifyTokens(requirementTokens []string, evidence string) evidenceResult {
 
 	coverage := float64(matched) / float64(len(requirementTokens))
 
+	// Long requirement sentences carry many incidental words ("top performer
+	// with history of success in pipeline generation…"), so they need a
+	// smaller share of their words on the résumé than a two-word skill.
+	supportAt, partialAt := 0.75, 0.4
+	if len(requirementTokens) >= 6 {
+		supportAt, partialAt = 0.6, 0.3
+	}
 	switch {
-	case matched == len(requirementTokens) || (len(requirementTokens) >= 3 && coverage >= 0.75):
+	case matched == len(requirementTokens) || (len(requirementTokens) >= 3 && coverage >= supportAt):
 		return supportedEvidence()
-	case coverage >= 0.4:
+	case coverage >= partialAt:
 		return partialEvidence()
 	}
 
@@ -1412,4 +1483,63 @@ func appendUnique(
 		values,
 		value,
 	)
+}
+
+// oneTokenPerConcept keeps the first token of each concept group.
+func oneTokenPerConcept(tokens []string) []string {
+	seen := make(map[string]bool, len(tokens))
+	out := make([]string, 0, len(tokens))
+	for _, token := range tokens {
+		concept := conceptOf(token)
+		if seen[concept] {
+			continue
+		}
+		seen[concept] = true
+		out = append(out, token)
+	}
+	return out
+}
+
+// titleNoise is wording in job titles that isn't the job itself.
+var titleNoise = regexp.MustCompile(`(?i)\b(\d+:\d+|full[- ]time|part[- ]time|prn|per diem|remote|hybrid|on[- ]?site|temporary|temp|contract|seasonal|sign[- ]on bonus|bonus|new grad(uate)?|\$[\d,.]+\S*|up to|hiring|immediate(ly)?|openings?|now)\b|\(.*?\)|[|•–—-].*$`)
+
+// titleOnlyJob turns a posting with no usable requirements into one whose
+// only requirement is experience as the job title: "Registered Nurse" for
+// "1:1 Adult & Pediatric Nurse, RN".
+func titleOnlyJob(job jobs.Job) (jobs.Job, bool) {
+	title := strings.TrimSpace(titleNoise.ReplaceAllString(job.Title, " "))
+	title = strings.Trim(strings.Join(strings.Fields(title), " "), " ,&/")
+	// A one-word title ("Engineer") says too little to score on.
+	if len(meaningfulTokens(title)) < 2 {
+		return job, false
+	}
+	job.Requirements = []jobs.Requirement{{
+		Text:       "Experience as " + title,
+		Category:   jobs.RequirementExperience,
+		Importance: jobs.RequirementRequired,
+	}}
+	return job, true
+}
+
+func scoreTitleOnly(s scorer, request jobs.SearchRequest, job jobs.Job) jobs.JobMatch {
+	s.titleOnly = true
+	match := scoreJob(s, request, job)
+	// A title alone is thin evidence: never call it a strong match, and a
+	// half-matching title ("Software" from "SaaS sales") counts for little.
+	switch {
+	case len(match.SupportedRequirements) > 0:
+		match.MatchPercentage = 75
+	case len(match.PartialRequirements) > 0:
+		match.MatchPercentage = 25
+		match.MatchLevel = "Reach"
+	default:
+		match.MatchPercentage = 0
+	}
+	if match.MatchLevel == "Strong Applicant" {
+		match.MatchLevel = "Moderate Match"
+	}
+	if match.MatchLevel != "Insufficient Evidence" {
+		match.Explanation = strings.TrimSpace(match.Explanation + " This posting doesn't list its requirements, so Jane scored it on the job title.")
+	}
+	return match
 }

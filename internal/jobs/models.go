@@ -30,6 +30,10 @@ type SearchRequest struct {
 	// more"). PageSize 0 returns the first results the old way.
 	Offset   int `json:"offset,omitempty"`
 	PageSize int `json:"pageSize,omitempty"`
+
+	// LooseTitles is set by the pipeline when nothing matched the whole
+	// search, to show titles that share a meaningful word with it.
+	LooseTitles bool `json:"-"`
 }
 
 // RequirementCategory describes what kind of evidence is needed.

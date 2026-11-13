@@ -39,6 +39,13 @@ func (p *Pipeline) Process(
 	input []Job,
 ) []Job {
 	result := p.processWithin(request, input)
+	if len(result) == 0 && !request.LooseTitles && len(input) > 0 {
+		// Nothing matched the whole search. Show the closest titles (ones
+		// sharing a meaningful word) instead of an empty page.
+		loose := request
+		loose.LooseTitles = true
+		return p.Process(loose, input)
+	}
 	if request.RadiusMiles != 0 || len(result) >= widenBelow {
 		return withDistances(request, result)
 	}
@@ -127,7 +134,7 @@ func (p *Pipeline) processWithin(
 			continue
 		}
 
-		if !jobTitleMatchesTargetRole(request.TargetRole, rawJob.Title) {
+		if !roleMatches(request, rawJob.Title) {
 			pipelineDebugf(
 				"[pipeline-debug] REJECT reason=role title=%q target_role=%q",
 				rawJob.Title,
@@ -288,7 +295,7 @@ func matchesRequestedPreferences(
 	request SearchRequest,
 	job Job,
 ) bool {
-	if !jobTitleMatchesTargetRole(request.TargetRole, job.Title) {
+	if !roleMatches(request, job.Title) {
 		return false
 	}
 
@@ -703,8 +710,20 @@ func jobTitleMatchesTargetRole(
 	targetRole string,
 	jobTitle string,
 ) bool {
-	role := expandTitleAliases(normalizePreferenceText(targetRole))
-	title := expandTitleAliases(normalizePreferenceText(jobTitle))
+	for _, form := range roleSearchForms(targetRole) {
+		if titleMatchesRole(form, jobTitle) {
+			return true
+		}
+	}
+	return false
+}
+
+// titleMatchesRole checks one cleaned form of a search against a title.
+func titleMatchesRole(
+	role string,
+	jobTitle string,
+) bool {
+	title := cleanSearchText(jobTitle)
 
 	if role == "" {
 		return true
@@ -714,8 +733,15 @@ func jobTitleMatchesTargetRole(
 		return false
 	}
 
-	if strings.Contains(title, role) ||
-		strings.Contains(role, title) {
+	// Whole words only: "nurse" is not in "Nursery Worker".
+	if strings.Contains(" "+title+" ", " "+role+" ") ||
+		strings.Contains(" "+role+" ", " "+title+" ") {
+		return true
+	}
+
+	// Spacing and hyphens never matter: "full stack" finds "Full-Stack"
+	// and "Fullstack".
+	if compactRole := compactText(role); strings.Contains(role, " ") && len(compactRole) >= 6 && strings.Contains(compactText(title), compactRole) {
 		return true
 	}
 
@@ -874,35 +900,55 @@ func titleHasRoleWord(titleTokens map[string]struct{}, word string) bool {
 			return true
 		}
 	}
+	// Other forms of the word: "accounting" finds "Accountant", "nurs"
+	// finds "Nursing".
+	for token := range titleTokens {
+		if wordsMatch(word, token) {
+			return true
+		}
+	}
 	return false
 }
 
 // titleAliases expands abbreviations employers use in job titles so a search
 // for "Registered Nurse" finds "RN - Med Surg" (and the reverse).
 var titleAliases = map[string]string{
-	"rn":   "registered nurse",
-	"lpn":  "licensed practical nurse",
-	"lvn":  "licensed vocational nurse",
-	"cna":  "certified nursing assistant",
-	"np":   "nurse practitioner",
-	"aprn": "advanced practice registered nurse",
-	"crna": "certified registered nurse anesthetist",
-	"pa":   "physician assistant",
-	"pt":   "physical therapist",
-	"ot":   "occupational therapist",
-	"slp":  "speech language pathologist",
-	"rt":   "respiratory therapist",
-	"swe":  "software engineer",
-	"sde":  "software development engineer",
-	"sre":  "site reliability engineer",
-	"qa":   "quality assurance",
-	"ux":   "user experience",
-	"hr":   "human resources",
-	"sr":   "senior",
-	"jr":   "junior",
-	"mgr":  "manager",
-	"acct": "accountant",
-	"cpa":  "certified public accountant",
+	"rn":    "registered nurse",
+	"lpn":   "licensed practical nurse",
+	"lvn":   "licensed vocational nurse",
+	"cna":   "certified nursing assistant",
+	"np":    "nurse practitioner",
+	"aprn":  "advanced practice registered nurse",
+	"crna":  "certified registered nurse anesthetist",
+	"pa":    "physician assistant",
+	"pt":    "physical therapist",
+	"ot":    "occupational therapist",
+	"slp":   "speech language pathologist",
+	"rt":    "respiratory therapist",
+	"swe":   "software engineer",
+	"sde":   "software development engineer",
+	"sre":   "site reliability engineer",
+	"qa":    "quality assurance",
+	"ux":    "user experience",
+	"hr":    "human resources",
+	"sr":    "senior",
+	"jr":    "junior",
+	"mgr":   "manager",
+	"acct":  "accountant",
+	"cpa":   "certified public accountant",
+	"ml":    "machine learning",
+	"csr":   "customer service representative",
+	"sdr":   "sales development representative",
+	"bdr":   "business development representative",
+	"ui":    "user interface",
+	"dba":   "database administrator",
+	"emt":   "emergency medical technician",
+	"cma":   "certified medical assistant",
+	"asst":  "assistant",
+	"admin": "administrative",
+	"dev":   "developer",
+	"eng":   "engineer",
+	"mgmt":  "management",
 }
 
 func expandTitleAliases(normalized string) string {

@@ -91,8 +91,11 @@ Tailor it:
 - skills: the résumé's skills, the ones this job asks for first. At most 16.
 - sections: any other sections the résumé has (certifications, licenses, projects, volunteering, awards), with their items. Empty if none.
 
-Never: invent an employer, title, project, result, number, date, degree, tool, skill or responsibility; add a skill the résumé doesn't list or show; use "I" or "my"; use buzzwords like "results-driven", "dynamic", "passionate", "synergy", "go-getter" or "proven track record".
+Never: invent an employer, title, project, result, number, date, degree, tool, skill or responsibility; add a skill the résumé doesn't list or show; use "I" or "my"; start a bullet with "Responsible for", "Helped" or an -ing word.
+
+Bullets read like a strong human-written résumé: a plain past-tense verb (present tense for the current job), what was done, and the result with its number when the résumé has one. "Cut p95 latency from 900ms to 180ms with Redis caching", not "Leveraged caching solutions to drive performance improvements".
 `)
+	b.WriteString(plainWritingRules)
 	if request.JobTitle != "" {
 		fmt.Fprintf(&b, "\nJOB TITLE: %s", request.JobTitle)
 	}
@@ -156,7 +159,7 @@ func EnforceTailoredResume(resume TailoredResume, originalResume string) Tailore
 
 	resume.Name = clean(resume.Name)
 	resume.Contact = keep(resume.Contact, 6)
-	resume.Summary = clean(resume.Summary)
+	resume.Summary = Plain(clean(resume.Summary))
 	if hasInventedNumber(resume.Summary, allowed) {
 		var kept []string
 		for _, sentence := range sentencePattern.FindAllString(resume.Summary, -1) {
@@ -170,7 +173,7 @@ func EnforceTailoredResume(resume TailoredResume, originalResume string) Tailore
 	roles := make([]ResumeRole, 0, len(resume.Experience))
 	for _, role := range resume.Experience {
 		role.Title, role.Company, role.Location, role.Dates = clean(role.Title), clean(role.Company), clean(role.Location), clean(role.Dates)
-		role.Bullets = keep(role.Bullets, 6)
+		role.Bullets = plainAll(keep(role.Bullets, 6))
 		if role.Title == "" && role.Company == "" {
 			continue
 		}
