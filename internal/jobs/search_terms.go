@@ -260,11 +260,23 @@ func titleLooselyMatchesRole(targetRole, jobTitle string) bool {
 
 // roleMatches is the title check a search uses: the full rules, or the
 // loose fallback when the request asks for it.
-func roleMatches(request SearchRequest, jobTitle string) bool {
-	if jobTitleMatchesTargetRole(request.TargetRole, jobTitle) {
+func roleMatches(request SearchRequest, job Job) bool {
+	role := request.TargetRole
+	if industry, rest := splitIndustry(role); industry != "" {
+		// "crypto jobs": any job at a crypto employer; "crypto software
+		// engineer": a software engineer job there.
+		if !jobInIndustry(industry, job) {
+			return false
+		}
+		if onlyFiller(rest) {
+			return true
+		}
+		role = rest
+	}
+	if jobTitleMatchesTargetRole(role, job.Title) {
 		return true
 	}
-	return request.LooseTitles && titleLooselyMatchesRole(request.TargetRole, jobTitle)
+	return request.LooseTitles && titleLooselyMatchesRole(role, job.Title)
 }
 
 // prefixCollisions are words that start with a search word but mean
@@ -291,4 +303,14 @@ func prefixCollision(search, title string) bool {
 		}
 	}
 	return false
+}
+
+// onlyFiller reports a search left with no job words ("jobs", "near me").
+func onlyFiller(text string) bool {
+	for _, word := range strings.Fields(cleanSearchText(text)) {
+		if _, filler := searchFiller[word]; !filler {
+			return false
+		}
+	}
+	return true
 }

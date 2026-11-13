@@ -89,7 +89,7 @@ func (p *StoredJobsProvider) readNearest(ctx context.Context, store BoardStore, 
 	}
 	var candidates []candidate
 	for _, job := range unread {
-		if !strings.HasPrefix(job.ID, "workday:") || !jobTitleMatchesTargetRole(request.TargetRole, job.Title) {
+		if !strings.HasPrefix(job.ID, "workday:") || !roleMatches(request, job) {
 			continue
 		}
 		if !matchesLocationPreference(wide, job) {
@@ -238,6 +238,12 @@ func StatePattern(state string) string {
 // one of the role's meaningful words, including short forms (a "registered
 // nurse" search also finds "ICU RN").
 func TitleSearchPattern(role string) string {
+	// An industry search reads that industry's jobs ("crypto" is in the
+	// searchable title of every job at a crypto employer) and titles that
+	// name it; the pipeline then checks the rest of the search.
+	if industry, _ := splitIndustry(role); industry == "crypto" {
+		return `\m(crypto|blockchain|web3|defi|bitcoin|ethereum|nft|on-?chain|solidity|smart contract|tokeniz|digital asset)`
+	}
 	words := map[string]struct{}{}
 	pieces := map[string]struct{}{}
 	for _, form := range roleSearchForms(role) {

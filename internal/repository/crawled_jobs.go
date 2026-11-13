@@ -137,7 +137,7 @@ func (r *CrawledJobsRepository) SaveBoardJobs(ctx context.Context, board jobs.Bo
 		for _, job := range saved {
 			batch.Queue(upsertCrawledJob,
 				job.ID, board.ATS, board.Slug, firstNonBlank(job.Company, board.Company), job.Title,
-				strings.ToLower(job.Title), job.Location, job.CountryCode, job.WorkArrangement,
+				jobs.TitleSearchText(job.Title, firstNonBlank(job.Company, board.Company)), job.Location, job.CountryCode, job.WorkArrangement,
 				job.EmploymentType, job.Description, job.ApplyURL, job.PostedAt,
 				job.SalaryMin, job.SalaryMax, job.SalaryCurrency, job.SalaryPeriod)
 		}
@@ -230,10 +230,12 @@ func (r *CrawledJobsRepository) SaveJobDetails(ctx context.Context, found []jobs
 		batch.Queue(`
 			UPDATE crawled_jobs SET description = $2, location = $3, country_code = $4,
 				employment_type = $5, apply_url = $6, posted_at = COALESCE($7, posted_at),
-				title = $8, title_search = $9
+				title = $8, title_search = $9::text ||
+					CASE WHEN title_search LIKE '% | crypto' AND $9::text NOT LIKE '% | crypto'
+						THEN ' | crypto' ELSE '' END
 			WHERE id = $1`,
 			job.ID, job.Description, job.Location, job.CountryCode, job.EmploymentType,
-			job.ApplyURL, job.PostedAt, job.Title, strings.ToLower(job.Title))
+			job.ApplyURL, job.PostedAt, job.Title, jobs.TitleSearchText(job.Title, job.Company))
 	}
 	results := r.pool.SendBatch(ctx, batch)
 	defer results.Close()

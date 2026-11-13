@@ -6393,5 +6393,220 @@
   "ats": "workday",
   "slug": "telstra.wd3.myworkdayjobs.com/telstra/Telstra_Careers",
   "company": "Telstra"
+ },
+ {
+  "ats": "ashby",
+  "slug": "alchemy",
+  "company": "Alchemy"
+ },
+ {
+  "ats": "ashby",
+  "slug": "blockstream",
+  "company": "Blockstream"
+ },
+ {
+  "ats": "ashby",
+  "slug": "blockworks",
+  "company": "Blockworks"
+ },
+ {
+  "ats": "ashby",
+  "slug": "casa",
+  "company": "Casa"
+ },
+ {
+  "ats": "ashby",
+  "slug": "consensys",
+  "company": "Consensys"
+ },
+ {
+  "ats": "ashby",
+  "slug": "elliptic",
+  "company": "Elliptic"
+ },
+ {
+  "ats": "ashby",
+  "slug": "kalshi",
+  "company": "Kalshi"
+ },
+ {
+  "ats": "ashby",
+  "slug": "ledger",
+  "company": "Ledger"
+ },
+ {
+  "ats": "ashby",
+  "slug": "mystenlabs",
+  "company": "Mysten Labs"
+ },
+ {
+  "ats": "ashby",
+  "slug": "oplabs",
+  "company": "OP Labs"
+ },
+ {
+  "ats": "ashby",
+  "slug": "paradigm",
+  "company": "Paradigm"
+ },
+ {
+  "ats": "ashby",
+  "slug": "paxos",
+  "company": "Paxos"
+ },
+ {
+  "ats": "ashby",
+  "slug": "phantom",
+  "company": "Phantom"
+ },
+ {
+  "ats": "ashby",
+  "slug": "polymarket",
+  "company": "Polymarket"
+ },
+ {
+  "ats": "ashby",
+  "slug": "skymavis",
+  "company": "Sky Mavis"
+ },
+ {
+  "ats": "ashby",
+  "slug": "turnkey",
+  "company": "Turnkey"
+ },
+ {
+  "ats": "bamboohr",
+  "slug": "uphold",
+  "company": "Uphold"
+ },
+ {
+  "ats": "greenhouse",
+  "slug": "aptoslabs",
+  "company": "Aptos Labs"
+ },
+ {
+  "ats": "greenhouse",
+  "slug": "binance",
+  "company": "Binance"
+ },
+ {
+  "ats": "greenhouse",
+  "slug": "bitgo",
+  "company": "BitGo"
+ },
+ {
+  "ats": "greenhouse",
+  "slug": "bybit",
+  "company": "Bybit"
+ },
+ {
+  "ats": "greenhouse",
+  "slug": "consensys",
+  "company": "Consensys"
+ },
+ {
+  "ats": "greenhouse",
+  "slug": "fireblocks",
+  "company": "Fireblocks"
+ },
+ {
+  "ats": "greenhouse",
+  "slug": "gemini",
+  "company": "Gemini"
+ },
+ {
+  "ats": "greenhouse",
+  "slug": "jumptrading",
+  "company": "Jump Trading"
+ },
+ {
+  "ats": "greenhouse",
+  "slug": "okx",
+  "company": "OKX"
+ },
+ {
+  "ats": "greenhouse",
+  "slug": "ondofinance",
+  "company": "Ondo Finance"
+ },
+ {
+  "ats": "greenhouse",
+  "slug": "openzeppelin",
+  "company": "OpenZeppelin"
+ },
+ {
+  "ats": "greenhouse",
+  "slug": "ripple",
+  "company": "Ripple"
+ },
+ {
+  "ats": "greenhouse",
+  "slug": "securitize",
+  "company": "Securitize"
+ },
+ {
+  "ats": "greenhouse",
+  "slug": "strike",
+  "company": "Strike"
+ },
+ {
+  "ats": "greenhouse",
+  "slug": "taxbit",
+  "company": "Taxbit"
+ },
+ {
+  "ats": "lever",
+  "slug": "animocabrands",
+  "company": "Animoca Brands"
+ },
+ {
+  "ats": "lever",
+  "slug": "certik",
+  "company": "Certik"
+ },
+ {
+  "ats": "lever",
+  "slug": "coingecko",
+  "company": "CoinGecko"
+ },
+ {
+  "ats": "lever",
+  "slug": "coinmarketcap",
+  "company": "CoinMarketCap"
+ },
+ {
+  "ats": "lever",
+  "slug": "gauntlet",
+  "company": "Gauntlet"
+ },
+ {
+  "ats": "lever",
+  "slug": "moonpay",
+  "company": "MoonPay"
+ },
+ {
+  "ats": "lever",
+  "slug": "offchainlabs",
+  "company": "Offchain Labs"
+ },
+ {
+  "ats": "recruitee",
+  "slug": "bitfinex",
+  "company": "Bitfinex"
+ },
+ {
+  "ats": "recruitee",
+  "slug": "tether",
+  "company": "Tether"
+ },
+ {
+  "ats": "workday",
+  "slug": "bullish.wd3.myworkdayjobs.com/bullish/Bullish",
+  "company": "Bullish"
+ },
+ {
+  "ats": "workday",
+  "slug": "circle.wd1.myworkdayjobs.com/circle/Circle",
+  "company": "Circle"
  }
 ]

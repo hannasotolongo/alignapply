@@ -134,7 +134,7 @@ func (p *Pipeline) processWithin(
 			continue
 		}
 
-		if !roleMatches(request, rawJob.Title) {
+		if !roleMatches(request, rawJob) {
 			pipelineDebugf(
 				"[pipeline-debug] REJECT reason=role title=%q target_role=%q",
 				rawJob.Title,
@@ -295,7 +295,7 @@ func matchesRequestedPreferences(
 	request SearchRequest,
 	job Job,
 ) bool {
-	if !roleMatches(request, job.Title) {
+	if !roleMatches(request, job) {
 		return false
 	}
 
