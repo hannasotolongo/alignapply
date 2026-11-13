@@ -1624,3 +1624,18 @@ body { background: #0b0b0c; background-image: none; }
 .tr-paper ul { margin: 0; padding-left: 18px; }
 .tr-paper li { margin: 2px 0; }
 .tr-paper .faint { color: #52525b; }
+
+/* Homepage: interview prep */
+.nh-prep { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; }
+.nh-prep-card { padding: 26px; display: flex; flex-direction: column; gap: 16px; }
+.nh-prep-q { margin: 0; font-size: 22px; font-weight: 600; line-height: 1.35; letter-spacing: -0.01em; }
+.nh-rec { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #f87171; }
+.nh-rec-dot { width: 10px; height: 10px; border-radius: 50%; background: #ef4444; box-shadow: 0 0 0 4px rgba(239,68,68,.18); }
+.nh-rec-time { margin-left: auto; color: var(--text-2); font-variant-numeric: tabular-nums; letter-spacing: 0; }
+.nh-meters { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.nh-meter { border: 1px solid var(--border, rgba(255,255,255,.1)); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 2px; }
+.nh-meter span { font-size: 12px; color: var(--text-2); }
+.nh-meter b { font-size: 24px; letter-spacing: -0.01em; }
+.nh-meter small { font-size: 12px; color: var(--text-3, var(--text-2)); }
+@media (max-width: 900px) { .nh-prep { grid-template-columns: 1fr; gap: 24px; } }
+.nh-prep .hd-eyebrow { text-align: left; } .nh-prep .nh-ticks { margin-bottom: 12px; }

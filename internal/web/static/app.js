@@ -922,19 +922,36 @@ function nhMiniDoc(title, tag, widths) {
 
 function nhSections() {
   const how = (n, title, text) => h("li", { class: "card nh-step" }, h("span", { class: "nh-kicker" }, `Step ${n}`), h("h3", {}, title), h("p", {}, text));
+  const tick = (text) => h("li", {}, text);
+  const meter = (label, value, note) => h("div", { class: "nh-meter" }, h("span", {}, label), h("b", {}, value), h("small", {}, note));
   return [
-    h("section", { class: "nh-need" },
-      h("div", { class: "container" },
-        h("h2", {}, "You've sent 100 applications.", h("br", {}), h("span", {}, "You've heard back from 0.")),
-        h("p", {}, "Generic applications get skipped. The people getting interviews send fewer, with a résumé and cover letter made for each job. Jane does that work for you."))),
     h("section", { class: "nh-section", id: "how" },
       h("div", { class: "container" },
         h("p", { class: "hd-eyebrow" }, "How it works"),
-        h("h2", { class: "nh-h2" }, "From résumé to ready-to-send in minutes."),
+        h("h2", { class: "nh-h2" }, "From résumé to interview."),
         h("ol", { class: "nh-steps" },
           how(1, "Drop your résumé", "Tell Jane the job you want and where. She reads your résumé in seconds."),
-          how(2, "See the jobs you'll get", "Jobs from employers' own sites, each scored by how well you actually fit, with the reason why."),
-          how(3, "Get it ready, then apply", "Jane rewrites your résumé for the job and writes the cover letter. You apply on the employer's site.")))),
+          how(2, "See the jobs you'll get", "Jobs from employers' own sites, scored by how well you fit, with the reason why."),
+          how(3, "Apply ready", "Your résumé and cover letter, written for each job, as PDF or Word. Apply on the employer's site.")))),
+    h("section", { class: "nh-section", id: "interview" },
+      h("div", { class: "container nh-prep" },
+        h("div", {},
+          h("p", { class: "hd-eyebrow" }, "Interview Prep"),
+          h("h2", { class: "nh-h2 nh-left" }, "Practice out loud before the real thing."),
+          h("ul", { class: "ticks nh-ticks" },
+            tick("The questions this employer is likely to ask"),
+            tick("Answer out loud, like the real interview"),
+            tick("See your pace, filler words and answer length"),
+            tick("Get a stronger version of your answer")),
+          h("p", { class: "faint small" }, "Included with Pro, or on its own with Interview Prep.")),
+        h("div", { class: "card nh-prep-card" },
+          h("p", { class: "nh-kicker" }, "Software Engineer · Microsoft"),
+          h("p", { class: "nh-prep-q" }, "“Tell me about a hard bug you fixed.”"),
+          h("div", { class: "nh-rec" }, h("span", { class: "nh-rec-dot" }), "Recording", h("span", { class: "nh-rec-time" }, "1:12")),
+          h("div", { class: "nh-meters" },
+            meter("Pace", "148", "words / min"),
+            meter("Filler words", "3", "um, like"),
+            meter("Length", "1:30", "right on time"))))),
   ];
 }
 
@@ -973,8 +990,8 @@ async function viewLanding() {
       h("section", { class: "nh-hero" },
         h("div", { class: "container nh-hero-grid" },
           h("div", { class: "nh-hero-copy" },
-            h("h1", {}, "Stop applying everywhere.", h("br", {}), "Start getting interviews."),
-            h("p", { class: "lead" }, "Jane finds the jobs you're most likely to get and gets your résumé and cover letter ready for each one.")),
+            h("h1", {}, "Get hired,", h("br", {}), "not ghosted."),
+            h("p", { class: "lead" }, "Jane finds the jobs you can actually get, writes your résumé and cover letter for each one, and preps you for the interview.")),
           heroTryCard())),
       ...nhSections(),
       pricingSection(plansInfo, { full: location.pathname === "/pricing" }),
