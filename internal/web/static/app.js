@@ -922,13 +922,11 @@ function nhMiniDoc(title, tag, widths) {
 
 function nhSections() {
   const how = (n, title, text) => h("li", { class: "card nh-step" }, h("span", { class: "nh-kicker" }, `Step ${n}`), h("h3", {}, title), h("p", {}, text));
-  const tick = (text) => h("li", {}, text);
-  const stat = (big, text) => h("div", { class: "card nh-stat" }, h("b", {}, big), h("span", {}, text));
   return [
     h("section", { class: "nh-need" },
       h("div", { class: "container" },
         h("h2", {}, "You've sent 100 applications.", h("br", {}), h("span", {}, "You've heard back from 0.")),
-        h("p", {}, "It's not your résumé. When anyone can apply to hundreds of jobs in a click, recruiters get buried and generic applications get skipped. The people landing interviews apply to fewer jobs, with a résumé and cover letter written for each one. That's hours of work for every job. Jane does it for you."))),
+        h("p", {}, "Generic applications get skipped. The people getting interviews send fewer, with a résumé and cover letter made for each job. Jane does that work for you."))),
     h("section", { class: "nh-section", id: "how" },
       h("div", { class: "container" },
         h("p", { class: "hd-eyebrow" }, "How it works"),
@@ -937,28 +935,6 @@ function nhSections() {
           how(1, "Drop your résumé", "Tell Jane the job you want and where. She reads your résumé in seconds."),
           how(2, "See the jobs you'll get", "Jobs from employers' own sites, each scored by how well you actually fit, with the reason why."),
           how(3, "Get it ready, then apply", "Jane rewrites your résumé for the job and writes the cover letter. You apply on the employer's site.")))),
-    h("section", { class: "nh-section" },
-      h("div", { class: "container" },
-        h("div", { class: "card nh-package" },
-          h("div", {},
-            h("p", { class: "hd-eyebrow" }, "For every job"),
-            h("h2", { class: "nh-h2 nh-left" }, "Everything you need to apply, in one place."),
-            h("ul", { class: "ticks nh-ticks" },
-              tick("Your match score and the reason you fit"),
-              tick("What to fix so you stand out"),
-              tick("Your résumé, rewritten for this exact job, as a PDF or Word file"),
-              tick("A cover letter written for this company, ready to download"),
-              tick("A direct link to apply on the employer's own site")),
-            h("p", { class: "faint small" }, "Every line comes from your real résumé. Jane never makes anything up.")),
-          h("div", { class: "nh-docs" },
-            nhMiniDoc("Your résumé · Microsoft", "Tailored", [92, 80, 96, 70, 88, 60, 94, 76, 84, 58, 90, 72]),
-            nhMiniDoc("Cover letter · Microsoft", "Ready", [40, 96, 92, 88, 94, 60, 96, 90, 86, 52]),
-            h("div", { class: "card nh-docs-match" }, trialRing(94), h("span", {}, h("b", {}, "Software Engineer · Microsoft"), h("small", {}, "Meets 7 of 7 must-haves"))))))),
-    h("section", { class: "nh-section nh-tight" },
-      h("div", { class: "container nh-stats" },
-        stat("Hours → minutes", "to get each application ready"),
-        stat("$150+", "what a résumé writer charges for one résumé. Jane tailors yours for every job."),
-        stat("0", "job boards between you and the employer"))),
   ];
 }
 
@@ -969,7 +945,6 @@ function nhFaq() {
       h("h2", { class: "nh-h2 nh-left" }, "Questions"),
       item("Does Jane apply for me?", "No. Jane gets everything ready and sends you to the employer's own site, where you apply. Employers can spot auto-applications, and yours shouldn't look like one."),
       item("Will Jane make things up on my résumé?", "Never. Jane only rewrites and reorders what's already on your résumé, and checks every line against it."),
-      item("Where do the jobs come from?", "Straight from employers' own career sites, checked every day. No job boards and no reposted listings."),
       item("How does the interview guarantee work?", "Stay on Pro for 30 days and apply to at least 10 jobs through Jane. If you don't get a single interview, email us and your next month is free."),
       item("Can I cancel?", "Yes, any time from Plan & billing, and your first payment has a 3-day money-back guarantee.")));
 }
@@ -992,25 +967,18 @@ async function viewLanding() {
   if (state.user === undefined) await loadUser();
   const plansInfo = await loadPlans();
   if (state.user) await loadBilling().catch(() => null);
-  const [, practice, founder] = janeHomeSections();
-
   mount(h("div", {},
-    guaranteeBanner(),
     siteNav(),
     h("main", {},
       h("section", { class: "nh-hero" },
         h("div", { class: "container nh-hero-grid" },
           h("div", { class: "nh-hero-copy" },
-            h("div", { class: "nh-hi" }, h("img", { src: "/jane-mini.png", alt: "Jane", width: 72, height: 74 }), h("span", {}, "Hi, I'm ", h("b", {}, "Jane"), ". I'll help you get hired.")),
             h("h1", {}, "Stop applying everywhere.", h("br", {}), "Start getting interviews."),
-            h("p", { class: "lead" }, "Jane finds the jobs you're most likely to get, shows you what to fix, and writes your résumé and cover letter for each one. You apply on the employer's own site."),
-            h("ul", { class: "nh-checks" }, h("li", {}, "Jobs straight from employer sites"), h("li", {}, "Nothing made up, ever"), h("li", {}, "Cancel anytime"))),
+            h("p", { class: "lead" }, "Jane finds the jobs you're most likely to get and gets your résumé and cover letter ready for each one.")),
           heroTryCard())),
       ...nhSections(),
-      practice,
-      pricingSection(plansInfo),
+      pricingSection(plansInfo, { full: location.pathname === "/pricing" }),
       nhFaq(),
-      founder,
       nhFinal(),
     ),
     siteFooter(),
@@ -1441,18 +1409,18 @@ function planCards(plansInfo, { compact = false, include = ["monthly", "intervie
   return include.filter((key) => byKey[key]).map((key) => byKey[key]);
 }
 
-function pricingSection(plansInfo) {
+function pricingSection(plansInfo, { full = false } = {}) {
   const school = planFor("school") || { displayPrice: "$1,000", interval: "year" };
   return h("section", { class: "section", id: "pricing" },
     h("div", { class: "container" },
       h("h2", { class: "section-title" }, "Start free. Upgrade when you're ready."),
       h("p", { class: "section-sub" }, "Paid plans cancel anytime, with a 3-day money-back guarantee."),
       h("div", { class: "pricing-three" }, planCards(plansInfo, { include: ["free", "monthly", "interview"] })),
-      comparePlans(),
-      h("div", { class: "card nh-guarantee", id: "guarantee" }, svgIcon(ICON_SHIELD.replace(/20/g, "30")),
-        h("p", {}, h("b", {}, "The interview guarantee. "), "Stay on Pro for 30 days and apply to at least 10 jobs through Jane. If you don't get a single interview, your next month is on us. ", h("a", { href: "/refunds#guarantee" }, "Details"))),
-      state.user ? null : h("p", { class: "try-line" }, "Not ready to sign up? ", link("/try", {}, "Try one search without an account")),
-      h("div", { class: "section-gap" }, checkoutNote()),
+      full ? comparePlans() : null,
+      full ? h("div", { class: "card nh-guarantee", id: "guarantee" }, svgIcon(ICON_SHIELD.replace(/20/g, "30")),
+        h("p", {}, h("b", {}, "The interview guarantee. "), "Stay on Pro for 30 days and apply to at least 10 jobs through Jane. If you don't get a single interview, your next month is on us. ", h("a", { href: "/refunds#guarantee" }, "Details"))) : null,
+      full ? h("div", { class: "section-gap" }, checkoutNote())
+        : h("p", { class: "try-line" }, link("/pricing", {}, "Compare plans"), " · ", h("a", { href: "/refunds#guarantee" }, "How the interview guarantee works")),
     ),
   );
 }
