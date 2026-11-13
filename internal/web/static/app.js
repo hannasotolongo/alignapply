@@ -946,12 +946,12 @@ function nhSections() {
           h("p", { class: "faint small" }, "Included with Pro, or on its own with Interview Prep.")),
         h("div", { class: "card nh-prep-card" },
           h("p", { class: "nh-kicker" }, "Software Engineer · NVIDIA"),
-          h("p", { class: "nh-prep-q" }, "“Design the checkout system for a grocery store.”"),
-          h("div", { class: "nh-rec" }, h("span", { class: "nh-rec-dot" }), "Recording", h("span", { class: "nh-rec-time" }, "1:12")),
+          h("p", { class: "nh-prep-q" }, "“Design a ride-hailing platform like Uber. It needs to match riders with nearby drivers in under a second, track every car in real time, and handle 10 million rides a day. Walk me through it.”"),
+          h("div", { class: "nh-rec" }, h("span", { class: "nh-rec-dot" }), "Recording", h("span", { class: "nh-rec-time" }, "3:48")),
           h("div", { class: "nh-meters" },
             meter("Pace", "148", "words / min"),
             meter("Filler words", "3", "um, like"),
-            meter("Length", "1:30", "right on time"))))),
+            meter("Length", "3:48", "good depth"))))),
   ];
 }
 

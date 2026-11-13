@@ -1639,3 +1639,4 @@ body { background: #0b0b0c; background-image: none; }
 .nh-meter small { font-size: 12px; color: var(--text-3, var(--text-2)); }
 @media (max-width: 900px) { .nh-prep { grid-template-columns: 1fr; gap: 24px; } }
 .nh-prep .hd-eyebrow { text-align: left; } .nh-prep .nh-ticks { margin-bottom: 12px; }
+.nh-prep-q { font-size: 18px; line-height: 1.45; }
