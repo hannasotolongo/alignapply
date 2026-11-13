@@ -931,7 +931,7 @@ function nhSections() {
         h("h2", { class: "nh-h2" }, "From application to interview."),
         h("ol", { class: "nh-steps" },
           how(1, "Drop your résumé", "Tell Jane the job you want and where."),
-          how(2, "Get your best matches", "Jane searches openings on employers' own career sites and scores each one against your résumé, so you know which jobs you have a real shot at and why."),
+          how(2, "Find jobs you can actually land", "Jane checks every opening against your résumé and tells you how strong a fit you are, and why."),
           how(3, "Apply ready", "Your résumé and cover letter, written for each job, as PDF or Word. Apply on the employer's site.")))),
     h("section", { class: "nh-section", id: "interview" },
       h("div", { class: "container nh-prep" },
@@ -962,7 +962,7 @@ function nhFaq() {
     h("div", { class: "container nh-faq" },
       h("h2", { class: "nh-h2 nh-left" }, "Questions"),
       item("Does Jane apply for me?", "No. Jane gets everything ready and sends you to the employer's own site, where you apply. Employers can spot auto-applications, and yours shouldn't look like one."),
-      item("How does the interview guarantee work?", "Stay on Pro for 30 days and apply to at least 10 jobs through Jane. If you don't get a single interview, email us and your next month is free."),
+      item("How does the interview guarantee work?", "Apply to at least 10 jobs with Jane on Pro. If you don't get an interview within 30 days, email us and your next month is free."),
       item("Can I cancel?", "Yes, any time from Plan & billing, and your first payment has a 3-day money-back guarantee.")));
 }
 
@@ -1434,10 +1434,10 @@ function pricingSection(plansInfo, { full = false } = {}) {
       h("p", { class: "section-sub" }, "Paid plans cancel anytime, with a 3-day money-back guarantee."),
       h("div", { class: "pricing-three" }, planCards(plansInfo, { include: ["free", "monthly", "interview"] })),
       full ? comparePlans() : null,
-      full ? h("div", { class: "card nh-guarantee", id: "guarantee" }, svgIcon(ICON_SHIELD.replace(/20/g, "30")),
-        h("p", {}, h("b", {}, "The interview guarantee. "), "Stay on Pro for 30 days and apply to at least 10 jobs through Jane. If you don't get a single interview, your next month is on us. ", h("a", { href: "/refunds#guarantee" }, "Details"))) : null,
+      h("div", { class: "card nh-guarantee", id: "guarantee" }, svgIcon(ICON_SHIELD.replace(/20/g, "30")),
+        h("p", {}, h("b", {}, "The interview guarantee. "), "Apply to at least 10 jobs with Jane on Pro. If you don't get an interview within 30 days, your next month is free. ", h("a", { href: "/refunds#guarantee" }, "Details"))),
       full ? h("div", { class: "section-gap" }, checkoutNote())
-        : h("p", { class: "try-line" }, link("/pricing", {}, "Compare plans"), " · ", h("a", { href: "/refunds#guarantee" }, "How the interview guarantee works")),
+        : h("p", { class: "try-line" }, link("/pricing", {}, "Compare plans")),
     ),
   );
 }
