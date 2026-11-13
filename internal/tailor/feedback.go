@@ -206,6 +206,7 @@ var InterviewStages = map[string]string{
 	"first":      `6 questions for a first-round interview with the hiring manager: walking through the résumé, why this role, how the candidate's past work fits the job's main responsibilities, one behavioral question, and one about the biggest gap versus the requirements`,
 	"behavioral": `6 behavioral questions ("tell me about a time…") tied to this job's requirements, such as teamwork, conflict, failure, leadership, prioritizing and handling pressure`,
 	"role":       `6 technical or skills questions that test the specific skills, tools, methods and knowledge this job requires, the way a technical interviewer or skills assessment would`,
+	"design":     `6 system design questions like the ones this employer asks: design a real system close to what this company builds (for example a ride-hailing service, a news feed, a chat app, a payments system or a URL shortener), each with scale numbers to work toward. The approach for each walks through how to structure the answer: clarify requirements, estimate scale, sketch the APIs and data model, design the main components, then scaling, reliability and trade-offs`,
 	"panel":      `6 questions a panel of several interviewers (the hiring manager, a peer and someone from a partner team) would ask: collaboration across teams, role skills, a behavioral question, and how the candidate handles different stakeholders`,
 	"final":      `6 questions a hiring manager or senior leader would ask in a final round: impact, judgment, how the candidate would approach the first 90 days, culture fit, and why they're the best choice`,
 	"ask":        `6 smart questions the CANDIDATE should ask the interviewer about this role, team and company. For each, the approach explains why it's a good question and what to listen for in the answer`,
@@ -217,6 +218,7 @@ var InterviewStageNames = map[string]string{
 	"first":      "first-round interview with the hiring manager",
 	"behavioral": "behavioral interview",
 	"role":       "technical or skills interview",
+	"design":     "system design interview",
 	"panel":      "panel interview",
 	"final":      "final-round interview",
 }

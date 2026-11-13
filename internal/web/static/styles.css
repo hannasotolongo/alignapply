@@ -1640,3 +1640,9 @@ body { background: #0b0b0c; background-image: none; }
 @media (max-width: 900px) { .nh-prep { grid-template-columns: 1fr; gap: 24px; } }
 .nh-prep .hd-eyebrow { text-align: left; } .nh-prep .nh-ticks { margin-bottom: 12px; }
 .nh-prep-q { font-size: 18px; line-height: 1.45; }
+.nh-prep-lead { margin: 0 0 14px; line-height: 1.55; }
+.nh-rounds { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+.nh-round { font-size: 13px; font-weight: 600; padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,.14); color: var(--text-2); white-space: nowrap; }
+.nh-round.on { background: #fff; color: #0a0a0a; border-color: #fff; }
+.nh-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.nh-card-head .nh-kicker { margin: 0; }
