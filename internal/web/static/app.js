@@ -991,7 +991,7 @@ async function viewLanding() {
         h("div", { class: "container nh-hero-grid" },
           h("div", { class: "nh-hero-copy" },
             h("h1", {}, "Get hired,", h("br", {}), "not ghosted."),
-            h("p", { class: "lead" }, "Jane finds the jobs you can actually get, writes your résumé and cover letter for each one, and preps you for the interview.")),
+            h("p", { class: "lead" }, "Your matches, your résumé, your cover letter and your interview prep, all done for each job.")),
           heroTryCard())),
       ...nhSections(),
       pricingSection(plansInfo, { full: location.pathname === "/pricing" }),
