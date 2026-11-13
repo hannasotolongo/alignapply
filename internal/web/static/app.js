@@ -969,8 +969,6 @@ function nhFaq() {
 function nhFinal() {
   return h("section", { class: "nh-final" },
     h("div", { class: "container" },
-      h("img", { src: "/jane-mini.png", alt: "Jane", width: 120, height: 122 }),
-      h("h2", {}, "Your first matches are 60 seconds away."),
       state.user
         ? link("/app", { class: "btn btn-primary btn-lg" }, "Go to my account")
         : h("button", { type: "button", class: "btn btn-primary btn-lg", onclick: () => {

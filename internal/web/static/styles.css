@@ -1595,8 +1595,7 @@ body { background: #0b0b0c; background-image: none; }
 .nh-faq-item[open] summary::after { content: "–"; }
 .nh-faq-item summary::-webkit-details-marker { display: none; }
 .nh-faq-item p { margin: 10px 0 0; color: var(--text-2); line-height: 1.6; }
-.nh-final { padding: 30px 0 100px; text-align: center; }
-.nh-final img { width: 120px; height: auto; }
+.nh-final { padding: 20px 0 90px; text-align: center; }
 .nh-final h2 { margin: 10px 0 24px; font-family: "Inter Tight", Inter, system-ui, sans-serif; font-weight: 600; font-size: clamp(34px, 5vw, 58px); letter-spacing: -0.04em; line-height: 1.05; }
 @media (max-width: 900px) {
   .nh-hero { padding: 28px 0 40px; }
