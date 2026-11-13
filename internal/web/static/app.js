@@ -1048,7 +1048,6 @@ async function viewTry() {
 
 function trialAccountNote() {
   return h("div", { class: "try-head" },
-    h("img", { src: "/jane-mini.png", alt: "Jane", width: 110, height: 112 }),
     h("h1", {}, "You're already in."),
     h("p", { class: "lead" }, "Search jobs, check your résumé and practice interviews from your account."),
     link("/app", { class: "btn btn-primary btn-lg" }, "Go to my account"));
@@ -1056,7 +1055,6 @@ function trialAccountNote() {
 
 function trialUsedNote() {
   return h("div", { class: "try-head" },
-    h("img", { src: "/jane-mini.png", alt: "Jane", width: 110, height: 112 }),
     h("h1", {}, "You've used your free search."),
     h("p", { class: "lead" }, "Get Pro to see every match near you, a tailored résumé for each job, and interview practice."),
     h("button", { class: "btn btn-primary btn-lg", onclick: () => startCheckout("monthly") }, "Get Pro"),
@@ -1096,7 +1094,6 @@ function renderTrialForm(body, saved = {}) {
     }
     const request = { targetRole: role.value.trim(), location: place.value.trim(), resumeText };
     body.replaceChildren(h("div", { class: "try-loading" },
-      h("img", { src: "/jane-mini.png", alt: "", width: 90, height: 92 }),
       spinnerRow(`Jane is reading your résumé and scoring ${request.targetRole} jobs near ${request.location}…`)));
     try {
       const result = await api("/api/v1/trial/search", { method: "POST", body: request, allowUnauthorized: true });
@@ -1124,7 +1121,6 @@ function renderTrialForm(body, saved = {}) {
 
   body.replaceChildren(
     h("div", { class: "try-head" },
-      h("img", { src: "/jane-mini.png", alt: "Jane", width: 110, height: 112 }),
       h("span", { class: "try-chip" }, "Free · no card needed"),
       h("h1", {}, "Try Jane on one search"),
       h("p", { class: "lead" }, "Upload your résumé. Jane tells you what to fix and finds the jobs you're most qualified for.")),
@@ -1202,7 +1198,6 @@ function renderTrialResults(body, request, result) {
 
   if (!total) {
     body.replaceChildren(h("div", { class: "try-head" },
-      h("img", { src: "/jane-mini.png", alt: "Jane", width: 110, height: 112 }),
       h("h1", {}, "No matches yet"),
       h("p", { class: "lead" }, `Jane didn't find ${request.targetRole} openings she could score near ${request.location} today. Try a broader job title or a nearby city.`),
       h("button", { class: "btn btn-primary btn-lg", onclick: () => renderTrialForm(body, { role: request.targetRole, place: request.location }) }, "Search again")));
@@ -2425,7 +2420,7 @@ function renderMatches(container, matches) {
         search.total = page.total;
         search.nextOffset = page.nextOffset;
         page.matches.forEach((match) => list.append(jobCard(match)));
-        credit.replaceChildren(sourceCredit(search.matches));
+        credit.replaceChildren(sourceCredit(search.matches) || "");
         showButton();
       } catch (error) {
         button.disabled = false;
@@ -2437,8 +2432,7 @@ function renderMatches(container, matches) {
   };
   showButton();
 
-  container.replaceChildren(status, list, more,
-    locked ? lockedMatchesCard(locked) : null, credit);
+  container.replaceChildren(...[status, list, more, locked ? lockedMatchesCard(locked) : null, credit].filter(Boolean));
 }
 
 // lockedMatchesCard: the Free plan shows the best few jobs; Pro shows all.
