@@ -349,8 +349,10 @@ func main() {
 				Kind:         api.PlanKindSubscription,
 				Interval:     "month",
 				TrialDays:    0, // No free trial; the first payment is due at checkout.
-				DisplayPrice: envOrDefault("PRO_MONTHLY_DISPLAY_PRICE", "$14.99"),
+				DisplayPrice: envOrDefault("PRO_MONTHLY_DISPLAY_PRICE", "$29"),
 				PriceID:      strings.TrimSpace(os.Getenv("STRIPE_PRICE_PRO_MONTHLY")),
+				// Subscribers at the old $14.99 price keep it.
+				LegacyPriceIDs: envList("STRIPE_PRICE_PRO_MONTHLY_LEGACY"),
 			},
 			{
 				Key:          "sprint",
@@ -367,8 +369,10 @@ func main() {
 				Kind:         api.PlanKindSubscription,
 				Interval:     "month",
 				Access:       api.AccessInterview,
-				DisplayPrice: envOrDefault("INTERVIEW_DISPLAY_PRICE", "$8.99"),
+				DisplayPrice: envOrDefault("INTERVIEW_DISPLAY_PRICE", "$9.99"),
 				PriceID:      strings.TrimSpace(os.Getenv("STRIPE_PRICE_INTERVIEW")),
+				// Subscribers at the old $8.99 price keep it.
+				LegacyPriceIDs: envList("STRIPE_PRICE_INTERVIEW_LEGACY"),
 			},
 			{
 				Key:          "school",
@@ -509,4 +513,15 @@ func looksLikeNonOpenAIKey(key string) bool {
 		}
 	}
 	return false
+}
+
+// envList reads a comma-separated list from the environment.
+func envList(name string) []string {
+	var out []string
+	for _, part := range strings.Split(os.Getenv(name), ",") {
+		if part = strings.TrimSpace(part); part != "" {
+			out = append(out, part)
+		}
+	}
+	return out
 }

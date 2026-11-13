@@ -102,6 +102,49 @@ async function api(path, options = {}) {
   return data;
 }
 
+// downloadDocument posts JSON to a document endpoint and saves the file the
+// server sends back (PDF or Word), using the server's file name.
+async function downloadDocument(path, format, body) {
+  const response = await fetch(`${path}?format=${encodeURIComponent(format)}`, {
+    method: "POST", credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    let data = null;
+    try { data = JSON.parse(text); } catch { data = null; }
+    if (response.status === 401) { state.user = null; navigate("/login", { replace: true }); }
+    throw new ApiError(response.status, (data && data.error) || text.trim() || `Download failed (${response.status})`, data && data.code);
+  }
+  const blob = await response.blob();
+  const match = /filename="([^"]+)"/.exec(response.headers.get("Content-Disposition") || "");
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = match ? match[1] : `document.${format}`;
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+}
+
+// downloadButtons renders "PDF" and "Word" buttons for one document.
+function downloadButtons(path, getBody, onError) {
+  const make = (format, label) => {
+    const button = h("button", { class: "btn btn-sm", type: "button", onclick: async () => {
+      button.disabled = true;
+      const old = button.textContent;
+      button.textContent = "Preparing…";
+      try { await downloadDocument(path, format, await getBody()); }
+      catch (error) { if (onError) onError(error); }
+      finally { button.disabled = false; button.textContent = old; }
+    } }, label);
+    return button;
+  };
+  return [make("pdf", "↓ PDF"), make("docx", "↓ Word")];
+}
+
 // fetchMatchPage asks for one page of ranked, scored matches. The server
 // says how many there are in all and where the next page starts.
 const MATCH_PAGE_SIZE = 20;
@@ -720,7 +763,7 @@ function janeHomeSections() {
           h("div", {}, h("span", { class: "hd-num" }, "3"), h("div", {}, h("h3", {}, "Get coached on how you sound"), h("p", {}, "Pace, filler words, length and how to improve. Then say it again, better."))),
           h("div", { class: "card hd-own" },
             h("div", {}, h("b", {}, "Already have an interview?"),
-              h("p", {}, `Get Interview Prep on its own for ${(planFor("interview") || { displayPrice: "$8.99" }).displayPrice}/month. It's included in Pro.`)),
+              h("p", {}, `Get Interview Prep on its own for ${(planFor("interview") || { displayPrice: "$9.99" }).displayPrice}/month. It's included in Pro.`)),
             h("button", { class: "btn btn-primary", type: "button", onclick: () => startCheckout("interview") }, "Get Interview Prep"))),
         h("div", { class: "hd-card" }, hdInterviewVisual())),
     ));
@@ -795,27 +838,180 @@ function liveJobsStrip() {
   return strip;
 }
 
+// ---------------------------------------------------------------------------
+// Homepage (Nov 2026 redesign): sell the need, then let people try Jane on
+// their own résumé right in the hero.
+// ---------------------------------------------------------------------------
+
+const GUARANTEE_SHORT = "Interview guarantee: no interview in 30 days on Pro, your next month is free.";
+const ICON_SHIELD = '<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg>';
+const ICON_UPLOAD = '<svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></svg>';
+
+// A résumé picked in the homepage hero, handed to /try to run the search.
+let pendingTrial = null;
+
+function guaranteeBanner() {
+  return h("div", { class: "nh-banner" }, svgIcon(ICON_SHIELD),
+    h("span", {}, h("b", {}, "Interview guarantee: "), "no interview in 30 days on Pro, your next month is free. ",
+      h("a", { href: "/refunds#guarantee" }, "How it works")));
+}
+
+function heroTryCard() {
+  if (state.user) {
+    return h("div", { class: "nh-try card" },
+      h("p", { class: "nh-kicker" }, "Welcome back"),
+      h("h2", {}, "Your matches are waiting"),
+      h("p", { class: "muted" }, "Search jobs, get your résumé and cover letter ready, and practice interviews."),
+      link("/app", { class: "btn btn-primary btn-lg btn-block" }, "Go to my account"));
+  }
+  if (trialUsed()) {
+    return h("div", { class: "nh-try card" },
+      h("p", { class: "nh-kicker" }, "Free account"),
+      h("h2", {}, "Keep going with Jane"),
+      h("p", { class: "muted" }, "You've used your search without an account. Sign up free for your top 5 matches on every search, plus a free cover letter."),
+      link("/signup", { class: "btn btn-primary btn-lg btn-block" }, "Sign up free"),
+      h("p", { class: "faint small center" }, "No card needed"));
+  }
+  const role = h("input", { type: "text", required: true, maxlength: 100, placeholder: "Job title you want", "aria-label": "Job title you want", autocomplete: "organization-title" });
+  let rememberedPlace = "";
+  try { rememberedPlace = sessionStorage.getItem(TRY_PLACE_KEY) || ""; } catch { /* ignore */ }
+  const place = h("input", { type: "text", required: true, maxlength: 100, placeholder: "City, ZIP or Remote", "aria-label": "City, ZIP or Remote", value: rememberedPlace });
+  const file = h("input", { id: "nh-resume", type: "file", accept: ".pdf,.txt,application/pdf,text/plain", class: "try-file-input" });
+  const fileName = h("strong", {}, "Drop your résumé here");
+  const fileHint = h("span", {}, "PDF · read in your browser");
+  file.addEventListener("change", () => {
+    const chosen = file.files && file.files[0];
+    fileName.textContent = chosen ? chosen.name : "Drop your résumé here";
+    fileHint.textContent = chosen ? "Ready · tap to change" : "PDF · read in your browser";
+  });
+  const drop = h("label", { for: "nh-resume", class: "nh-drop" }, svgIcon(ICON_UPLOAD), fileName, fileHint);
+  for (const type of ["dragenter", "dragover"]) drop.addEventListener(type, (event) => { event.preventDefault(); drop.classList.add("over"); });
+  for (const type of ["dragleave", "drop"]) drop.addEventListener(type, (event) => { event.preventDefault(); drop.classList.remove("over"); });
+  drop.addEventListener("drop", (event) => {
+    const dropped = event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0];
+    if (!dropped) return;
+    const transfer = new DataTransfer();
+    transfer.items.add(dropped);
+    file.files = transfer.files;
+    file.dispatchEvent(new Event("change"));
+  });
+  const error = h("p", { class: "try-error", role: "alert" });
+  return h("form", { class: "nh-try card", onsubmit: (event) => {
+    event.preventDefault();
+    const chosen = file.files && file.files[0];
+    if (!chosen) { error.textContent = "Add your résumé so Jane can check it."; return; }
+    if (!role.value.trim() || !place.value.trim()) { error.textContent = "Tell Jane the job you want and where."; return; }
+    pendingTrial = { role: role.value.trim(), place: place.value.trim(), file: chosen };
+    navigate("/try");
+  } },
+    h("p", { class: "nh-kicker" }, "Try it now · no account"),
+    h("h2", {}, "See your matches in 60 seconds"),
+    drop, file,
+    h("div", { class: "nh-fields" }, role, place),
+    error,
+    h("button", { type: "submit", class: "btn btn-primary btn-lg btn-block" }, "Find my jobs"),
+    h("p", { class: "faint small center" }, "Your résumé is read in your browser and never sold."));
+}
+
+function nhMiniDoc(title, tag, widths) {
+  return h("div", { class: "nh-doc", "aria-hidden": "true" },
+    h("span", { class: "nh-doc-tag" }, tag),
+    h("b", {}, title),
+    ...widths.map((width) => { const line = h("i", {}); line.style.width = `${width}%`; return line; }));
+}
+
+function nhSections() {
+  const how = (n, title, text) => h("li", { class: "card nh-step" }, h("span", { class: "nh-kicker" }, `Step ${n}`), h("h3", {}, title), h("p", {}, text));
+  const tick = (text) => h("li", {}, text);
+  const stat = (big, text) => h("div", { class: "card nh-stat" }, h("b", {}, big), h("span", {}, text));
+  return [
+    h("section", { class: "nh-need" },
+      h("div", { class: "container" },
+        h("h2", {}, "You've sent 100 applications.", h("br", {}), h("span", {}, "You've heard back from 0.")),
+        h("p", {}, "It's not your résumé. When anyone can apply to hundreds of jobs in a click, recruiters get buried and generic applications get skipped. The people landing interviews apply to fewer jobs, with a résumé and cover letter written for each one. That's hours of work for every job. Jane does it for you."))),
+    h("section", { class: "nh-section", id: "how" },
+      h("div", { class: "container" },
+        h("p", { class: "hd-eyebrow" }, "How it works"),
+        h("h2", { class: "nh-h2" }, "From résumé to ready-to-send in minutes."),
+        h("ol", { class: "nh-steps" },
+          how(1, "Drop your résumé", "Tell Jane the job you want and where. She reads your résumé in seconds."),
+          how(2, "See the jobs you'll get", "Jobs from employers' own sites, each scored by how well you actually fit, with the reason why."),
+          how(3, "Get it ready, then apply", "Jane rewrites your résumé for the job and writes the cover letter. You apply on the employer's site.")))),
+    h("section", { class: "nh-section" },
+      h("div", { class: "container" },
+        h("div", { class: "card nh-package" },
+          h("div", {},
+            h("p", { class: "hd-eyebrow" }, "For every job"),
+            h("h2", { class: "nh-h2 nh-left" }, "Everything you need to apply, in one place."),
+            h("ul", { class: "ticks nh-ticks" },
+              tick("Your match score and the reason you fit"),
+              tick("What to fix so you stand out"),
+              tick("Your résumé, rewritten for this exact job, as a PDF or Word file"),
+              tick("A cover letter written for this company, ready to download"),
+              tick("A direct link to apply on the employer's own site")),
+            h("p", { class: "faint small" }, "Every line comes from your real résumé. Jane never makes anything up.")),
+          h("div", { class: "nh-docs" },
+            nhMiniDoc("Your résumé · Microsoft", "Tailored", [92, 80, 96, 70, 88, 60, 94, 76, 84, 58, 90, 72]),
+            nhMiniDoc("Cover letter · Microsoft", "Ready", [40, 96, 92, 88, 94, 60, 96, 90, 86, 52]),
+            h("div", { class: "card nh-docs-match" }, trialRing(94), h("span", {}, h("b", {}, "Software Engineer · Microsoft"), h("small", {}, "Meets 7 of 7 must-haves"))))))),
+    h("section", { class: "nh-section nh-tight" },
+      h("div", { class: "container nh-stats" },
+        stat("Hours → minutes", "to get each application ready"),
+        stat("$150+", "what a résumé writer charges for one résumé. Jane tailors yours for every job."),
+        stat("0", "job boards between you and the employer"))),
+  ];
+}
+
+function nhFaq() {
+  const item = (question, answer) => h("details", { class: "nh-faq-item" }, h("summary", {}, question), h("p", {}, answer));
+  return h("section", { class: "nh-section", id: "faq" },
+    h("div", { class: "container nh-faq" },
+      h("h2", { class: "nh-h2 nh-left" }, "Questions"),
+      item("Does Jane apply for me?", "No. Jane gets everything ready and sends you to the employer's own site, where you apply. Employers can spot auto-applications, and yours shouldn't look like one."),
+      item("Will Jane make things up on my résumé?", "Never. Jane only rewrites and reorders what's already on your résumé, and checks every line against it."),
+      item("Where do the jobs come from?", "Straight from employers' own career sites, checked every day. No job boards and no reposted listings."),
+      item("How does the interview guarantee work?", "Stay on Pro for 30 days and apply to at least 10 jobs through Jane. If you don't get a single interview, email us and your next month is free."),
+      item("Can I cancel?", "Yes, any time from Plan & billing, and your first payment has a 3-day money-back guarantee.")));
+}
+
+function nhFinal() {
+  return h("section", { class: "nh-final" },
+    h("div", { class: "container" },
+      h("img", { src: "/jane-mini.png", alt: "Jane", width: 120, height: 122 }),
+      h("h2", {}, "Your first matches are 60 seconds away."),
+      state.user
+        ? link("/app", { class: "btn btn-primary btn-lg" }, "Go to my account")
+        : h("button", { type: "button", class: "btn btn-primary btn-lg", onclick: () => {
+          window.scrollTo({ top: 0, behavior: "smooth" });
+          const input = document.querySelector(".nh-try input[type=text]");
+          if (input) setTimeout(() => input.focus(), 400);
+        } }, "Drop your résumé, free")));
+}
+
 async function viewLanding() {
   if (state.user === undefined) await loadUser();
   const plansInfo = await loadPlans();
   if (state.user) await loadBilling().catch(() => null);
-  const signedIn = !!state.user;
+  const [, practice, founder] = janeHomeSections();
 
   mount(h("div", {},
+    guaranteeBanner(),
     siteNav(),
     h("main", {},
-      h("section", { class: "hd-hero" },
-        h("div", { class: "container" },
-          h("img", { src: "/jane-mini.png", alt: "Jane", width: 196, height: 200 }),
-          h("h1", {}, "Meet Jane."),
-          h("p", { class: "hd-slogan" }, "Fewer applications. More offers."),
-          h("p", { class: "lead" }, "Jane finds the jobs you're most qualified for and helps you ace the interview."),
-          link(signedIn ? "/app" : "/try", { class: "btn btn-primary btn-lg" }, signedIn ? "Go to my account" : "Try it free"),
-          h("p", { class: "faint small hero-note" }, signedIn ? "Cancel anytime · 3-day money-back guarantee" : "No card needed · Cancel anytime · 3-day money-back guarantee"),
-        ),
-      ),
-      ...janeHomeSections(),
+      h("section", { class: "nh-hero" },
+        h("div", { class: "container nh-hero-grid" },
+          h("div", { class: "nh-hero-copy" },
+            h("div", { class: "nh-hi" }, h("img", { src: "/jane-mini.png", alt: "Jane", width: 72, height: 74 }), h("span", {}, "Hi, I'm ", h("b", {}, "Jane"), ". I'll help you get hired.")),
+            h("h1", {}, "Stop applying everywhere.", h("br", {}), "Start getting interviews."),
+            h("p", { class: "lead" }, "Jane finds the jobs you're most likely to get, shows you what to fix, and writes your résumé and cover letter for each one. You apply on the employer's own site."),
+            h("ul", { class: "nh-checks" }, h("li", {}, "Jobs straight from employer sites"), h("li", {}, "Nothing made up, ever"), h("li", {}, "Cancel anytime"))),
+          heroTryCard())),
+      ...nhSections(),
+      practice,
       pricingSection(plansInfo),
+      nhFaq(),
+      founder,
+      nhFinal(),
     ),
     siteFooter(),
   ));
@@ -849,7 +1045,20 @@ async function viewTry() {
     body.replaceChildren(trialUsedNote());
     return;
   }
-  renderTrialForm(body);
+  const handoff = pendingTrial;
+  pendingTrial = null;
+  renderTrialForm(body, handoff || {});
+  if (handoff && handoff.file) {
+    const input = body.querySelector("#try-resume");
+    const form = body.querySelector(".try-form");
+    try {
+      const transfer = new DataTransfer();
+      transfer.items.add(handoff.file);
+      input.files = transfer.files;
+      input.dispatchEvent(new Event("change"));
+      form.requestSubmit();
+    } catch { /* older browser: the form is filled in, they press the button */ }
+  }
 }
 
 function trialAccountNote() {
@@ -1158,7 +1367,7 @@ function checkoutNote() {
 function planCards(plansInfo, { compact = false, include = ["monthly", "interview"] } = {}) {
   const enabled = plansInfo.billingEnabled;
   const interview = planFor("interview");
-  const monthly = planFor("monthly") || { key: "monthly", name: "Pro Monthly", displayPrice: "$14.99", interval: "month" };
+  const monthly = planFor("monthly") || { key: "monthly", name: "Pro Monthly", displayPrice: "$29", interval: "month" };
   const sprint = planFor("sprint") || { key: "sprint", name: "Job Search Sprint", displayPrice: "$39", interval: "90 days" };
   const school = planFor("school") || { key: "school", name: "School License", displayPrice: "$1,000", interval: "year" };
 
@@ -1167,7 +1376,9 @@ function planCards(plansInfo, { compact = false, include = ["monthly", "intervie
     "Every résumé fix, and how to make it",
     "Upload all your résumés. Jane picks the best one for each job and tailors it",
     "A cover letter for every job",
+    "Download your résumé and cover letter as PDF or Word",
     h("strong", {}, "Interview Prep included"),
+    "Interview guarantee",
   ];
   const ticks = (items) => h("ul", { class: "ticks" }, items.map((f) => h("li", {}, f)));
 
@@ -1185,7 +1396,7 @@ function planCards(plansInfo, { compact = false, include = ["monthly", "intervie
     ));
   }
   if (include.includes("interview")) {
-    const plan = interview || { key: "interview", name: "Interview Prep", displayPrice: "$8.99", interval: "month" };
+    const plan = interview || { key: "interview", name: "Interview Prep", displayPrice: "$9.99", interval: "month" };
     byKey.interview = (h("div", { class: "card price-card" },
       h("div", {}, h("span", { class: "pill pill-new" }, "New"), h("h3", {}, plan.name), h("p", { class: "muted small" }, "Just the interview practice")),
       h("div", { class: "price" }, plan.displayPrice, " ", h("small", {}, `/ ${plan.interval}`)),
@@ -1238,6 +1449,8 @@ function pricingSection(plansInfo) {
       h("p", { class: "section-sub" }, "Paid plans cancel anytime, with a 3-day money-back guarantee."),
       h("div", { class: "pricing-three" }, planCards(plansInfo, { include: ["free", "monthly", "interview"] })),
       comparePlans(),
+      h("div", { class: "card nh-guarantee", id: "guarantee" }, svgIcon(ICON_SHIELD.replace(/20/g, "30")),
+        h("p", {}, h("b", {}, "The interview guarantee. "), "Stay on Pro for 30 days and apply to at least 10 jobs through Jane. If you don't get a single interview, your next month is on us. ", h("a", { href: "/refunds#guarantee" }, "Details"))),
       state.user ? null : h("p", { class: "try-line" }, "Not ready to sign up? ", link("/try", {}, "Try one search without an account")),
       h("div", { class: "section-gap" }, checkoutNote()),
     ),
@@ -1254,6 +1467,7 @@ function comparePlans() {
     ["Apply on the employer's own site", "✓", "✓", "–"],
     ["Interview practice", "1 question", "Unlimited", "Unlimited"],
     ["Pace, filler words and length", "1 question", "✓", "✓"],
+    ["Interview guarantee", "–", "✓", "–"],
   ];
   const cell = (value, strong) => h("td", { class: value === "–" ? "none" : strong ? "strong" : "" }, value);
   return h("div", { class: "compare-wrap" },
@@ -2442,6 +2656,7 @@ function openJobDetail(match) {
       isFree()
         ? freeUpgrade("Tailor your résumé to this job", "Pro rewrites your résumé summary, bullets and keywords for this job, using only what's true, and picks your best résumé to send.")
         : recommendationCard(match, slot),
+      isFree() ? null : tailoredResumeSection(getInput),
       isFree() ? null : applicationKitSection(getInput, `${match.title}${match.company ? ` at ${match.company}` : ""}`, { withLetter: false }));
   }
 
@@ -3694,6 +3909,50 @@ function applicationKitSection(getInput, title, { withLetter = true } = {}) {
   return h("div", { class: "stack-sm" }, intro, slot, withLetter ? coverLetterSection(getInput) : null);
 }
 
+// tailoredResumeSection rewrites the whole résumé for one job (Pro) and
+// offers it as a PDF or Word file.
+function tailoredResumeSection(getInput) {
+  const slot = h("div", {});
+  let company = "";
+  const preview = (resume) => h("div", { class: "try-letter-paper tr-paper" },
+    h("p", { class: "tr-name" }, resume.name || ""),
+    (resume.contact || []).length ? h("p", { class: "faint small" }, resume.contact.join(" · ")) : null,
+    resume.summary ? h("p", {}, resume.summary) : null,
+    (resume.experience || []).map((role) => h("div", { class: "tr-role" },
+      h("p", {}, h("b", {}, [role.title, role.company].filter(Boolean).join(", ")), role.dates ? h("span", { class: "faint small" }, ` · ${role.dates}`) : null),
+      h("ul", {}, (role.bullets || []).map((b) => h("li", {}, b))))),
+    (resume.skills || []).length ? h("p", { class: "small" }, h("b", {}, "Skills: "), resume.skills.join(", ")) : null);
+  const make = h("button", { class: "btn btn-primary", type: "button", onclick: async () => {
+    make.disabled = true;
+    slot.replaceChildren(h("div", { class: "card inset" }, spinnerRow("Jane is rewriting your résumé for this job, using only what's true… (about 30 seconds)")));
+    try {
+      const input = await getInput();
+      company = input.company || "";
+      const resume = await api("/api/v1/tailored-resume", { method: "POST", body: {
+        resumeText: input.resumeText, jobDescription: input.jobDescription, jobTitle: input.jobTitle, company: input.company } });
+      const error = h("div", { class: "form-error", hidden: true });
+      slot.replaceChildren(h("div", { class: "card inset stack-sm" },
+        h("div", { class: "row-between" }, h("h3", {}, "Your tailored résumé"),
+          h("div", { class: "row doc-actions" }, downloadButtons("/api/v1/documents/resume", () => ({ resume, company }),
+            (e) => { error.hidden = false; error.textContent = e.message || "Couldn't download the file."; }))),
+        error,
+        preview(resume),
+        h("p", { class: "faint small" }, "Every line comes from your résumé, reworded for this job. Download the Word file if you want to edit it.")));
+      make.textContent = "Rewrite it again";
+    } catch (error) {
+      slot.replaceChildren(h("div", { class: "form-error" }, error.code === "pro_required" ? "Choose a plan to get a tailored résumé." : error.message));
+    } finally {
+      make.disabled = false;
+    }
+  } }, "Make my tailored résumé");
+  return h("div", { class: "stack-sm" },
+    h("div", { class: "card inset stack-sm" },
+      h("h3", {}, "A résumé made for this job"),
+      h("p", { class: "muted small" }, "Jane rewrites your whole résumé for this job, in its language, and gives it to you as a ready-to-send PDF or an editable Word file."),
+      h("div", { class: "row" }, make)),
+    slot);
+}
+
 // coverLetterSection writes a short, truth-locked cover letter for the job.
 function coverLetterSection(getInput) {
   const slot = h("div", {});
@@ -3706,9 +3965,14 @@ function coverLetterSection(getInput) {
         resumeText: input.resumeText, jobDescription: input.jobDescription, jobTitle: input.jobTitle, company: input.company } });
       slot.replaceChildren(h("div", { class: "card inset stack-sm" },
         h("div", { class: "row-between" }, h("h3", {}, "Your cover letter"),
-          h("button", { class: "btn btn-primary btn-sm", type: "button", onclick: () => copyText(letter.text, "Cover letter copied") }, "Copy")),
+          h("div", { class: "row doc-actions" },
+            h("button", { class: "btn btn-primary btn-sm", type: "button", onclick: () => copyText(letter.text, "Cover letter copied") }, "Copy"),
+            downloadButtons("/api/v1/documents/cover-letter", () => ({
+              name: letter.name || "", greeting: letter.greeting || "", paragraphs: letter.paragraphs || [], closing: letter.closing || "",
+              company: input.company || "", resumeText: (input.resumeText || "").slice(0, 3000) }),
+            (error) => toast(error.message || "Couldn't download the file.")))),
         h("div", { class: "try-letter-paper" }, letter.text.split("\n\n").map((part) => h("p", {}, part.split("\n").flatMap((line, i) => i ? [h("br", {}), line] : [line])))),
-        h("p", { class: "faint small" }, "Written only from your résumé. Read it once and make it yours before you send it.")));
+        h("p", { class: "faint small" }, "Written only from your résumé. Read it once and make it yours before you send it. Download it as a PDF or a Word file to edit.")));
       write.textContent = "Write it again";
       write.disabled = false;
     } catch (error) {

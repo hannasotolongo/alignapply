@@ -40,6 +40,9 @@ type Plan struct {
 	// only interview practice (AccessInterview).
 	Access  string `json:"access,omitempty"`
 	PriceID string `json:"-"`
+	// LegacyPriceIDs are older Stripe prices for the same plan. People who
+	// subscribed at an old price keep it and keep the same access.
+	LegacyPriceIDs []string `json:"-"`
 }
 
 // AccessInterview marks a plan that unlocks only interview practice.
@@ -68,9 +71,17 @@ func (c BillingConfig) planByKey(key string) (Plan, bool) {
 }
 
 func (c BillingConfig) planByPriceID(priceID string) (Plan, bool) {
+	if priceID == "" {
+		return Plan{}, false
+	}
 	for _, plan := range c.Plans {
-		if plan.PriceID != "" && plan.PriceID == priceID {
+		if plan.PriceID == priceID {
 			return plan, true
+		}
+		for _, legacy := range plan.LegacyPriceIDs {
+			if legacy == priceID {
+				return plan, true
+			}
 		}
 	}
 	return Plan{}, false

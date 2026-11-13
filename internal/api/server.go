@@ -399,6 +399,9 @@ func (s *Server) routes() {
 		// Web (email + password) authentication.
 		s.mux.HandleFunc("/api/v1/fit-check", s.handleFitCheck)
 		s.mux.Handle("/api/v1/application-kit", s.sessionManager.Middleware(s.requirePro(http.HandlerFunc(s.handleApplicationKit))))
+		s.mux.Handle("/api/v1/tailored-resume", s.sessionManager.Middleware(s.requirePro(http.HandlerFunc(s.handleTailoredResume))))
+		s.mux.Handle("/api/v1/documents/resume", s.sessionManager.Middleware(s.requirePro(http.HandlerFunc(s.handleResumeDocument))))
+		s.mux.Handle("/api/v1/documents/cover-letter", s.sessionManager.Middleware(http.HandlerFunc(s.handleCoverLetterDocument)))
 		s.mux.Handle("/api/v1/cover-letter", s.sessionManager.Middleware(s.proOrFree(featureFreeCoverLetter, FreeCoverLetters, false,
 			"You've used your free cover letter. Upgrade to Pro for a cover letter for every job.", http.HandlerFunc(s.handleCoverLetter))))
 		s.mux.Handle("/api/v1/interview-feedback", s.sessionManager.Middleware(s.proOrFree(featureFreeInterviewFeedback, FreeInterviewFeedback, true,
