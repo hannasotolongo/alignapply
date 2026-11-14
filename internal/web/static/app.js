@@ -4560,6 +4560,39 @@ const IP_FAQ = [
   ["Can I cancel?", "Yes, any time from Plan & billing, and your first payment has a 3-day money-back guarantee."],
 ];
 
+// ipHearSection: an example answer with its filler words marked, to show why
+// practicing out loud matters.
+function ipHearSection() {
+  const fill = (word) => h("mark", { class: "ip-fill" }, word);
+  const fillerBars = new Set([6, 7, 27, 28, 45, 46, 62, 63, 80, 81, 96, 97, 103, 104]);
+  const wave = h("div", { class: "ip-wave", "aria-hidden": "true" }, Array.from({ length: 110 }, (_, i) => {
+    const height = 8 + Math.abs(Math.sin(i / 5)) * 46 * (0.5 + ((i * 37) % 11) / 22);
+    return h("span", { class: fillerBars.has(i) ? "on" : "", style: `height:${height.toFixed(0)}px` });
+  }));
+  const tip = (label, text) => h("div", { class: "ip-hear-tip" }, h("span", { class: "ip-mono" }, label), h("p", {}, text));
+  return h("section", { class: "ip-section", id: "out-loud" },
+    ipLabel("Why out loud"),
+    h("h2", {}, "Hear what the interviewer hears."),
+    h("p", { class: "ip-sub" }, "You can't hear filler words when you rehearse in your head. Jane catches every one."),
+    h("div", { class: "ip-hear" },
+      h("div", { class: "ip-hear-head" },
+        h("div", {},
+          h("span", { class: "ip-mono" }, "Example · Microsoft · Software Engineer · System design"),
+          h("p", { class: "ip-hear-q" }, "Design the message delivery system for a team chat app like Microsoft Teams.")),
+        h("div", { class: "ip-hear-chips" }, h("span", { class: "ip-chip warn" }, "7 filler words"), h("span", { class: "ip-chip" }, "164 wpm · a bit fast"))),
+      wave,
+      h("span", { class: "ip-mono" }, "The answer · 1:48"),
+      h("p", { class: "ip-hear-text" },
+        "So ", fill("um"), ", I'd start with who's online. Each client keeps a WebSocket open to a gateway, and ", fill("like"),
+        ", messages go into a queue partitioned by chat ID, so ", fill("you know"), ", order holds inside each conversation. ",
+        fill("Basically"), " every message gets written to storage first, and ", fill("um"),
+        ", people who are offline pull what they missed when they reconnect. It has to handle ", fill("like"), " a lot of traffic, ", fill("I guess"), ".")),
+    h("div", { class: "ip-grid-3 ip-hear-tips" },
+      tip("Most used", "\u201cum\u201d and \u201clike\u201d"),
+      tip("Try instead", "Pause for a second. Silence sounds like thinking, not guessing."),
+      tip("Say it with numbers", "\u201cPlan for 50,000 messages a second\u201d beats \u201ca lot of traffic, I guess.\u201d")));
+}
+
 async function viewLanding() {
   if (state.user === undefined) await loadUser();
   const plansInfo = await loadPlans();
@@ -4579,6 +4612,8 @@ async function viewLanding() {
           h("div", { class: "ip-ctas" }, cta("Start a free mock interview"), h("a", { class: "ip-btn", href: "#how" }, "See how it works")),
           h("p", { class: "ip-note" }, state.user ? "Welcome back." : "Free to try. No card needed.")),
         ipDemo()),
+
+      ipHearSection(),
 
       h("section", { class: "ip-section", id: "how" },
         ipLabel("How it works"),
