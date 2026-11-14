@@ -169,6 +169,16 @@ func (s *Server) handleTrialSearch(w http.ResponseWriter, r *http.Request) {
 	close(work)
 	wg.Wait()
 
+	levels := map[string]int{}
+	for _, match := range matches {
+		key := match.MatchLevel
+		if strings.TrimSpace(match.ApplyURL) == "" {
+			key += "/no-apply-url"
+		}
+		levels[key]++
+	}
+	log.Printf("[trial-steps] found=%d kept=%d levels=%v", len(result.Jobs), len(processed), levels)
+
 	scored := matches[:0]
 	for _, match := range matches {
 		if match.MatchLevel != "Insufficient Evidence" && match.MatchLevel != previewMatchLevel && strings.TrimSpace(match.ApplyURL) != "" {
