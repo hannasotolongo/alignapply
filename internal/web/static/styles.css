@@ -1812,9 +1812,9 @@ h1, h2, .section-title, .page-head h1 { font-family: "Inter Tight", Inter, syste
 .ip-hear-chips { display: flex; gap: 8px; flex-wrap: wrap; flex-shrink: 0; }
 .ip-chip { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11.5px; padding: 5px 9px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.16); color: #c8cbd2; white-space: nowrap; }
 .ip-chip.warn { border-color: rgba(251,191,36,0.5); color: #fde68a; }
-.ip-wave { display: flex; align-items: center; gap: 4px; height: 64px; overflow: hidden; }
-.ip-wave span { flex: 1 0 3px; max-width: 5px; border-radius: 3px; background: #4b4f58; }
-.ip-wave span.on { background: #fbbf24; }
+.ip-hear-wave { display: flex; align-items: center; gap: 4px; height: 64px; overflow: hidden; }
+.ip-hear-wave span { flex: 1 0 3px; max-width: 5px; border-radius: 3px; background: #4b4f58; }
+.ip-hear-wave span.on { background: #fbbf24; }
 .ip-hear-text { margin: 0; font-size: 20px; line-height: 1.75; }
 .ip-fill { background: rgba(251,191,36,0.18); color: #fde68a; border-radius: 4px; padding: 0 4px; }
 .ip-hear-tips { margin-top: 18px; }
@@ -1824,5 +1824,5 @@ h1, h2, .section-title, .page-head h1 { font-family: "Inter Tight", Inter, syste
   .ip-hear { padding: 20px; }
   .ip-hear-head { flex-direction: column; }
   .ip-hear-q, .ip-hear-text { font-size: 17px; }
-  .ip-wave { height: 48px; gap: 3px; }
+  .ip-hear-wave { height: 48px; gap: 3px; }
 }

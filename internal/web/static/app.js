@@ -21,6 +21,14 @@ function h(tag, attrs, ...children) {
     if (key === "class") el.className = value;
     else if (key.startsWith("on") && typeof value === "function") el.addEventListener(key.slice(2), value);
     else if (key === "value") el.value = value;
+    // The site's CSP blocks style attributes, so set each property through
+    // the CSSOM, which it allows.
+    else if (key === "style" && typeof value === "string") {
+      for (const rule of value.split(";")) {
+        const at = rule.indexOf(":");
+        if (at > 0) el.style.setProperty(rule.slice(0, at).trim(), rule.slice(at + 1).trim());
+      }
+    }
     else if (value === true) el.setAttribute(key, "");
     else el.setAttribute(key, String(value));
   }
@@ -4565,7 +4573,7 @@ const IP_FAQ = [
 function ipHearSection() {
   const fill = (word) => h("mark", { class: "ip-fill" }, word);
   const fillerBars = new Set([6, 7, 27, 28, 45, 46, 62, 63, 80, 81, 96, 97, 103, 104]);
-  const wave = h("div", { class: "ip-wave", "aria-hidden": "true" }, Array.from({ length: 110 }, (_, i) => {
+  const wave = h("div", { class: "ip-hear-wave", "aria-hidden": "true" }, Array.from({ length: 110 }, (_, i) => {
     const height = 8 + Math.abs(Math.sin(i / 5)) * 46 * (0.5 + ((i * 37) % 11) / 22);
     return h("span", { class: fillerBars.has(i) ? "on" : "", style: `height:${height.toFixed(0)}px` });
   }));
