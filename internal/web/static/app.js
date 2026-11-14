@@ -4581,7 +4581,7 @@ function ipHearSection() {
   return h("section", { class: "ip-section", id: "out-loud" },
     ipLabel("Why out loud"),
     h("h2", {}, "Hear what the interviewer hears."),
-    h("p", { class: "ip-sub" }, "You can't hear filler words when you rehearse in your head. Jane catches every one."),
+    h("p", { class: "ip-sub" }, "You can't hear filler words, pauses, or your pace when you rehearse in your head. Jane listens like an interviewer: she marks every \u201cum,\u201d times your pace and length, and shows you how to improve your response."),
     h("div", { class: "ip-hear" },
       h("div", { class: "ip-hear-head" },
         h("div", {},
