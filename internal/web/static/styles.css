@@ -1826,3 +1826,6 @@ h1, h2, .section-title, .page-head h1 { font-family: "Inter Tight", Inter, syste
   .ip-hear-q, .ip-hear-text { font-size: 17px; }
   .ip-hear-wave { height: 48px; gap: 3px; }
 }
+
+/* Hero pill: version badge */
+.ip-new { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #0b0c0e; background: #fff; border-radius: 999px; padding: 3px 8px; margin-right: 2px; }
