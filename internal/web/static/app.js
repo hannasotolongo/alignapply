@@ -3044,7 +3044,7 @@ async function viewBilling() {
       }
     } }, "Send confirmation email");
     sections.push(h("div", { class: "card row-between notice" },
-      h("div", {}, h("h3", {}, "Confirm your email"), h("p", { class: "muted small" }, "We sent you a link when you signed up. Confirming lets you reset your password, and unlocks Pro if your school has a Jane Careers license.")),
+      h("div", {}, h("h3", {}, "Confirm your email"), h("p", { class: "muted small" }, "We sent you a link when you signed up. Confirming lets you reset your password.")),
       resend));
   }
 
@@ -3105,8 +3105,6 @@ async function viewBilling() {
     ));
   }
 
-  // School license
-  sections.push(schoolLicenseCard(billing, plansInfo));
 
   // Danger zone
   const deleteButton = h("button", { class: "btn btn-danger btn-sm", onclick: async () => {
@@ -3378,7 +3376,6 @@ async function viewActivate() {
       h("li", {}, "Direct links to the employer's own application page"),
     ),
     checkoutNote(),
-    h("div", { class: "card inset" }, school),
   );
 }
 
