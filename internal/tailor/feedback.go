@@ -184,8 +184,11 @@ const questionsSchema = `{
   "properties":{
     "questions":{"type":"array","items":{"type":"object","properties":{
       "question":{"type":"string"},
-      "approach":{"type":"string"}
-    },"required":["question","approach"],"additionalProperties":false}}
+      "approach":{"type":"string"},
+      "level":{"type":"string","enum":["Easy","Medium","Hard"]},
+      "tests":{"type":"string"},
+      "fromResume":{"type":"boolean"}
+    },"required":["question","approach","level","tests","fromResume"],"additionalProperties":false}}
   },
   "required":["questions"],
   "additionalProperties":false
@@ -201,27 +204,60 @@ type QuestionOptions struct {
 }
 
 // InterviewStages are the interview types a candidate can practice for.
+// Every answer is spoken, so no stage asks the candidate to write code.
 var InterviewStages = map[string]string{
-	"mixed":      `the 6 questions this employer is most likely to ask: a mix of behavioral ("tell me about a time…"), role-specific, and one about the candidate's biggest gap versus the requirements`,
-	"phone":      `6 questions for a first introduction phone screen with a recruiter: tell me about yourself, why this role and company, motivation for a move, availability and pay expectations, and a quick check on the must-have requirements`,
-	"first":      `6 questions for a first-round interview with the hiring manager: walking through the résumé, why this role, how the candidate's past work fits the job's main responsibilities, one behavioral question, and one about the biggest gap versus the requirements`,
-	"behavioral": `6 behavioral questions ("tell me about a time…") tied to this job's requirements, such as teamwork, conflict, failure, leadership, prioritizing and handling pressure`,
-	"role":       `6 technical or skills questions that test the specific skills, tools, methods and knowledge this job requires, the way a technical interviewer or skills assessment would`,
-	"design":     `6 system design questions like the ones this employer asks: design a real system close to what this company builds (for example a ride-hailing service, a news feed, a chat app, a payments system or a URL shortener), each with scale numbers to work toward. The approach for each walks through how to structure the answer: clarify requirements, estimate scale, sketch the APIs and data model, design the main components, then scaling, reliability and trade-offs`,
-	"panel":      `6 questions a panel of several interviewers (the hiring manager, a peer and someone from a partner team) would ask: collaboration across teams, role skills, a behavioral question, and how the candidate handles different stakeholders`,
-	"final":      `6 questions a hiring manager or senior leader would ask in a final round: impact, judgment, how the candidate would approach the first 90 days, culture fit, and why they're the best choice`,
-	"ask":        `6 smart questions the CANDIDATE should ask the interviewer about this role, team and company. For each, the approach explains why it's a good question and what to listen for in the answer`,
+	"mixed":       `8 questions for the whole interview loop, in the order they usually come: one phone screen question, then behavioral, role-specific and technical or design questions for this job, and a final-round question`,
+	"phone":       `8 questions for a first introduction phone screen with a recruiter: tell me about yourself, why this role and company, motivation for a move, availability and pay expectations, and a quick check on the must-have requirements`,
+	"first":       `8 questions a hiring manager would ask: walking through the résumé, how the candidate works, how their past work fits the job's main responsibilities, what they would own in the first 90 days, and one about the biggest gap versus the requirements`,
+	"behavioral":  `8 behavioral questions ("tell me about a time…") tied to this job, such as teamwork, conflict, failure, leadership, prioritizing and handling pressure`,
+	"role":        `8 technical deep dive questions answered out loud, with no code to write: explain a concept the job relies on, debug a realistic scenario step by step, talk through how you would approach a problem and its trade-offs, and go deep on a technical project from the résumé`,
+	"design":      `8 system design questions like the ones this employer asks: design a real system close to what this company builds, each with scale numbers to work toward. The approach for each walks through how to structure the answer: clarify requirements, estimate scale, sketch the APIs and data model, design the main components, then scaling, reliability and trade-offs`,
+	"panel":       `8 questions a panel of several interviewers (the hiring manager, a peer and someone from a partner team) would ask: collaboration across teams, role skills, a behavioral question, and how the candidate handles different stakeholders`,
+	"final":       `8 questions a hiring manager or senior leader would ask in a final round: impact, judgment, how the candidate would approach the first 90 days, culture fit, and why they're the best choice`,
+	"exec":        `8 questions a senior leader or "bar raiser" would ask: judgment under ambiguity, the hardest decision the candidate has made, raising the bar for the team, and long-term thinking`,
+	"case":        `8 case interview questions answered out loud: business problems such as why a metric dropped, whether to enter a market or how to size an opportunity, each with enough numbers to reason with`,
+	"product":     `8 product sense questions: improve an existing product this company makes, design a product for a specific user, pick metrics for success and make prioritization calls`,
+	"situational": `8 situational questions ("what would you do if…") about realistic problems in this job`,
+	"walkthrough": `8 questions that walk through the candidate's résumé in depth: each role, why they moved, and detailed follow-ups on the biggest projects`,
+	"values":      `8 culture and values questions built around what this company says it values, asking for real examples from the candidate's work`,
+	"clinical":    `8 clinical scenario questions for healthcare roles: patient situations, safety and priorities, escalation and teamwork on the unit`,
+	"teaching":    `8 teaching interview questions: classroom management, lesson planning, differentiation, working with parents and a short sample lesson to describe out loud`,
+	"sales":       `8 sales interview questions, including a short role-play to talk through: discovery, handling objections, closing, and the candidate's numbers`,
+	"service":     `8 customer service questions, including how the candidate would talk a frustrated customer down, step by step`,
+	"finance":     `8 finance and accounting questions answered out loud: concepts like the three financial statements, and judgment calls the role makes`,
+	"data":        `8 data and analytics questions answered out loud: metrics, A/B tests, explaining an analysis and diagnosing a change in a number`,
+	"marketing":   `8 marketing questions: campaign ideas, channel strategy, budgets and explaining results`,
+	"leadership":  `8 leadership questions for managers: managing low performers, hiring, building a team, giving feedback and handling conflict`,
+	"change":      `8 questions for a career changer: why the switch, what carries over from past work and how they have prepared for this field`,
+	"salary":      `8 lines a hiring manager or recruiter says in a salary negotiation, such as the first offer, "what are your expectations?" and pushback on a counteroffer, for the candidate to answer out loud`,
+	"ask":         `8 smart questions the CANDIDATE should ask the interviewer about this role, team and company. For each, the approach explains why it's a good question and what to listen for in the answer`,
 }
 
 // InterviewStageNames say what each interview stage is, for Jane's coaching.
 var InterviewStageNames = map[string]string{
-	"phone":      "first introduction phone screen with a recruiter",
-	"first":      "first-round interview with the hiring manager",
-	"behavioral": "behavioral interview",
-	"role":       "technical or skills interview",
-	"design":     "system design interview",
-	"panel":      "panel interview",
-	"final":      "final-round interview",
+	"phone":       "first introduction phone screen with a recruiter",
+	"first":       "interview with the hiring manager",
+	"behavioral":  "behavioral interview",
+	"role":        "technical deep dive interview, answered out loud",
+	"design":      "system design interview",
+	"panel":       "panel interview",
+	"final":       "final-round interview",
+	"exec":        "interview with a senior leader",
+	"case":        "case interview",
+	"product":     "product sense interview",
+	"situational": "situational interview",
+	"walkthrough": "résumé walkthrough",
+	"values":      "culture and values interview",
+	"clinical":    "clinical scenario interview",
+	"teaching":    "teaching interview",
+	"sales":       "sales interview",
+	"service":     "customer service interview",
+	"finance":     "finance interview",
+	"data":        "data and analytics interview",
+	"marketing":   "marketing interview",
+	"leadership":  "leadership interview",
+	"change":      "career change interview",
+	"salary":      "salary negotiation",
 }
 
 // Questions predicts likely interview questions for a job, with an honest
@@ -239,6 +275,8 @@ func (c *Client) Questions(ctx context.Context, resumeText, jobDescription, jobT
 	b.WriteString(`QUESTIONS:
 - Write each question the way a real interviewer at this company would say it out loud, about this job's actual work: name the product area, tools, customers or situations from the posting. Avoid questions that would fit any job ("What are your strengths?") unless this is a recruiter phone screen.
 - Mix difficulty: at least one question should be hard for THIS candidate, aimed at the biggest gap between the posting and the résumé.
+- Set level to Easy, Medium or Hard for this candidate. Set tests to 2 to 4 words on what the question checks (for example "scale, trade-offs"). Set fromResume to true only for questions built on a specific project or job from the résumé; write 1 or 2 of those.
+- These are likely questions for this kind of interview at this company, never claimed to be its real or leaked questions.
 APPROACH (1 to 2 sentences, to the candidate as "you"):
 - Name the specific example from their résumé to use and the one thing they must make clear. If the résumé has nothing that fits, say how to answer honestly (a related example, or what they'd do), never to claim experience they don't have.
 `)
@@ -254,7 +292,11 @@ APPROACH (1 to 2 sentences, to the candidate as "you"):
 	if jobTitle != "" {
 		fmt.Fprintf(&b, "JOB: %s\n\n", jobTitle)
 	}
-	b.WriteString("JOB POSTING:\n" + jobDescription + "\n\nCANDIDATE RÉSUMÉ:\n" + resumeText)
+	if strings.TrimSpace(jobDescription) == "" {
+		b.WriteString("JOB POSTING: none given. Base the questions on what this kind of role at this company usually covers, using public knowledge of the company's products, scale and stated values.\n\nCANDIDATE RÉSUMÉ:\n" + resumeText)
+	} else {
+		b.WriteString("JOB POSTING:\n" + jobDescription + "\n\nCANDIDATE RÉSUMÉ:\n" + resumeText)
+	}
 	text, err := c.structured(ctx, b.String(), "interview_questions", questionsSchema)
 	if err != nil {
 		return nil, err
@@ -269,6 +311,7 @@ APPROACH (1 to 2 sentences, to the candidate as "you"):
 	for i := range result.Questions {
 		result.Questions[i].Question = strings.TrimSpace(strings.NewReplacer("—", ", ", " – ", ", ").Replace(result.Questions[i].Question))
 		result.Questions[i].Approach = Plain(result.Questions[i].Approach)
+		result.Questions[i].Tests = strings.TrimSpace(result.Questions[i].Tests)
 	}
 	return result.Questions, nil
 }

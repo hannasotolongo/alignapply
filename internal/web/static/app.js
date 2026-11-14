@@ -409,23 +409,25 @@ function resumeDropzone(onUploaded, { label = "Upload résumé PDFs", hint = "Se
 const routes = {
   "/": viewLanding,
   "/pricing": viewLanding,
-  "/try": viewTry,
-  "/fit-check": () => navigate(state.user ? "/app/fit-check" : "/signup", { replace: true }),
+  "/try": () => navigate(state.user ? "/app/interview" : "/signup", { replace: true }),
+  "/fit-check": () => navigate(state.user ? "/app/documents" : "/signup", { replace: true }),
   "/login": () => viewAuth("login"),
   "/signup": () => viewAuth("signup"),
   "/forgot-password": viewForgotPassword,
   "/reset-password": viewResetPassword,
-  "/app": () => appPage("home", viewHome),
+  "/app": () => appPage("home", viewDashboard),
   "/app/home": () => navigate("/app", { replace: true }),
-  "/app/welcome": viewOnboarding,
+  "/app/welcome": () => navigate("/app", { replace: true }),
   "/app/activate": viewActivate,
-  "/app/fit-check": () => appPage("fit", viewFitCheckApp),
-  "/app/interview": () => appPage("interview", viewInterviewPractice),
-  "/app/jobs": () => appPage("jobs", viewJobs),
+  "/app/interview": () => appPage("interview", viewMockInterview),
+  "/app/documents": () => appPage("documents", viewDocuments),
   "/app/resumes": () => appPage("resumes", viewResumes),
-  "/app/profile": () => appPage("profile", viewProfile),
-  "/app/applications": () => appPage("applications", viewApplications),
   "/app/billing": () => appPage("billing", viewBilling),
+  // Job search is retired: its pages lead to the dashboard.
+  "/app/fit-check": () => navigate("/app/documents", { replace: true }),
+  "/app/jobs": () => navigate("/app", { replace: true }),
+  "/app/applications": () => navigate("/app", { replace: true }),
+  "/app/profile": () => navigate("/app", { replace: true }),
 };
 
 function navigate(path, { replace } = {}) {
@@ -521,42 +523,6 @@ function navMenuLink(item) {
   return link(item.href, { class: "menu-link" }, ...children);
 }
 
-function siteNav() {
-  const signedIn = !!state.user;
-  const items = NAV_MENUS.map((menu, index) => {
-    const panelId = `nav-panel-${index}`;
-    const item = h("div", { class: "nav-item" });
-    const trigger = h("button", { type: "button", class: "nav-trigger", "aria-expanded": "false", "aria-controls": panelId, onclick: () => {
-      const open = !item.classList.contains("open");
-      closeNavMenus(item);
-      item.classList.toggle("open", open);
-      trigger.setAttribute("aria-expanded", open ? "true" : "false");
-    } }, menu.label, svgIcon('<svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>'));
-    item.append(trigger, h("div", { class: "nav-drop", id: panelId }, menu.items.map(navMenuLink)));
-    return item;
-  });
-
-  const header = h("header", { class: "site-nav" });
-  const toggle = h("button", { type: "button", class: "nav-toggle", "aria-label": "Menu", "aria-expanded": "false", onclick: () => {
-    const open = !header.classList.contains("menu-open");
-    header.classList.toggle("menu-open", open);
-    document.body.classList.toggle("nav-locked", open);
-    toggle.setAttribute("aria-expanded", open ? "true" : "false");
-  } }, svgIcon('<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>'));
-
-  header.append(h("div", { class: "container nav-bar" },
-    brand(),
-    h("div", { class: "nav-panel" },
-      h("nav", { class: "nav-menus", "aria-label": "Main" }, ...items, link("/pricing", { class: "nav-trigger nav-plain" }, "Pricing")),
-      h("div", { class: "nav-actions" },
-        signedIn
-          ? link("/app", { class: "btn btn-primary btn-sm" }, "My account")
-          : [link("/login", { class: "nav-signin" }, "Sign in"), link("/try", { class: "btn btn-primary btn-sm" }, "Try it free")]),
-    ),
-    toggle,
-  ));
-  return header;
-}
 
 function legalLinks(className) {
   return h("nav", { class: className, "aria-label": "Legal" },
@@ -572,8 +538,8 @@ function siteFooter() {
   const page = (href, text) => h("a", { href }, text);
   return h("footer", { class: "site-footer foot-big" },
     h("div", { class: "container foot-grid" },
-      h("div", { class: "foot-brand" }, brand(), h("p", {}, "Fewer applications. More offers.")),
-      column("Product", link("/#how", {}, "How Jane works"), link("/#interview", {}, "Interview Prep"), link("/pricing", {}, "Pricing"), link("/try", {}, "Try it free")),
+      h("div", { class: "foot-brand" }, brand(), h("p", {}, "Practice the interview before the interview.")),
+      column("Product", link("/#how", {}, "How it works"), link("/#rounds", {}, "Interview types"), link("/#resume", {}, "Résumé & cover letter"), link("/pricing", {}, "Pricing")),
       column("Resources", page("/interview-questions", "Interview questions"), page("/interview-tips/tell-me-about-yourself", "Interview tips")),
       column("Customer service", page("tel:+16468212027", "646-821-2027"), page("/contact", "Contact us")),
     ),
@@ -978,27 +944,6 @@ function nhFinal() {
         } }, "Drop your résumé, free")));
 }
 
-async function viewLanding() {
-  if (state.user === undefined) await loadUser();
-  const plansInfo = await loadPlans();
-  if (state.user) await loadBilling().catch(() => null);
-  mount(h("div", {},
-    siteNav(),
-    h("main", {},
-      h("section", { class: "nh-hero" },
-        h("div", { class: "container nh-hero-grid" },
-          h("div", { class: "nh-hero-copy" },
-            h("h1", {}, "Get hired,", h("br", {}), "not ghosted."),
-            h("p", { class: "lead" }, "Your matches, your résumé, your cover letter and your interview prep, all done for each job.")),
-          heroTryCard())),
-      ...nhSections(),
-      pricingSection(plansInfo, { full: location.pathname === "/pricing" }),
-      nhFaq(),
-      nhFinal(),
-    ),
-    siteFooter(),
-  ));
-}
 
 // ---------------------------------------------------------------------------
 // Free trial (/try): one search without an account. Upload a résumé, see
@@ -1327,7 +1272,7 @@ function trialAvailable() {
 }
 
 function subscribeLabel(plan) {
-  return plan.trialDays && trialAvailable() ? `Start ${plan.trialDays}-day free trial` : `Get Pro Monthly`;
+  return plan.trialDays && trialAvailable() ? `Start ${plan.trialDays}-day free trial` : `Get Pro`;
 }
 
 function checkoutNote() {
@@ -1345,18 +1290,16 @@ function checkoutNote() {
 function planCards(plansInfo, { compact = false, include = ["monthly", "interview"] } = {}) {
   const enabled = plansInfo.billingEnabled;
   const interview = planFor("interview");
-  const monthly = planFor("monthly") || { key: "monthly", name: "Pro", displayPrice: "$49.99", interval: "month" };
+  const monthly = planFor("monthly") || { key: "monthly", name: "Pro", displayPrice: "$39.99", interval: "month" };
   const sprint = planFor("sprint") || { key: "sprint", name: "Job Search Sprint", displayPrice: "$39", interval: "90 days" };
   const school = planFor("school") || { key: "school", name: "School License", displayPrice: "$1,000", interval: "year" };
 
   const proFeatures = [
-    "Unlimited job matches with scores",
-    "Every résumé fix, and how to make it",
-    "Every résumé tailored to make you stand out for each job",
-    "A cover letter for every job",
-    "Download your résumé and cover letter as PDF or Word",
-    h("strong", {}, "Interview Prep included"),
-    "Interview guarantee",
+    h("strong", {}, "Unlimited mock interviews*"),
+    "Questions built from the job posting",
+    "Full loop and final-round practice",
+    "Unlimited tailored résumés and cover letters",
+    "Download as PDF or Word",
   ];
   const ticks = (items) => h("ul", { class: "ticks" }, items.map((f) => h("li", {}, f)));
 
@@ -1364,29 +1307,29 @@ function planCards(plansInfo, { compact = false, include = ["monthly", "intervie
   const byKey = {};
   if (include.includes("free")) {
     byKey.free = (h("div", { class: "card price-card" },
-      h("div", {}, h("h3", {}, "Free"), h("p", { class: "muted small" }, "See what Jane can do")),
+      h("div", {}, h("h3", {}, "Free"), h("p", { class: "muted small" }, "Try a mock interview")),
       h("div", { class: "price" }, "$0", " ", h("small", {}, "/ forever")),
-      compact ? null : ticks(["Job search with match scores (top 5 per search)", "Top 3 things your résumé is missing", "Apply direct on the employer's site", "1 free cover letter", "Try 1 interview practice question"]),
+      compact ? null : ticks(["1 mock interview, 3 graded answers", "Pace, filler words and length", "1 cover letter"]),
       state.user
-        ? link("/app", { class: "btn btn-block" }, "Go to Jane")
+        ? link("/app/interview", { class: "btn btn-block" }, "Start practicing")
         : link("/signup", { class: "btn btn-block" }, "Start free"),
       h("p", { class: "faint small center" }, "No card needed"),
     ));
   }
   if (include.includes("interview")) {
-    const plan = interview || { key: "interview", name: "Interview Prep", displayPrice: "$29.99", interval: "month" };
+    const plan = interview || { key: "interview", name: "Prep", displayPrice: "$29.99", interval: "month" };
     byKey.interview = (h("div", { class: "card price-card" },
-      h("div", {}, h("span", { class: "pill pill-new" }, "New"), h("h3", {}, plan.name), h("p", { class: "muted small" }, "Just the interview practice")),
+      h("div", {}, h("h3", {}, plan.name), h("p", { class: "muted small" }, "For one upcoming interview")),
       h("div", { class: "price" }, plan.displayPrice, " ", h("small", {}, `/ ${plan.interval}`)),
-      compact ? null : ticks(["Practice for any job and company", "Likely interview questions", "Speak your answers out loud", "Pace, filler words and length checks", "Coaching and stronger answers"]),
+      compact ? null : ticks(["40 graded answers a month", "Every interview type, any company", "A stronger answer for every question", "3 tailored résumés and 3 cover letters a month"]),
       h("button", { class: "btn btn-block", disabled: !enabled || !interview, onclick: () => startCheckout("interview") },
-        enabled && interview ? "Get Interview Prep" : "Coming soon"),
+        enabled && interview ? `Get ${plan.name}` : "Coming soon"),
     ));
   }
   if (include.includes("monthly")) {
     byKey.monthly = (h("div", { class: "card price-card featured" },
       h("div", { class: "row-between" },
-        h("div", {}, h("h3", {}, monthly.name), h("p", { class: "muted small" }, "Everything Jane does")),
+        h("div", {}, h("h3", {}, monthly.name), h("p", { class: "muted small" }, "For your whole job search")),
         h("span", { class: "pill pill-pro" }, "Most popular")),
       h("div", { class: "price" }, monthly.displayPrice, " ", h("small", {}, `/ ${monthly.interval}`)),
       compact ? null : ticks(proFeatures),
@@ -1436,8 +1379,8 @@ function lifetimeOffer(plansInfo) {
     h("div", { class: "lifetime-copy" },
       h("span", { class: "pill pill-pro" }, "Limited time offer"),
       h("h3", {}, "Lifetime Pro"),
-      h("p", { class: "muted" }, "Pay once, keep everything in Pro for life. Every future job search, no monthly bill."),
-      ticks(["Everything in Pro, forever", "Interview Prep included", "Every new feature we ship"])),
+      h("p", { class: "muted" }, "Everything in Pro for every interview you'll ever have. Pay once."),
+      ticks(["Everything in Pro, forever", "Every interview type", "Every new feature we ship"])),
     h("div", { class: "lifetime-buy" },
       h("div", { class: "price" }, plan.displayPrice, " ", h("small", {}, "one-time")),
       h("p", { class: "faint small lifetime-was" }, "Pro is ", (planFor("monthly") || {}).displayPrice || "", "/month"),
@@ -1447,16 +1390,15 @@ function lifetimeOffer(plansInfo) {
 }
 
 function pricingSection(plansInfo, { full = false } = {}) {
-  const school = planFor("school") || { displayPrice: "$1,000", interval: "year" };
-  return h("section", { class: "section", id: "pricing" },
+  return h("section", { class: "section ip-pricing", id: "pricing" },
     h("div", { class: "container" },
-      h("h2", { class: "section-title" }, "Start free. Upgrade when you're ready."),
-      h("p", { class: "section-sub" }, "Paid plans cancel anytime, with a 3-day money-back guarantee."),
+      h("p", { class: "ip-label center" }, "Pricing"),
+      h("h2", { class: "section-title" }, "Pick how much you'll practice."),
+      h("p", { class: "section-sub" }, "Cancel anytime. 3-day money-back guarantee."),
       lifetimeOffer(plansInfo),
-      h("div", { class: "pricing-three" }, planCards(plansInfo, { include: ["free", "monthly", "interview"] })),
+      h("div", { class: "pricing-three" }, planCards(plansInfo, { include: ["free", "interview", "monthly"] })),
+      h("p", { class: "faint small center" }, "*Fair use: up to 300 graded answers a month."),
       full ? comparePlans() : null,
-      h("div", { class: "card nh-guarantee", id: "guarantee" }, svgIcon(ICON_SHIELD.replace(/20/g, "30")),
-        h("p", {}, h("b", {}, "The interview guarantee. "), "Apply to at least 10 jobs with Jane on Pro. If you don't get an interview within 30 days, your next month is free. ", h("a", { href: "/refunds#guarantee" }, "Details"))),
       full ? h("div", { class: "section-gap" }, checkoutNote())
         : h("p", { class: "try-line" }, link("/pricing", {}, "Compare plans")),
     ),
@@ -1466,22 +1408,23 @@ function pricingSection(plansInfo, { full = false } = {}) {
 // comparePlans: what each plan includes, row by row.
 function comparePlans() {
   const rows = [
-    ["Job search with match scores", "Top 5 per search", "Unlimited", "–"],
-    ["What your résumé is missing", "Top 3 per job", "All, with fixes", "–"],
-    ["Tailored résumé for each job", "–", "✓", "–"],
-    ["Cover letters", "1 letter", "Unlimited", "–"],
-    ["Apply on the employer's own site", "✓", "✓", "–"],
-    ["Interview practice", "1 question", "Unlimited", "Unlimited"],
-    ["Pace, filler words and length", "1 question", "✓", "✓"],
-    ["Interview guarantee", "–", "✓", "–"],
+    ["Mock interviews", "1", "Unlimited", "Unlimited*"],
+    ["Graded answers", "3 in total", "40 a month", "Unlimited*"],
+    ["Interview types", "All", "All", "All"],
+    ["Questions from the job posting", "✓", "✓", "✓"],
+    ["Pace, filler words and length", "✓", "✓", "✓"],
+    ["A stronger version of each answer", "✓", "✓", "✓"],
+    ["Tailored résumés", "–", "3 a month", "Unlimited*"],
+    ["Cover letters", "1", "3 a month", "Unlimited*"],
+    ["PDF and Word downloads", "Cover letter", "✓", "✓"],
   ];
   const cell = (value, strong) => h("td", { class: value === "–" ? "none" : strong ? "strong" : "" }, value);
   return h("div", { class: "compare-wrap" },
     h("h3", {}, "Compare plans"),
     h("div", { class: "card compare-card" },
       h("table", { class: "compare-table" },
-        h("thead", {}, h("tr", {}, h("th", { scope: "col" }, "Feature"), h("th", { scope: "col" }, "Free"), h("th", { scope: "col" }, "Pro"), h("th", { scope: "col" }, "Interview Prep"))),
-        h("tbody", {}, rows.map(([name, free, pro, prep]) => h("tr", {}, h("th", { scope: "row" }, name), cell(free), cell(pro, true), cell(prep)))))));
+        h("thead", {}, h("tr", {}, h("th", { scope: "col" }, "Feature"), h("th", { scope: "col" }, "Free"), h("th", { scope: "col" }, "Prep"), h("th", { scope: "col" }, "Pro"))),
+        h("tbody", {}, rows.map(([name, free, prep, pro]) => h("tr", {}, h("th", { scope: "row" }, name), cell(free), cell(prep), cell(pro, true)))))));
 }
 
 // paywall is shown where a feature needs a plan.
@@ -1517,8 +1460,8 @@ function upgradeFromInterview(title, body) {
     h("div", { class: "stack-sm" },
       h("span", { class: "pill pill-pro" }, "Part of Pro"),
       h("h3", {}, title || "This is part of Pro"),
-      h("p", { class: "muted" }, body || "Your Interview Prep plan covers interview practice."),
-      h("p", { class: "muted small" }, `Switch to Pro${monthly ? ` (${monthly.displayPrice}/${monthly.interval})` : ""} to add job search with match scores, Fit Check, and résumé tailoring. Interview practice stays included.`)),
+      h("p", { class: "muted" }, body || "Your Prep plan includes 40 graded answers a month."),
+      h("p", { class: "muted small" }, `Switch to Pro${monthly ? ` (${monthly.displayPrice}/${monthly.interval})` : ""} for unlimited mock interviews, résumés and cover letters.`)),
     h("div", { class: "row" }, button, link("/app/interview", { class: "btn" }, "Back to interview practice")),
   );
 }
@@ -1534,7 +1477,7 @@ async function startCheckout(planKey, extra = {}) {
     window.location.assign(url);
   } catch (error) {
     if (error.code === "switch_in_portal") {
-      toast("Switch your Interview Prep plan to Pro in the billing page that opens.");
+      toast("Switch your Prep plan to Pro in the billing page that opens.");
       openBillingPortal();
       return;
     }
@@ -1893,21 +1836,6 @@ async function appPage(active, view) {
     return;
   }
 
-  if (isInterviewOnly()) {
-    if (active === "home") {
-      navigate("/app/interview", { replace: true });
-      return;
-    }
-    if (!INTERVIEW_PLAN_PAGES.includes(active)) {
-      content.replaceChildren(upgradeFromInterview());
-      return;
-    }
-  }
-
-  if (active !== "fit" && !isInterviewOnly() && state.preferences && !state.preferences.onboardingComplete) {
-    navigate("/app/welcome", { replace: true });
-    return;
-  }
 
   try {
     const node = await view();
@@ -1919,19 +1847,16 @@ async function appPage(active, view) {
 }
 
 // Pages an Interview Prep subscriber can use.
-const INTERVIEW_PLAN_PAGES = ["interview", "resumes", "billing"];
+const INTERVIEW_PLAN_PAGES = ["home", "interview", "documents", "resumes", "billing"];
 
 function appShell(active, content, usageSlot) {
-  let items = [
-    ["home", "/app", "⌂", "My matches"],
-    ["jobs", "/app/jobs", "⌕", "Find jobs"],
-    ["applications", "/app/applications", "▤", "My applications"],
-    ["interview", "/app/interview", { img: "/icon-mic.svg" }, "Interview practice"],
+  const items = [
+    ["home", "/app", "⌂", "Dashboard"],
+    ["interview", "/app/interview", { img: "/icon-mic.svg" }, "Mock interviews"],
+    ["documents", "/app/documents", "✎", "Résumé & cover letter"],
     ["resumes", "/app/resumes", "⇪", "My résumés"],
-    ["profile", "/app/profile", { img: "/icon-user.svg" }, "My profile"],
     ["billing", "/app/billing", "$", "Plan & billing"],
   ];
-  if (isInterviewOnly()) items = items.filter(([key]) => INTERVIEW_PLAN_PAGES.includes(key));
 
   return h("div", { class: "shell" },
     h("aside", { class: "sidebar" },
@@ -1957,8 +1882,8 @@ function planStatusLine(billing) {
   switch (billing.source) {
     case "trial": return billing.currentPeriodEnd ? `Free trial · ends ${formatDate(billing.currentPeriodEnd)}` : "Free trial";
     case "subscription": {
-      const name = billing.plan === "interview" ? "Interview Prep" : "Pro";
-      return billing.cancelAtPeriodEnd && billing.currentPeriodEnd ? `${name} · ends ${formatDate(billing.currentPeriodEnd)}` : (billing.plan === "interview" ? "Interview Prep" : "Pro Monthly");
+      const name = billing.plan === "interview" ? "Prep" : "Pro";
+      return billing.cancelAtPeriodEnd && billing.currentPeriodEnd ? `${name} · ends ${formatDate(billing.currentPeriodEnd)}` : name;
     }
     case "pass": return isLifetime(billing) ? "Lifetime Pro" : `Sprint · until ${formatDate(billing.passExpiresAt)}`;
     case "organization": return `Pro via ${billing.organizationName}`;
@@ -3157,7 +3082,7 @@ async function viewBilling() {
   sections.push(h("div", { class: "card stack" },
     h("div", { class: "plan-row" },
       h("div", {},
-        h("div", { class: "row" }, h("span", { class: "plan-name" }, pro || interviewOnly ? planStatusLine(billing) : (billing.billingEnabled ? "Free plan" : "No plan yet")), pro && billing.source !== "open" ? h("span", { class: "pill pill-pro" }, billing.source === "trial" ? "TRIAL" : "PRO") : interviewOnly ? h("span", { class: "pill pill-pro" }, "INTERVIEW PREP") : null),
+        h("div", { class: "row" }, h("span", { class: "plan-name" }, pro || interviewOnly ? planStatusLine(billing) : (billing.billingEnabled ? "Free plan" : "No plan yet")), pro && billing.source !== "open" ? h("span", { class: "pill pill-pro" }, billing.source === "trial" ? "TRIAL" : "PRO") : interviewOnly ? h("span", { class: "pill pill-pro" }, "PREP") : null),
         h("p", { class: "muted" }, detail),
       ),
       billing.canManageBilling ? manage : null,
@@ -3166,7 +3091,7 @@ async function viewBilling() {
 
   // Interview Prep subscribers upgrade by switching plans in Stripe.
   if (interviewOnly) {
-    sections.push(upgradeFromInterview("Want job search and résumé tools too?", "Your Interview Prep plan covers interview practice."));
+    sections.push(upgradeFromInterview("Want unlimited practice?", "Your Prep plan includes 40 graded answers a month."));
   }
 
   // Personal plans
@@ -3363,9 +3288,6 @@ function needsActivation() {
 }
 
 function afterActivationPath() {
-  if (isInterviewOnly()) return "/app/interview";
-  if (readSavedFitCheck()) return "/app/fit-check";
-  if (state.preferences && !state.preferences.onboardingComplete) return "/app/welcome";
   return "/app";
 }
 
@@ -3962,7 +3884,9 @@ function tailoredResumeSection(getInput) {
         h("p", { class: "faint small" }, "Give it a quick read before you send it. Download the Word file to edit.")));
       make.textContent = "Rewrite it again";
     } catch (error) {
-      slot.replaceChildren(h("div", { class: "form-error" }, error.code === "pro_required" ? "Choose a plan to get a tailored résumé." : error.message));
+      slot.replaceChildren(error.code === "pro_required" || error.code === "plan_limit_reached"
+        ? freeUpgrade("Tailored résumés for every job", error.message)
+        : h("div", { class: "form-error" }, error.message));
     } finally {
       make.disabled = false;
     }
@@ -3999,9 +3923,9 @@ function coverLetterSection(getInput) {
       write.disabled = false;
     } catch (error) {
       write.disabled = false;
-      slot.replaceChildren(error.code === "free_limit_reached"
+      slot.replaceChildren(error.code === "free_limit_reached" || error.code === "plan_limit_reached"
         ? freeUpgrade("A cover letter for every job", error.message)
-        : h("div", { class: "form-error" }, error.code === "pro_required" ? "Choose a plan to get cover letters." : error.message));
+        : h("div", { class: "form-error" }, error.message));
     } finally {
       if (isFree()) loadBilling();
     }
@@ -4522,5 +4446,551 @@ async function viewInterviewPractice() {
 }
 
 // ---------------------------------------------------------------------------
+
+
+// ---------------------------------------------------------------------------
+// Interview prep relaunch (Nov 2026): Jane is an interview prep service.
+// Pick the company, the position and the round; Jane writes the questions,
+// you pick the ones to practice, answer out loud and get graded. Résumés and
+// cover letters help people land the interview. Job search is retired.
+// ---------------------------------------------------------------------------
+
+// Interview types, keyed as tailor.InterviewStages: [label, what it covers].
+const ROUND_TYPES = {
+  phone: ["Phone screen", "A recruiter call: your story, why this company, salary and timing."],
+  behavioral: ["Behavioral", "Stories from your résumé, told with clear results."],
+  role: ["Technical deep dive", "Explain concepts, debug a scenario and walk through your approach, out loud."],
+  design: ["System design", "Design a system at real scale: requirements, sizing and trade-offs."],
+  first: ["Hiring manager", "How you work, and what you'd own in your first 90 days."],
+  final: ["Final round", "A mix of every round, at the level of an onsite loop."],
+  mixed: ["Full loop", "One question from each round, start to finish, like the whole process."],
+  exec: ["Executive / bar raiser", "Judgment, hard decisions and long-term thinking, with a senior leader."],
+  case: ["Case interview", "Business problems talked through out loud, with numbers to reason with."],
+  product: ["Product sense", "Improve a product, design for a user, pick the metrics."],
+  situational: ["Situational", "“What would you do if…” questions about real problems in the job."],
+  walkthrough: ["Résumé walkthrough", "Every role on your résumé, and deep follow-ups on your biggest projects."],
+  panel: ["Panel", "Several interviewers at once, each with their own focus."],
+  values: ["Culture and values", "Real examples that match what the company says it values."],
+  clinical: ["Clinical scenarios", "Patient situations, safety, priorities and teamwork."],
+  teaching: ["Teaching", "Classroom management, lesson planning and a sample lesson."],
+  sales: ["Sales role-play", "Discovery, objections, closing and your numbers."],
+  service: ["Customer service", "Calming a frustrated customer, step by step."],
+  finance: ["Finance", "Concepts and judgment calls, answered out loud."],
+  data: ["Data and analytics", "Metrics, A/B tests and explaining an analysis."],
+  marketing: ["Marketing", "Campaign ideas, channels, budgets and results."],
+  leadership: ["Leadership", "Hiring, feedback, low performers and conflict."],
+  change: ["Career change", "Why the switch, and what carries over."],
+  salary: ["Salary negotiation", "Answer the offer and ask for more, out loud."],
+  ask: ["Questions for them", "Smart questions to ask at the end, and why they work."],
+};
+const ROUND_GROUPS = [
+  ["By stage", ["exec", "panel"]],
+  ["By format", ["case", "product", "situational", "walkthrough", "values"]],
+  ["For your field", ["clinical", "teaching", "sales", "service", "finance", "data", "marketing", "leadership"]],
+  ["Special", ["change", "salary", "ask"]],
+];
+const roundLabel = (key) => (ROUND_TYPES[key] || ROUND_TYPES.mixed)[0];
+
+// suggestedRounds are the rounds a job usually has, in order.
+function suggestedRounds(position) {
+  const p = ` ${String(position || "").toLowerCase()} `;
+  const has = (re) => re.test(p);
+  if (has(/engineer|developer|software|programmer|devops|\bsre\b|architect|full ?stack|backend|frontend/)) return ["phone", "behavioral", "role", "design", "first", "final"];
+  if (has(/nurse|\brn\b|\blpn\b|clinical|medical|pharm|therap|health|\bcna\b|physician|dental/)) return ["phone", "behavioral", "clinical", "first", "final"];
+  if (has(/teach|educat|tutor|professor|instructor/)) return ["phone", "behavioral", "teaching", "first", "final"];
+  if (has(/sales|account executive|\bsdr\b|\bbdr\b|business development/)) return ["phone", "behavioral", "sales", "first", "final"];
+  if (has(/customer|support|service|call center|receptionist|front desk/)) return ["phone", "behavioral", "service", "first", "final"];
+  if (has(/data|analyst|scientist|analytics/)) return ["phone", "behavioral", "data", "role", "final"];
+  if (has(/product manager|\bpm\b|product owner/)) return ["phone", "behavioral", "product", "first", "final"];
+  if (has(/consult/)) return ["phone", "behavioral", "case", "final"];
+  if (has(/accountant|accounting|finance|financial|bookkeep|\bcpa\b|auditor/)) return ["phone", "behavioral", "finance", "first", "final"];
+  if (has(/marketing|brand|social media|content/)) return ["phone", "behavioral", "marketing", "first", "final"];
+  if (has(/manager|director|\blead\b|head of|supervisor/)) return ["phone", "behavioral", "leadership", "first", "final"];
+  return ["phone", "behavioral", "first", "final"];
+}
+
+const SESSIONS_KEY = "janecareers.sessions";
+function savedSessions() {
+  try { return JSON.parse(localStorage.getItem(SESSIONS_KEY) || "[]"); } catch { return []; }
+}
+function saveSession(session) {
+  try {
+    const list = [session, ...savedSessions()].slice(0, 12);
+    localStorage.setItem(SESSIONS_KEY, JSON.stringify(list));
+  } catch { /* storage is optional */ }
+}
+
+const ICON_MIC_DARK = '<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
+const ICON_ARROW = '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+const ICON_BACK = '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg>';
+const ICON_REFRESH = '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg>';
+
+// ---------------------------------------------------------------------------
+// Homepage
+// ---------------------------------------------------------------------------
+
+function ipLabel(text) {
+  return h("p", { class: "ip-label" }, text);
+}
+
+function ipDemo() {
+  const bars = [30, 70, 45, 95, 55, 80, 35, 65, 85, 40, 60, 25, 50, 75];
+  const stat = (label, value, note) => h("div", { class: "ip-stat" }, h("span", { class: "ip-mono" }, label), h("b", {}, value), h("span", { class: "ip-good" }, note));
+  return h("div", { class: "ip-demo" },
+    h("div", { class: "ip-demo-q" },
+      h("div", { class: "ip-demo-top" }, h("span", {}, "Apple · Software Engineer · System design"), h("span", {}, "Question 1 of 3")),
+      h("p", { class: "ip-demo-title" }, "Design a distributed log pipeline that counts keywords across a fleet."),
+      h("div", { class: "ip-listen" }, h("span", { class: "rec-dot" }), h("b", {}, "Listening"), h("span", { class: "ip-muted" }, "1:42"),
+        h("div", { class: "ip-wave", "aria-hidden": "true" }, bars.map((v) => h("i", { style: `height:${v}%` })))),
+      h("p", { class: "ip-demo-said" }, "“First, scale. 2 million lines a second at about 200 bytes each is 400 megabytes a second. So an agent on each host sends keyword counts instead of raw logs…”")),
+    h("div", { class: "ip-demo-side" },
+      h("div", { class: "ip-stats" }, stat("Pace", "138", "Good"), stat("Fillers", "5 → 1", "Better"), stat("Length", "3:05", "Just right")),
+      h("div", { class: "ip-demo-fb" },
+        h("span", { class: "ip-mono" }, "Jane's feedback"),
+        h("p", {}, h("span", { class: "ip-ok", "aria-hidden": "true" }, "✓"), "You sized the load before designing."),
+        h("p", {}, h("span", { class: "ip-warn", "aria-hidden": "true" }, "!"), "“error” will flood one Kafka partition. Salt hot keywords, then merge."),
+        h("p", {}, h("span", { class: "ip-warn", "aria-hidden": "true" }, "!"), "Use a count-min sketch for the daily top keywords."))));
+}
+
+function ipCard(num, title, text) {
+  return h("div", { class: "ip-card" }, h("span", { class: "ip-num" }, num), h("h3", {}, title), h("p", {}, text));
+}
+
+const IP_FAQ = [
+  ["Are these the company's real interview questions?", "No. Jane writes the questions this kind of round usually asks at that company, based on the role, your résumé and what the company is known for. She never claims they're leaked or official."],
+  ["Do I have to talk out loud?", "That's the point: knowing an answer isn't the same as saying it. Voice answers work in Chrome, Edge and Safari. You can also type an answer the way you'd say it."],
+  ["What does Jane grade?", "How you sound (pace, filler words and length) and what you said: what works, what to fix, and a stronger version built from your own answer."],
+  ["Can I practice for any job?", "Yes. Software engineers, nurses, teachers, sales, customer service, analysts, managers and more, from the phone screen to the final round."],
+  ["Can I cancel?", "Yes, any time from Plan & billing, and your first payment has a 3-day money-back guarantee."],
+];
+
+async function viewLanding() {
+  if (state.user === undefined) await loadUser();
+  const plansInfo = await loadPlans();
+  if (state.user) await loadBilling().catch(() => null);
+  const start = state.user ? "/app/interview" : "/signup";
+  const cta = (label) => link(start, { class: "ip-btn ip-btn-primary" }, label);
+  const item = ([q, a]) => h("details", { class: "ip-faq-item" }, h("summary", {}, q), h("p", {}, a));
+  mount(h("div", { class: "ip" },
+    siteNav(),
+    h("main", {},
+      h("section", { class: "ip-hero" },
+        h("div", { class: "ip-glow", "aria-hidden": "true" }),
+        h("div", { class: "ip-hero-copy" },
+          h("span", { class: "ip-pill" }, svgIcon(ICON_MIC_DARK), "Interview prep, out loud"),
+          h("h1", {}, "Practice the interview ", h("strong", {}, "before the interview.")),
+          h("p", { class: "ip-lead" }, "Pick the company, the job and the round. Practice the questions they're likely to ask, out loud, and Jane grades every answer like an interviewer would."),
+          h("div", { class: "ip-ctas" }, cta("Start a free mock interview"), h("a", { class: "ip-btn", href: "#how" }, "See how it works")),
+          h("p", { class: "ip-note" }, state.user ? "Welcome back." : "Free to try. No card needed.")),
+        ipDemo()),
+
+      h("section", { class: "ip-section", id: "how" },
+        ipLabel("How it works"),
+        h("h2", {}, "From nervous to ready, one answer at a time."),
+        h("div", { class: "ip-grid-3" },
+          ipCard("01", "Set up your interview", "Company, position, round and your résumé. Add the job posting for questions about that exact team."),
+          ipCard("02", "Pick your questions", "Jane writes the questions they're likely to ask. Choose the ones you want to practice."),
+          ipCard("03", "Answer out loud, get graded", "What you said, how you said it, and a stronger version built from your own answer. Then say it again."))),
+
+      h("section", { class: "ip-section", id: "rounds" },
+        ipLabel("Every round"),
+        h("h2", {}, "Any job. Any company. Any round."),
+        h("p", { class: "ip-sub" }, "From a nurse's phone screen to a software engineer's final loop."),
+        h("div", { class: "ip-grid-3" }, ["phone", "behavioral", "role", "design", "first", "final"].map((key) =>
+          h("div", { class: "ip-round" }, h("h3", {}, ROUND_TYPES[key][0]), h("p", {}, ROUND_TYPES[key][1])))),
+        h("p", { class: "ip-more" }, "…and 20+ more, from case interviews to salary negotiation.")),
+
+      h("section", { class: "ip-section", id: "resume" },
+        h("div", { class: "ip-panel" },
+          ipLabel("Before the interview"),
+          h("h2", {}, "Land the interview with a résumé made for the job."),
+          h("p", { class: "ip-sub" }, "Most résumés get skipped because they don't say what the posting asks for. Paste the job, and Jane tailors your résumé and cover letter to stand out."),
+          h("div", { class: "ip-grid-3" },
+            ipCard("1", "Paste the job posting", "Jane reads what they want: skills, experience, keywords."),
+            ipCard("2", "Get your tailored résumé", "Your real experience, rewritten to match. What's missing is flagged, never made up."),
+            ipCard("3", "Add a cover letter", "Three short paragraphs. Download both as PDF or Word.")),
+          h("div", { class: "ip-compare" },
+            h("div", {}, h("span", { class: "ip-mono" }, "Before"), h("p", { class: "ip-muted" }, "Worked on backend services and fixed bugs.")),
+            h("div", { class: "ip-after" }, h("span", { class: "ip-mono ip-good" }, "After, for this job"), h("p", {}, "Built Go services and PostgreSQL schemas behind REST APIs used by 200,000 customers."))),
+          link(state.user ? "/app/documents" : "/signup", { class: "ip-btn ip-btn-primary" }, "Tailor my résumé"))),
+
+      pricingSection(plansInfo, { full: location.pathname === "/pricing" }),
+
+      h("section", { class: "ip-section ip-faq", id: "faq" },
+        ipLabel("Questions"),
+        h("h2", {}, "Good to know."),
+        h("div", { class: "ip-faq-list" }, IP_FAQ.map(item))),
+
+      h("section", { class: "ip-final" },
+        h("div", { class: "ip-glow ip-glow-low", "aria-hidden": "true" }),
+        h("h2", {}, "Your next interview, ", h("strong", {}, "rehearsed.")),
+        cta("Start a free mock interview"))),
+    siteFooter()));
+}
+
+function siteNav() {
+  const signedIn = !!state.user;
+  const header = h("header", { class: "site-nav" });
+  const toggle = h("button", { type: "button", class: "nav-toggle", "aria-label": "Menu", "aria-expanded": "false", onclick: () => {
+    const open = !header.classList.contains("menu-open");
+    header.classList.toggle("menu-open", open);
+    document.body.classList.toggle("nav-locked", open);
+    toggle.setAttribute("aria-expanded", open ? "true" : "false");
+  } }, svgIcon('<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>'));
+  const plain = (href, label) => h("a", { class: "nav-trigger nav-plain", href }, label);
+  header.append(h("div", { class: "container nav-bar" },
+    brand(),
+    h("div", { class: "nav-panel" },
+      h("nav", { class: "nav-menus", "aria-label": "Main" },
+        plain("/#how", "How it works"),
+        plain("/#rounds", "Rounds"),
+        plain("/#resume", "Résumé & cover letter"),
+        link("/pricing", { class: "nav-trigger nav-plain" }, "Pricing"),
+        plain("/interview-questions", "Guides")),
+      h("div", { class: "nav-actions" },
+        signedIn
+          ? link("/app", { class: "btn btn-primary btn-sm" }, "My account")
+          : [link("/login", { class: "nav-signin" }, "Sign in"), link("/signup", { class: "btn btn-primary btn-sm" }, "Start free")]),
+    ),
+    toggle,
+  ));
+  return header;
+}
+
+// ---------------------------------------------------------------------------
+// Signed in: dashboard
+// ---------------------------------------------------------------------------
+
+function usageMeter(usage) {
+  if (!usage || !usage.answersLimit) return null;
+  const used = Math.min(usage.answersUsed, usage.answersLimit);
+  const unlimited = usage.answersLimit >= 300;
+  return h("div", { class: "card ip-usage stack-sm" },
+    h("div", { class: "row-between" },
+      h("span", { class: "ip-mono" }, usage.period === "month" ? "This month" : "Free plan"),
+      unlimited ? h("span", { class: "pill" }, "Unlimited") : null),
+    h("b", {}, unlimited ? `${usage.answersUsed} graded answers` : `${used} of ${usage.answersLimit} graded answers used`),
+    unlimited ? null : h("div", { class: "ip-bar", "aria-hidden": "true" }, h("i", { style: `width:${Math.round(100 * used / usage.answersLimit)}%` })),
+    unlimited ? null : link("/pricing", { class: "small" }, usage.period === "month" ? "Go unlimited with Pro" : "See plans"));
+}
+
+async function viewDashboard() {
+  const resumes = await loadResumes().catch(() => []);
+  const sessions = savedSessions();
+  const usage = state.billing && state.billing.usage;
+  const newButton = link("/app/interview", { class: "btn btn-primary" }, svgIcon(ICON_MIC_DARK), "New mock interview");
+  const again = (s) => {
+    state.practicePrefill = { company: s.company, position: s.position, round: s.round };
+    navigate("/app/interview");
+  };
+  return h("div", { class: "stack ip-app" },
+    pageHead("Your interview prep", "Pick a company, a job and a round, then practice out loud.", newButton),
+    !(resumes || []).length
+      ? h("div", { class: "card ip-callout stack-sm" },
+        h("h3", {}, "Add your résumé first"),
+        h("p", { class: "muted" }, "Jane uses it to write questions about your real work and to grade your answers."),
+        h("div", { class: "row" }, link("/app/resumes", { class: "btn btn-primary" }, "Upload résumé")))
+      : null,
+    h("div", { class: "ip-dash-grid" },
+      h("div", { class: "card stack-sm ip-start" },
+        h("span", { class: "ip-mono" }, "Start practicing"),
+        h("h3", {}, "Got an interview coming up?"),
+        h("p", { class: "muted" }, "Tell Jane the company, the position and the round. She writes the questions; you pick the ones to practice."),
+        h("div", { class: "row" }, link("/app/interview", { class: "btn btn-primary" }, "Set up a mock interview"))),
+      usageMeter(usage)),
+    h("div", { class: "card stack-sm" },
+      h("h2", { class: "ip-h3" }, "Recent sessions"),
+      sessions.length
+        ? h("ul", { class: "ip-sessions" }, sessions.slice(0, 6).map((s) => h("li", {},
+          h("div", {}, h("b", {}, `${roundLabel(s.round)} · ${s.company || "Any company"}`),
+            h("div", { class: "faint small" }, `${s.position || ""} · ${formatDate(s.date)} · ${s.count} question${s.count === 1 ? "" : "s"}`)),
+          h("button", { class: "btn btn-sm", type: "button", onclick: () => again(s) }, "Practice again"))))
+        : h("p", { class: "muted" }, "Your mock interviews will show here.")),
+    h("div", { class: "ip-grid-2" },
+      link("/app/documents", { class: "card ip-tool" }, h("b", {}, "Tailor my résumé"), h("span", { class: "muted small" }, "Paste a job posting. Jane tailors your résumé to stand out.")),
+      link("/app/documents#letter", { class: "card ip-tool" }, h("b", {}, "Write a cover letter"), h("span", { class: "muted small" }, "Three short paragraphs from your real experience."))));
+}
+
+// ---------------------------------------------------------------------------
+// Signed in: mock interview (set up, pick questions, practice)
+// ---------------------------------------------------------------------------
+
+async function viewMockInterview() {
+  const resumes = await loadResumes().catch(() => []);
+  const wrap = h("div", { class: "stack ip-app" });
+  if (!(resumes || []).length) {
+    wrap.append(pageHead("New mock interview", ""), h("div", { class: "card empty" },
+      h("h3", {}, "Add your résumé first"),
+      h("p", {}, "Jane uses it to write questions about your real work and to grade your answers."),
+      link("/app/resumes", { class: "btn btn-primary" }, "Upload résumé")));
+    return wrap;
+  }
+  const prefill = state.practicePrefill || {};
+  state.practicePrefill = null;
+  const setup = { company: prefill.company || "", position: prefill.position || "", round: prefill.round || "", resumeId: (resumes.find((r) => r.isPrimary) || resumes[0]).id, posting: "" };
+  showSetup();
+  return wrap;
+
+  function showSetup() {
+    const company = h("input", { type: "text", maxlength: 120, placeholder: "e.g. Apple", value: setup.company, autocomplete: "organization" });
+    const position = h("input", { type: "text", maxlength: 120, placeholder: "e.g. Software Engineer", value: setup.position });
+    const posting = h("textarea", { rows: 4, maxlength: 30000, placeholder: "Paste the job description here" });
+    posting.value = setup.posting;
+    const resumeSelect = h("select", { "aria-label": "Résumé" }, resumes.map((r) => h("option", { value: r.id }, r.filename)));
+    resumeSelect.value = setup.resumeId;
+
+    const chips = h("div", { class: "ip-chips" });
+    const note = h("p", { class: "faint small" });
+    const hint = h("span", { class: "faint" });
+    const morePanel = h("div", { class: "ip-more-panel hidden" });
+    const search = h("input", { type: "search", placeholder: "Search: case, negotiation, clinical…", "aria-label": "Search interview types" });
+    const groups = h("div", { class: "stack-sm" });
+    const moreToggle = h("button", { type: "button", class: "ip-linkbtn", "aria-expanded": "false" }, "More interview types (20+)");
+
+    const pick = (key) => { setup.round = key; paint(); };
+    const chip = (key, small) => h("button", { type: "button", class: `ip-chip${small ? " ip-chip-sm" : ""}${setup.round === key ? " on" : ""}`, "aria-pressed": setup.round === key ? "true" : "false", onclick: () => pick(key) }, roundLabel(key));
+    function paint() {
+      const suggested = suggestedRounds(position.value);
+      if (!setup.round) setup.round = suggested.includes("design") ? "design" : suggested[1] || suggested[0];
+      chips.replaceChildren(...suggested.map((key) => chip(key)));
+      hint.textContent = position.value.trim() ? `Usual rounds for ${position.value.trim()}, in order` : "Usual rounds, in order";
+      note.textContent = (ROUND_TYPES[setup.round] || ROUND_TYPES.mixed)[1];
+      const q = search.value.trim().toLowerCase();
+      groups.replaceChildren(...ROUND_GROUPS.map(([title, keys]) => {
+        const shown = keys.filter((key) => !q || `${ROUND_TYPES[key][0]} ${ROUND_TYPES[key][1]}`.toLowerCase().includes(q));
+        return shown.length ? h("div", { class: "stack-sm" }, h("span", { class: "ip-mono" }, title), h("div", { class: "ip-chips" }, shown.map((key) => chip(key, true)))) : null;
+      }));
+      summaryRound.textContent = setup.round === "mixed" ? "Full loop" : `${roundLabel(setup.round)} round`;
+    }
+    moreToggle.addEventListener("click", () => {
+      const open = morePanel.classList.toggle("hidden") === false;
+      moreToggle.setAttribute("aria-expanded", open ? "true" : "false");
+      moreToggle.textContent = open ? "Hide other interview types" : "More interview types (20+)";
+      if (open) search.focus();
+    });
+    search.addEventListener("input", paint);
+    let timer = null;
+    position.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(() => { setup.round = ""; paint(); summaryJob(); }, 350); });
+    company.addEventListener("input", () => summaryJob());
+    morePanel.append(h("label", { class: "ip-search" }, svgIcon(HD_SEARCH), search), groups);
+
+    const summaryTitle = h("b", {});
+    const summaryRound = h("span", { class: "muted" });
+    const summaryJob = () => { summaryTitle.textContent = [company.value.trim(), position.value.trim()].filter(Boolean).join(" · ") || "Your interview"; };
+    summaryJob();
+
+    const error = h("div", { class: "form-error", hidden: true });
+    const go = h("button", { class: "btn btn-primary btn-lg ip-wide", type: "submit" }, "Generate my questions", svgIcon(ICON_ARROW));
+    const usage = state.billing && state.billing.usage;
+    const freeNote = usage && usage.period === "total"
+      ? h("p", { class: "faint small" }, `Free plan: ${Math.max(usage.answersLimit - usage.answersUsed, 0)} of ${usage.answersLimit} graded answers left. `, link("/pricing", {}, "See plans"), ".")
+      : null;
+
+    const form = h("form", { class: "card stack ip-form", onsubmit: async (event) => {
+      event.preventDefault();
+      setup.company = company.value.trim();
+      setup.position = position.value.trim();
+      setup.posting = posting.value.trim();
+      setup.resumeId = resumeSelect.value;
+      error.hidden = true;
+      if (!setup.position) { error.hidden = false; error.textContent = "Tell Jane the position you're interviewing for."; position.focus(); return; }
+      if (setup.posting && setup.posting.length < 80) { error.hidden = false; error.textContent = "That job posting looks too short. Paste the full posting, or leave it empty."; return; }
+      go.disabled = true;
+      try {
+        await generate([]);
+      } catch (e) {
+        go.disabled = false;
+        error.hidden = false;
+        error.replaceChildren(e.code === "free_limit_reached" || e.code === "plan_limit_reached" ? freeUpgrade("Keep practicing with Jane", e.message) : e.message);
+      }
+    } },
+      h("div", { class: "grid-2" },
+        h("label", { class: "field" }, "Company", company),
+        h("label", { class: "field" }, "Position", position)),
+      h("fieldset", { class: "ip-fieldset" },
+        h("legend", {}, "Which round? ", hint),
+        chips, note,
+        h("div", { class: "row" }, moreToggle,
+          h("button", { type: "button", class: "ip-linkbtn", onclick: () => pick("mixed") }, "Not sure? Practice the full loop")),
+        morePanel),
+      h("label", { class: "field" }, "Résumé", resumeSelect),
+      h("label", { class: "field" }, h("span", {}, "Job posting ", h("span", { class: "faint" }, "Optional. Paste it for questions about this exact team.")), posting),
+      error, go, freeNote);
+
+    wrap.replaceChildren(
+      pageHead("New mock interview", "Tell Jane the company and the job. She suggests the rounds that job usually has."),
+      h("div", { class: "ip-setup" }, form,
+        h("aside", { class: "card stack-sm ip-aside" },
+          h("span", { class: "ip-mono" }, "Your session"),
+          summaryTitle, summaryRound,
+          h("ul", { class: "ip-steps" },
+            h("li", {}, "Jane writes 8 questions; you pick which to practice"),
+            h("li", {}, "Answer out loud, like the real thing"),
+            h("li", {}, "Graded on what you said and how you said it")),
+          h("p", { class: "faint small" }, "Likely questions for this kind of round, written for the role. Jane never claims they're the company's real questions."))));
+    paint();
+  }
+
+  async function generate(exclude) {
+    wrap.replaceChildren(pageHead("New mock interview", ""), h("div", { class: "card" }, spinnerRow("Jane is writing your questions… (about 20 seconds)")));
+    const resume = await resumeText(setup.resumeId).catch(() => "");
+    try {
+      const data = await api("/api/v1/interview-questions", { method: "POST", body: {
+        resumeText: resume, jobTitle: setup.position, company: setup.company,
+        jobDescription: setup.posting, stage: setup.round === "mixed" ? "mixed" : setup.round, exclude } });
+      loadBilling().then(refreshUsage).catch(() => null);
+      setup.input = { resumeText: resume, jobDescription: data.jobDescription || setup.posting, jobTitle: data.jobTitle || setup.position, stage: setup.round };
+      showPicker(data.questions || [], exclude);
+    } catch (e) {
+      showSetup();
+      throw e;
+    }
+  }
+
+  function crumb() {
+    return [setup.company, setup.position, setup.round === "mixed" ? "Full loop" : `${roundLabel(setup.round)} round`].filter(Boolean).join(" · ");
+  }
+
+  function showPicker(questions, excluded) {
+    const picked = new Set(questions.slice(0, 3).map((_, i) => i));
+    const list = h("ul", { class: "ip-qlist" });
+    const count = h("b", {});
+    const start = h("button", { class: "btn btn-primary btn-lg", type: "button" });
+    const own = h("input", { type: "text", maxlength: 300, placeholder: "e.g. a question a friend was asked there" });
+    const paint = () => {
+      list.replaceChildren(...questions.map((q, i) => {
+        const box = h("input", { type: "checkbox" });
+        box.checked = picked.has(i);
+        box.addEventListener("change", () => { if (box.checked) picked.add(i); else picked.delete(i); paint(); });
+        return h("li", {}, h("label", { class: `ip-qrow${picked.has(i) ? " on" : ""}` }, box,
+          h("span", { class: "stack-sm" },
+            h("span", { class: "ip-qtext" }, q.question),
+            h("span", { class: "ip-tags" },
+              q.level ? h("span", { class: `ip-tag ip-${String(q.level).toLowerCase()}` }, q.level) : null,
+              q.tests ? h("span", { class: "ip-tag" }, `Tests: ${q.tests}`) : null,
+              q.fromResume ? h("span", { class: "ip-tag ip-resume" }, "From your résumé") : null))));
+      }));
+      count.textContent = String(picked.size);
+      start.textContent = setup.round === "ask" ? `See ${picked.size} questions` : `Start with ${picked.size} question${picked.size === 1 ? "" : "s"}`;
+      start.disabled = picked.size === 0;
+    };
+    start.addEventListener("click", () => {
+      const chosen = questions.filter((_, i) => picked.has(i));
+      saveSession({ company: setup.company, position: setup.position, round: setup.round, date: new Date().toISOString(), count: chosen.length });
+      showPractice(chosen, 0);
+    });
+    const addOwn = () => {
+      const text = own.value.trim();
+      if (text.length < 8) return;
+      questions.push({ question: text, approach: "Your own question. Answer it the way you would in the room.", level: "", tests: "", fromResume: false });
+      picked.add(questions.length - 1);
+      own.value = "";
+      paint();
+    };
+    own.addEventListener("keydown", (event) => { if (event.key === "Enter") { event.preventDefault(); addOwn(); } });
+    const fresh = h("button", { class: "btn", type: "button", onclick: async () => {
+      fresh.disabled = true;
+      try { await generate([...excluded, ...questions.map((q) => q.question)].slice(-60)); }
+      catch (e) { toast(e.message, true); }
+    } }, svgIcon(ICON_REFRESH), "New questions");
+    wrap.replaceChildren(
+      h("button", { class: "ip-back", type: "button", onclick: showSetup }, svgIcon(ICON_BACK), "Change setup"),
+      pageHead("Pick your questions", `${crumb()}. Jane wrote these using your résumé. Pick the ones you want to practice.`, fresh),
+      h("div", { class: "row-between ip-pickbar" },
+        h("span", { class: "muted small" }, count, " selected"),
+        h("span", { class: "row" },
+          h("button", { class: "ip-linkbtn", type: "button", onclick: () => { questions.forEach((_, i) => picked.add(i)); paint(); } }, "Select all"),
+          h("button", { class: "ip-linkbtn", type: "button", onclick: () => { picked.clear(); paint(); } }, "Clear"))),
+      list,
+      h("div", { class: "card ip-own" },
+        h("label", { class: "field" }, "Add your own question", own),
+        h("button", { class: "btn", type: "button", onclick: addOwn }, "Add")),
+      h("div", { class: "row-between ip-pickbar" },
+        h("p", { class: "faint small" }, "Likely questions for this kind of round, not leaked questions. Hard ones are marked so you can choose your challenge."),
+        start));
+    paint();
+  }
+
+  function showPractice(chosen, index) {
+    if (setup.round === "ask") {
+      wrap.replaceChildren(
+        h("button", { class: "ip-back", type: "button", onclick: () => showPicker(chosen, []) }, svgIcon(ICON_BACK), "Change questions"),
+        pageHead("Questions to ask them", crumb()),
+        h("div", { class: "stack" }, chosen.map((q, i) => h("div", { class: "card stack-sm" },
+          h("div", { class: "row" }, h("span", { class: "step-num" }, String(i + 1)), h("strong", {}, q.question)),
+          h("p", { class: "muted small" }, h("strong", {}, "Why ask it: "), q.approach)))));
+      return;
+    }
+    const q = chosen[index];
+    const last = index === chosen.length - 1;
+    wrap.replaceChildren(
+      h("div", { class: "row-between ip-pracbar" },
+        h("button", { class: "ip-back", type: "button", onclick: () => showPicker(chosen, []) }, svgIcon(ICON_BACK), "Change questions"),
+        h("span", { class: "muted small" }, crumb()),
+        h("span", { class: "ip-mono" }, `Question ${index + 1} of ${chosen.length}`)),
+      h("div", { class: "ip-progress", "aria-hidden": "true" }, h("i", { style: `width:${Math.round(100 * (index + 1) / chosen.length)}%` })),
+      h("article", { class: "card stack-sm ip-question" },
+        h("span", { class: "ip-mono" }, roundLabel(setup.round)),
+        h("h1", {}, q.question),
+        q.approach ? h("details", {}, h("summary", {}, "What a strong answer covers"), h("p", { class: "muted" }, q.approach)) : null),
+      practiceBox(q.question, setup.input, { open: true }),
+      h("div", { class: "row-between" },
+        index > 0 ? h("button", { class: "btn", type: "button", onclick: () => showPractice(chosen, index - 1) }, "Previous question") : h("span", {}),
+        last
+          ? h("button", { class: "btn btn-primary", type: "button", onclick: () => showDone(chosen) }, "Finish session")
+          : h("button", { class: "btn btn-primary", type: "button", onclick: () => showPractice(chosen, index + 1) }, "Next question", svgIcon(ICON_ARROW))));
+    window.scrollTo(0, 0);
+  }
+
+  function showDone(chosen) {
+    wrap.replaceChildren(
+      pageHead("Session done", `${crumb()} · ${chosen.length} question${chosen.length === 1 ? "" : "s"}`),
+      h("div", { class: "card stack" },
+        h("p", {}, "Nice work. The best way to get ready is to say it again: pick another round, or redo the questions that felt shaky."),
+        h("ul", { class: "ip-steps" }, chosen.map((q) => h("li", {}, q.question))),
+        h("div", { class: "row" },
+          h("button", { class: "btn btn-primary", type: "button", onclick: () => showPractice(chosen, 0) }, "Practice these again"),
+          h("button", { class: "btn", type: "button", onclick: () => { setup.round = ""; showSetup(); } }, "Practice another round"),
+          link("/app", { class: "btn btn-ghost" }, "Back to dashboard"))));
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Signed in: résumé and cover letter for a job posting
+// ---------------------------------------------------------------------------
+
+async function viewDocuments() {
+  const resumes = await loadResumes().catch(() => []);
+  const head = pageHead("Résumé & cover letter", "Paste a job posting. Jane tailors your résumé and writes a cover letter to stand out, from your real experience.");
+  if (!(resumes || []).length) {
+    return h("div", { class: "stack" }, head, h("div", { class: "card empty" },
+      h("h3", {}, "Add your résumé first"),
+      h("p", {}, "Jane tailors your real experience; she never makes anything up."),
+      link("/app/resumes", { class: "btn btn-primary" }, "Upload résumé")));
+  }
+  const company = h("input", { type: "text", maxlength: 120, placeholder: "e.g. Apple" });
+  const title = h("input", { type: "text", maxlength: 160, placeholder: "e.g. Software Engineer" });
+  const posting = h("textarea", { rows: 8, maxlength: 30000, placeholder: "Paste the full job posting" });
+  const resumeSelect = h("select", { "aria-label": "Résumé" }, resumes.map((r) => h("option", { value: r.id }, r.filename)));
+  resumeSelect.value = (resumes.find((r) => r.isPrimary) || resumes[0]).id;
+  const getInput = async () => {
+    if (posting.value.trim().length < 80) throw new Error("Paste the full job posting first, so Jane knows what they want.");
+    return { resumeText: await resumeText(resumeSelect.value), jobDescription: posting.value.trim(), jobTitle: title.value.trim(), company: company.value.trim() };
+  };
+  const usage = state.billing && state.billing.usage;
+  const left = usage && usage.period === "month" && usage.resumesLimit < 300
+    ? h("p", { class: "faint small" }, `This month: ${usage.resumesUsed} of ${usage.resumesLimit} tailored résumés and ${usage.lettersUsed} of ${usage.lettersLimit} cover letters used.`)
+    : null;
+  const letter = coverLetterSection(getInput);
+  letter.id = "letter";
+  return h("div", { class: "stack ip-app" }, head,
+    h("div", { class: "card stack" },
+      h("div", { class: "grid-2" }, h("label", { class: "field" }, "Company", company), h("label", { class: "field" }, "Job title", title)),
+      h("label", { class: "field" }, "Job posting", posting),
+      h("label", { class: "field" }, "Résumé", resumeSelect),
+      left),
+    tailoredResumeSection(getInput),
+    letter);
+}
 
 render();

@@ -355,7 +355,7 @@ func main() {
 				Kind:         api.PlanKindSubscription,
 				Interval:     "month",
 				TrialDays:    0, // No free trial; the first payment is due at checkout.
-				DisplayPrice: envOrDefault("PRO_MONTHLY_DISPLAY_PRICE", "$49.99"),
+				DisplayPrice: envOrDefault("PRO_MONTHLY_DISPLAY_PRICE", "$39.99"),
 				PriceID:      strings.TrimSpace(os.Getenv("STRIPE_PRICE_PRO_MONTHLY")),
 				// Subscribers at the old $14.99 price keep it.
 				LegacyPriceIDs: envList("STRIPE_PRICE_PRO_MONTHLY_LEGACY"),
@@ -382,7 +382,7 @@ func main() {
 			},
 			{
 				Key:          "interview",
-				Name:         "Interview Prep",
+				Name:         "Prep",
 				Kind:         api.PlanKindSubscription,
 				Interval:     "month",
 				Access:       api.AccessInterview,

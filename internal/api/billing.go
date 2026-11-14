@@ -372,6 +372,8 @@ type billingStatusResponse struct {
 	JobMatches        usageResponse    `json:"jobMatches"`
 	// Free is what a Free plan account has left (nil on a paid plan).
 	Free *freeAllowanceResponse `json:"free,omitempty"`
+	// Usage is what the user has used of their plan's allowances.
+	Usage *planUsage `json:"usage,omitempty"`
 }
 
 func (s *Server) handleBillingPlans(w http.ResponseWriter, r *http.Request) {
@@ -441,6 +443,7 @@ func (s *Server) handleBillingStatus(w http.ResponseWriter, r *http.Request) {
 	if !current.Pro {
 		response.Free = s.freeAllowanceFor(r.Context(), user.ID)
 	}
+	response.Usage = s.planUsageFor(r.Context(), user.ID, current)
 	if current.Organization != nil {
 		response.OrganizationName = current.Organization.Name
 	}

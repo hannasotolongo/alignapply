@@ -59,6 +59,12 @@ type Bullet struct {
 type InterviewQuestion struct {
 	Question string `json:"question"`
 	Approach string `json:"approach"`
+	// Level is how hard the question is: Easy, Medium or Hard.
+	Level string `json:"level,omitempty"`
+	// Tests says in a few words what the question checks.
+	Tests string `json:"tests,omitempty"`
+	// FromResume marks a question built on the candidate's own work.
+	FromResume bool `json:"fromResume,omitempty"`
 }
 
 type Kit struct {

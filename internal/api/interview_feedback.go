@@ -163,8 +163,11 @@ func (s *Server) handleInterviewQuestions(w http.ResponseWriter, r *http.Request
 	case request.ResumeText == "":
 		writeError(w, http.StatusBadRequest, "Add a résumé first so Jane can tailor your practice.")
 		return
-	case len(request.JobDescription) < 80:
-		writeError(w, http.StatusBadRequest, "Paste the job posting (or pick a saved job with a description) so Jane knows what they'll ask.")
+	case request.JobTitle == "" && len(request.JobDescription) < 80:
+		writeError(w, http.StatusBadRequest, "Tell Jane the position you're interviewing for.")
+		return
+	case request.JobDescription != "" && len(request.JobDescription) < 80:
+		writeError(w, http.StatusBadRequest, "That job posting is too short. Paste the full posting, or leave it empty.")
 		return
 	case len(request.ResumeText) > fitCheckMaxResumeChars || len(request.JobDescription) > fitCheckMaxJobChars:
 		writeError(w, http.StatusBadRequest, "That résumé or posting is too long.")
@@ -188,10 +191,6 @@ func (s *Server) handleInterviewQuestions(w http.ResponseWriter, r *http.Request
 		log.Printf("[interview-questions] FAILED user=%s: %v", user.ID, err)
 		writeError(w, http.StatusBadGateway, "Jane couldn't write practice questions just now. Try again in a minute.")
 		return
-	}
-	// Free plan: one question to try practicing with Jane.
-	if isFreeRequest(r) && len(questions) > 1 {
-		questions = questions[:1]
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"stage":          strings.TrimSpace(request.Stage),
