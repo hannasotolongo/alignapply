@@ -27,7 +27,7 @@ const (
 	FreeMissingShown   = 3
 	FreeSearchesPerDay = 10
 
-	FreeCoverLetters          = 1
+	FreeCoverLetters          = 0
 	FreeInterviewQuestionSets = 1
 	FreeInterviewFeedback     = 1
 

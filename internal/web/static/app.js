@@ -1309,7 +1309,7 @@ function planCards(plansInfo, { compact = false, include = ["monthly", "intervie
     byKey.free = (h("div", { class: "card price-card" },
       h("div", {}, h("h3", {}, "Free"), h("p", { class: "muted small" }, "Try a mock interview")),
       h("div", { class: "price" }, "$0", " ", h("small", {}, "/ forever")),
-      compact ? null : ticks(["1 mock interview, 3 graded answers", "Pace, filler words and length", "1 cover letter"]),
+      compact ? null : ticks(["1 mock interview, 3 graded answers", "Pace, filler words and length", "A stronger version of each answer"]),
       state.user
         ? link("/app/interview", { class: "btn btn-block" }, "Start practicing")
         : link("/signup", { class: "btn btn-block" }, "Start free"),
@@ -1415,8 +1415,8 @@ function comparePlans() {
     ["Pace, filler words and length", "✓", "✓", "✓"],
     ["A stronger version of each answer", "✓", "✓", "✓"],
     ["Tailored résumés", "–", "3 a month", "Unlimited*"],
-    ["Cover letters", "1", "3 a month", "Unlimited*"],
-    ["PDF and Word downloads", "Cover letter", "✓", "✓"],
+    ["Cover letters", "–", "3 a month", "Unlimited*"],
+    ["PDF and Word downloads", "–", "✓", "✓"],
   ];
   const cell = (value, strong) => h("td", { class: value === "–" ? "none" : strong ? "strong" : "" }, value);
   return h("div", { class: "compare-wrap" },
@@ -3923,19 +3923,18 @@ function coverLetterSection(getInput) {
       write.disabled = false;
     } catch (error) {
       write.disabled = false;
-      slot.replaceChildren(error.code === "free_limit_reached" || error.code === "plan_limit_reached"
+      slot.replaceChildren(error.code === "pro_required" || error.code === "free_limit_reached" || error.code === "plan_limit_reached"
         ? freeUpgrade("A cover letter for every job", error.message)
         : h("div", { class: "form-error" }, error.message));
     } finally {
       if (isFree()) loadBilling();
     }
   } }, "Write my cover letter");
-  const left = isFree() && freeLeft() ? freeLeft().coverLettersLeft : null;
   return h("div", { class: "stack-sm" },
     h("div", { class: "card inset stack-sm" },
       h("h3", {}, "Your cover letter"),
       h("p", { class: "muted small" }, "Jane writes a short letter for this job that shows why you're a fit, in a natural voice. You can copy it or download it."),
-      left === null ? null : h("p", { class: "faint small" }, left > 0 ? "Your Free plan includes 1 cover letter. Use it on the job you want most." : "You've used your free cover letter. Pro writes one for every job."),
+      isFree() ? h("p", { class: "faint small" }, "Cover letters are part of Prep and Pro.") : null,
       h("div", { class: "row" }, write)),
     slot);
 }

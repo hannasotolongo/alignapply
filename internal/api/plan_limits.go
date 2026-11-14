@@ -23,7 +23,6 @@ const (
 	FreeQuestionSets         = 3
 	PaidQuestionSetsPerMonth = 500
 
-	FreeCoverLettersTotal    = 1
 	PrepCoverLettersPerMonth = 3
 	PrepResumesPerMonth      = 3
 	ProDocumentsPerMonth     = 300
@@ -63,9 +62,9 @@ var (
 		proMessage:  "You've generated a lot of question sets this month. Try again next month.",
 	}
 	coverLetterMeter = meter{
-		freeFeature: featureFreeCoverLetter, freeLimit: FreeCoverLettersTotal,
+		freeFeature: "", freeLimit: 0,
 		feature: featureCoverLetter, prepLimit: PrepCoverLettersPerMonth, proLimit: ProDocumentsPerMonth,
-		freeMessage: "You've used your free cover letter. Choose Prep or Pro for more.",
+		freeMessage: "Cover letters are part of Prep and Pro.",
 		prepMessage: "You've used this month's 3 cover letters. Go unlimited with Pro, or write more next month.",
 		proMessage:  "You've reached this month's fair-use limit for cover letters. It resets next month.",
 	}
