@@ -396,7 +396,7 @@ func (s *Server) newAlertMatches(ctx context.Context, alert repository.MatchAler
 		scored = append(scored, match)
 	}
 	sortJobMatches(scored)
-	scored = nearbyTrialMatches(scored, jobs.StateOfPlace(alert.Location))
+	scored = nearbyTrialMatches(scored, alert.Location)
 	if len(scored) > alertMatchesPerEmail {
 		scored = scored[:alertMatchesPerEmail]
 	}

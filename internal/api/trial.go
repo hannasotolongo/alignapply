@@ -176,7 +176,7 @@ func (s *Server) handleTrialSearch(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	sortJobMatches(scored)
-	scored = nearbyTrialMatches(scored, jobs.StateOfPlace(request.Location))
+	scored = nearbyTrialMatches(scored, request.Location)
 	setServerTiming(w, started, searched, piped, time.Now(), timings)
 
 	log.Printf("[trial] role=%q location=%q jobs=%d scored=%d in %s", request.TargetRole, request.Location, len(result.Jobs), len(scored), time.Since(started))
@@ -336,7 +336,23 @@ func trialKey(text string) string {
 // location names the searched state, Jane knows how far it is, and it is
 // within 60 miles, widening to 150 miles when fewer than three are that
 // close. So a Gainesville, FL search never shows a job in another state.
-func nearbyTrialMatches(ranked []jobs.JobMatch, state string) []jobs.JobMatch {
+// A "Remote" search shows remote jobs, and a city with too few jobs nearby
+// is topped up with remote ones, so a search never comes back empty when
+// Jane scored jobs that fit.
+func nearbyTrialMatches(ranked []jobs.JobMatch, location string) []jobs.JobMatch {
+	if remotePlace(location) {
+		remote := []jobs.JobMatch{}
+		for _, match := range ranked {
+			if remoteMatch(match) {
+				remote = append(remote, match)
+			}
+		}
+		if len(remote) > 0 {
+			return remote
+		}
+		return ranked
+	}
+	state := jobs.StateOfPlace(location)
 	within := func(limit float64) []jobs.JobMatch {
 		kept := []jobs.JobMatch{}
 		for _, match := range ranked {
@@ -351,10 +367,34 @@ func nearbyTrialMatches(ranked []jobs.JobMatch, state string) []jobs.JobMatch {
 		}
 		return kept
 	}
-	if near := within(60); len(near) >= trialMatchesShown {
-		return near
+	near := within(60)
+	if len(near) < trialMatchesShown {
+		near = within(150)
 	}
-	return within(150)
+	if len(near) < trialMatchesShown {
+		for _, match := range ranked {
+			if match.DistanceMiles == nil && remoteMatch(match) {
+				near = append(near, match)
+			}
+		}
+	}
+	return near
+}
+
+// remotePlace reports a search location that means "remote".
+func remotePlace(location string) bool {
+	text := strings.ToLower(strings.TrimSpace(location))
+	switch text {
+	case "anywhere", "work from home", "wfh", "online", "virtual", "home":
+		return true
+	}
+	return strings.Contains(text, "remote")
+}
+
+// remoteMatch reports a remote job.
+func remoteMatch(match jobs.JobMatch) bool {
+	return strings.EqualFold(strings.TrimSpace(match.WorkArrangement), "remote") ||
+		strings.Contains(strings.ToLower(match.Location), "remote")
 }
 
 // trialUseful leaves out posting boilerplate (background checks, legal
